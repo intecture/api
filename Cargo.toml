@@ -1,0 +1,24 @@
+[package]
+
+name = "intecture-api"
+version = "0.0.1"
+authors = [ "Peter Hayes <peter.hayes@betweenlines.co.uk>" ]
+license = "Apache-2.0"
+description = "CLI component for Intecture infrastructure. Intecture is the developer friendly, multi-lingual configuration management tool."
+keywords = ["intecture", "api"]
+homepage = "https://intecture.io"
+repository = "https://github.com/betweenlines/intecture-api"
+
+[dependencies]
+
+libc = "0.1"
+
+[dependencies.zmq]
+
+path = "../rust-zmq"
+#git = "https://github.com/erickt/rust-zmq.git"
+
+[lib]
+
+name = "inapi"
+crate_type = [ "dylib" ]
