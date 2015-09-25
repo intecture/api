@@ -12,11 +12,7 @@ repository = "https://github.com/betweenlines/intecture-api"
 [dependencies]
 
 libc = "0.1"
-
-[dependencies.zmq]
-
-path = "../rust-zmq"
-#git = "https://github.com/erickt/rust-zmq.git"
+zmq = { branch = "feature-socket-convert", git = "https://github.com/petehayes102/rust-zmq.git" }
 
 [lib]
 
