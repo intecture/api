@@ -8,6 +8,10 @@ Intecture is a developer friendly, language agnostic configuration management to
 
 You can find out more at [intecture.io](http://intecture.io).
 
+# System Requirements
+
+Intecture relies on [ZeroMQ](http://zeromq.org) for communication between your project (intecure-api) and your managed servers (intecture-agent). You can usually install ZMQ via the package manager, or from source: [libzmq](https://github.com/zeromq/libzmq).
+
 # Install
 
 ## Auto
@@ -25,7 +29,7 @@ First, as this project is written in Rust, you'll need...well, [Rust!](https://w
 Next, clone this repository to your local machine and use the Makefile to build it:
 
 ```
-$ git clone #...
+$ git clone https://github.com/betweenlines/intecture-api.git
 $ cd intecture-api/
 $ make && sudo make install
 ```
