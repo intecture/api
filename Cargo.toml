@@ -17,4 +17,4 @@ zmq = { branch = "feature-socket-convert", git = "https://github.com/petehayes10
 [lib]
 
 name = "inapi"
-crate_type = [ "dylib" ]
+crate_type = [ "rlib", "dylib" ]
