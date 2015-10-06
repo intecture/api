@@ -1,4 +1,4 @@
-# Introduction
+# Intecture
 
 Intecture is a developer friendly, language agnostic configuration management tool for server systems.
 
