@@ -1,4 +1,5 @@
 UNAME_S := $(shell uname -s)
+CARGO := $(shell which cargo)
 TARGET = release
  
 ifeq ($(UNAME_S), Linux)
@@ -15,9 +16,9 @@ endif
 
 all:
 ifeq ($(TARGET), release)
-	$(USRPATH)/bin/cargo build --release
+	$(CARGO) build --release
 else
-	$(USRPATH)/bin/cargo build
+	$(CARGO) build
 endif
 
 install:
@@ -27,4 +28,4 @@ uninstall:
 	rm -f $(USRPATH)/lib/libinapi.so
 
 clean:
-	$(USRPATH)/bin/cargo clean
+	$(CARGO) clean
