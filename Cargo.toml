@@ -8,6 +8,7 @@ description = "CLI component for Intecture infrastructure. Intecture is the deve
 keywords = ["intecture", "api"]
 homepage = "https://intecture.io"
 repository = "https://github.com/betweenlines/intecture-api"
+build = "build.rs"
 
 [dependencies]
 
