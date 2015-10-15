@@ -6,4 +6,6 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+//! FFI bindings for C.
+
 pub mod command;
