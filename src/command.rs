@@ -14,36 +14,40 @@
 //! Setup your ZMQ socket, using your managed host's IP address in
 //! place of *127.0.0.1*:
 //!
-//! ```
+//! ```no_run
 //! # #[macro_use] extern crate zmq;
+//! # fn main() {
 //! let mut ctx = zmq::Context::new();
 //! let mut zmq_socket = ctx.socket(zmq::REQ).unwrap();
-//! zmq_socket.connect("tcp://127.0.0.1:7101").unwrap()
+//! zmq_socket.connect("tcp://127.0.0.1:7101").unwrap();
+//! # }
 //! ```
 //!
 //! Now run your command and get the result:
 //!
-//! ```
+//! ```no_run
 //! # #[macro_use] extern crate zmq;
+//! # #[macro_use] extern crate inapi;
+//! # use inapi::Command;
+//! # fn main() {
 //! # let mut ctx = zmq::Context::new();
 //! # let mut zmq_socket = ctx.socket(zmq::REQ).unwrap();
-//! # zmq_socket.connect("inproc://test").unwrap()
 //! let cmd = Command::new("whoami");
 //! let result = cmd.exec(&mut zmq_socket).unwrap();
 //! println!("Exit: {}, Stdout: {}, Stderr: {}", result.exit_code, result.stdout, result.stderr);
+//! # }
 //! ```
 //!
 //! If all goes well, this will output:
 //!
-//! ```
-//! Exit: 0, Stdout: root, Stderr:
-//! ```
+//! > Exit: 0, Stdout: root, Stderr:
 
 use ::MissingFrameError;
 use std::convert;
 use zmq;
 
 /// Reusable container for sending commands to managed hosts.
+#[derive(Debug)]
 pub struct Command {
     /// The shell command
     pub cmd: String,
@@ -64,7 +68,8 @@ impl Command {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
+    /// # use inapi::Command;
     /// let cmd = Command::new("your shell command goes here");
     /// ```
     pub fn new(cmd: &str) -> Command {
@@ -79,12 +84,20 @@ impl Command {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```no_run
+    /// # #[macro_use] extern crate zmq;
+    /// # #[macro_use] extern crate inapi;
+    /// # use inapi::Command;
+    /// # fn main() {
+    /// # let mut ctx = zmq::Context::new();
+    /// # let mut web1_sock = ctx.socket(zmq::REQ).unwrap();
+    /// # let mut web2_sock = ctx.socket(zmq::REQ).unwrap();
     /// let cmd = Command::new("whoami");
     /// let result_web1 = cmd.exec(&mut web1_sock).unwrap();
     /// let result_web2 = cmd.exec(&mut web2_sock).unwrap();
+    /// # }
     /// ```
-    pub fn exec(&mut self, sock: &mut zmq::Socket) -> Result<CommandResult, CommandError> {
+    pub fn exec(&self, sock: &mut zmq::Socket) -> Result<CommandResult, CommandError> {
         try!(sock.send_str("command::exec", zmq::SNDMORE));
         try!(sock.send_str(&self.cmd, 0));
 
@@ -133,4 +146,39 @@ impl convert::From<zmq::Error> for CommandError {
 	fn from(err: zmq::Error) -> CommandError {
 		CommandError::ZmqError(err)
 	}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use zmq;
+    use std::thread;
+
+    #[test]
+    fn test_exec() {
+        let mut ctx = zmq::Context::new();
+
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            agent_sock.bind("inproc://test_exec").unwrap();
+
+            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
+            assert!(agent_sock.get_rcvmore().unwrap());
+            assert_eq!("moo", agent_sock.recv_string(0).unwrap().unwrap());
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("cow", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("", 0).unwrap();
+        });
+
+        let mut req_sock = ctx.socket(zmq::REQ).unwrap();
+        req_sock.connect("inproc://test_exec").unwrap();
+
+        let cmd = Command::new("moo");
+        cmd.exec(&mut req_sock).unwrap();
+        
+        agent_mock.join().unwrap();
+    }
 }

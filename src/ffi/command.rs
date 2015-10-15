@@ -63,6 +63,6 @@ pub extern "C" fn command_new(cmd: *const c_char) -> Ffi__Command {
 
 #[no_mangle]
 pub extern "C" fn command_exec(ffi_cmd_ptr: *const Ffi__Command, raw_sock: *mut c_void) -> Ffi__CommandResult {
-    let mut cmd = Command::from(unsafe { ptr::read(ffi_cmd_ptr) });
+    let cmd = Command::from(unsafe { ptr::read(ffi_cmd_ptr) });
     Ffi__CommandResult::from(cmd.exec(&mut zmq::Socket::new(raw_sock, true)).unwrap())
 }
