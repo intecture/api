@@ -78,6 +78,8 @@ impl Command {
         }
     }
 
+    /// Send request to the Agent to run your shell command.
+    ///
     /// Command structs are reusable accross multiple hosts, which is
     /// helpful if you are configuring a group of servers
     /// simultaneously.
