@@ -31,8 +31,11 @@ Next, clone this repository to your local machine and use the Makefile to build 
 ```
 $ git clone https://github.com/betweenlines/intecture-api.git
 $ cd intecture-api/
-$ make && sudo make install
+$ make
+$ make test && sudo make install
 ```
+
+Note that we chained the test and install targets. Thus if the tests fail, we don't install a bad binary!
 
 Once this has finished, you should have a shiny new library called *libinapi.so*, which lives in your system's *lib/* directory.
 

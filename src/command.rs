@@ -161,10 +161,9 @@ mod tests {
         let mut ctx = zmq::Context::new();
 
         let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_exec").unwrap();
 
         let agent_mock = thread::spawn(move || {
-            agent_sock.bind("inproc://test_exec").unwrap();
-
             assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
             assert!(agent_sock.get_rcvmore().unwrap());
             assert_eq!("moo", agent_sock.recv_string(0).unwrap().unwrap());
@@ -172,15 +171,19 @@ mod tests {
             agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
             agent_sock.send_str("0", zmq::SNDMORE).unwrap();
             agent_sock.send_str("cow", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            agent_sock.send_str("err", 0).unwrap();
         });
 
         let mut req_sock = ctx.socket(zmq::REQ).unwrap();
         req_sock.connect("inproc://test_exec").unwrap();
 
         let cmd = Command::new("moo");
-        cmd.exec(&mut req_sock).unwrap();
-        
+        let result = cmd.exec(&mut req_sock).unwrap();
+
+        assert_eq!(result.exit_code, 0);
+        assert_eq!(result.stdout, "cow");
+        assert_eq!(result.stderr, "err");
+
         agent_mock.join().unwrap();
     }
 }

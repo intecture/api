@@ -64,5 +64,60 @@ pub extern "C" fn command_new(cmd: *const c_char) -> Ffi__Command {
 #[no_mangle]
 pub extern "C" fn command_exec(ffi_cmd_ptr: *const Ffi__Command, raw_sock: *mut c_void) -> Ffi__CommandResult {
     let cmd = Command::from(unsafe { ptr::read(ffi_cmd_ptr) });
-    Ffi__CommandResult::from(cmd.exec(&mut zmq::Socket::new(raw_sock, true)).unwrap())
+    Ffi__CommandResult::from(cmd.exec(&mut zmq::Socket::from_raw(raw_sock, true)).unwrap())
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate zmq_sys;
+
+    use std::ffi::{CString, CStr};
+    use std::{str, thread};
+    use zmq;
+
+    #[test]
+    fn test_command_new() {
+        let cmd_cstr = CString::new("moo").unwrap().as_ptr();
+        let ffi_cmd = super::command_new(cmd_cstr);
+        assert_eq!(ffi_cmd.cmd, cmd_cstr);
+    }
+
+    #[test]
+    fn test_command_exec() {
+        let mut ctx = zmq::Context::new();
+
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_exec").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
+            assert!(agent_sock.get_rcvmore().unwrap());
+            assert_eq!("moo", agent_sock.recv_string(0).unwrap().unwrap());
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("cow", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("err", 0).unwrap();
+        });
+
+        let mut req_sock = ctx.socket(zmq::REQ).unwrap();
+        req_sock.connect("inproc://test_exec").unwrap();
+
+        let ffi_command = super::Ffi__Command {
+            cmd: CString::new("moo").unwrap().as_ptr(),
+        };
+        let result = super::command_exec(&ffi_command, req_sock.to_raw());
+
+        assert_eq!(result.exit_code, 0);
+
+        let stdout_slice = unsafe { CStr::from_ptr(result.stdout) };
+        let stdout = str::from_utf8(stdout_slice.to_bytes()).unwrap();
+        assert_eq!(stdout, "cow");
+
+        let stderr_slice = unsafe { CStr::from_ptr(result.stderr) };
+        let stderr = str::from_utf8(stderr_slice.to_bytes()).unwrap();
+        assert_eq!(stderr, "err");
+
+        agent_mock.join().unwrap();
+    }
 }

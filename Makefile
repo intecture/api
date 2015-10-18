@@ -27,5 +27,8 @@ install:
 uninstall:
 	rm -f $(USRPATH)/lib/libinapi.so
 
+test:
+	$(CARGO) test
+
 clean:
 	$(CARGO) clean

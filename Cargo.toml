@@ -14,6 +14,7 @@ build = "build.rs"
 
 libc = "0.1"
 zmq = { branch = "feature-socket-convert", git = "https://github.com/petehayes102/rust-zmq.git" }
+zmq-sys = "*"
 
 [lib]
 
