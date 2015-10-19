@@ -3,7 +3,7 @@
 name = "intecture-api"
 version = "0.0.1"
 authors = [ "Peter Hayes <peter.hayes@betweenlines.co.uk>" ]
-license = "Apache-2.0"
+license = "MPL-2.0"
 description = "CLI component for Intecture infrastructure. Intecture is the developer friendly, multi-lingual configuration management tool."
 keywords = ["intecture", "api"]
 homepage = "https://intecture.io"
