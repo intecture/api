@@ -28,7 +28,11 @@ uninstall:
 	rm -f $(USRPATH)/lib/libinapi.so
 
 test:
+ifeq ($(TARGET), release)
+	$(CARGO) test --release
+else
 	$(CARGO) test
+endif
 
 clean:
 	$(CARGO) clean
