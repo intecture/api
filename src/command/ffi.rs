@@ -6,7 +6,9 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use command::{Command, CommandResult};
+//! FFI interface for Command
+
+use super::{Command, CommandResult};
 use libc::{c_char, c_void};
 use std::{convert, str};
 use std::ffi::{CStr, CString};
@@ -31,9 +33,7 @@ impl convert::From<Ffi__Command> for Command {
         let slice = unsafe { CStr::from_ptr(ffi_cmd.cmd) };
         let cmd_str = str::from_utf8(slice.to_bytes()).unwrap();
 
-        Command {
-            cmd: cmd_str.to_string(),
-        }
+        Command::new(cmd_str)
     }
 }
 

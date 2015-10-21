@@ -42,6 +42,8 @@
 //!
 //! > Exit: 0, Stdout: root, Stderr:
 
+pub mod ffi;
+
 use ::MissingFrameError;
 use std::convert;
 use zmq;
@@ -50,7 +52,7 @@ use zmq;
 #[derive(Debug)]
 pub struct Command {
     /// The shell command
-    pub cmd: String,
+    cmd: String,
 }
 
 /// Result attributes returned from the managed host.

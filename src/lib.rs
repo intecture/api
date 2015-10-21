@@ -28,7 +28,6 @@ extern crate libc;
 extern crate zmq;
 
 pub mod command;
-pub mod ffi;
 
 pub use command::{Command, CommandResult};
 
