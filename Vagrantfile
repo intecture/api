@@ -4,9 +4,9 @@ Vagrant.configure(2) do |config|
   config.ssh.forward_agent = true
   config.vm.synced_folder "./", "/intecture", type: "nfs"
   config.vm.provision "shell", inline: "apt-get update && apt-get -y install git build-essential pkg-config libtool autoconf autogen && \
-  	curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- -y && \
-  	cp -R /intecture /tmp/ && cd /tmp/intecture && \
-  	./.travis_install.sh && \
-  	export LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib && \
-  	cargo build --verbose && cargo test --verbose"
+    curl -sSf https://static.rust-lang.org/rustup.sh | sh -s -- -y && \
+    cp -R /intecture /tmp/ && cd /tmp/intecture && \
+    ./.travis_install.sh && \
+    export LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib && \
+    cargo build --verbose && cargo test --verbose"
 end
