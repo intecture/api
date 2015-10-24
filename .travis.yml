@@ -1,0 +1,7 @@
+language: rust
+rust:
+  - stable
+sudo: required
+env:
+  - LD_LIBRARY_PATH=/lib:/usr/lib:/usr/local/lib
+install: ./.travis_install.sh
