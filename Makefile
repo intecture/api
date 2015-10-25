@@ -1,7 +1,8 @@
 UNAME_S := $(shell uname -s)
 CARGO := $(shell which cargo)
 TARGET = release
- 
+USRPATH = /usr/local
+
 ifeq ($(UNAME_S), Linux)
 	FEDORA := $(grep -qs Fedora /etc/redhat-release)
 	ifeq ($$?, 0)
@@ -10,8 +11,6 @@ ifeq ($(UNAME_S), Linux)
 	else
 		USRPATH = /usr
 	endif
-else ifeq ($(UNAME_S), Darwin)
-	USRPATH = /usr/local
 endif
 
 all:
