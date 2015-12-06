@@ -24,15 +24,19 @@
 //! Intecture API primitives, or the program will hang while it
 //! attempts to connect to a non-existent socket.
 
+extern crate inprimitives;
+#[macro_use]
+extern crate lazy_static;
 extern crate libc;
+extern crate rustc_serialize;
 extern crate zmq;
 
 pub mod command;
+mod error;
+pub mod host;
+pub mod telemetry;
 
 pub use command::{Command, CommandResult};
-
-#[derive(Debug)]
-pub struct MissingFrameError {
-    order: u8,
-    name: &'static str
-}
+pub use error::{Error, Result};
+pub use host::Host;
+pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry, TelemetryInit};

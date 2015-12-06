@@ -11,31 +11,22 @@
 //!
 //! # Examples
 //!
-//! Setup your ZMQ socket, using your managed host's IP address in
-//! place of *127.0.0.1*:
+//! Initialise a new Host using your managed host's IP address and
+//! port number:
 //!
 //! ```no_run
-//! # #[macro_use] extern crate zmq;
-//! # fn main() {
-//! let mut ctx = zmq::Context::new();
-//! let mut zmq_socket = ctx.socket(zmq::REQ).unwrap();
-//! zmq_socket.connect("tcp://127.0.0.1:7101").unwrap();
-//! # }
+//! # use inapi::Host;
+//! let host = Host::new("127.0.0.1", 7101);
 //! ```
 //!
 //! Now run your command and get the result:
 //!
 //! ```no_run
-//! # #[macro_use] extern crate zmq;
-//! # #[macro_use] extern crate inapi;
-//! # use inapi::Command;
-//! # fn main() {
-//! # let mut ctx = zmq::Context::new();
-//! # let mut zmq_socket = ctx.socket(zmq::REQ).unwrap();
+//! # use inapi::{Command, Host};
+//! # let mut host = Host::new("127.0.0.1", 7101).unwrap();
 //! let cmd = Command::new("whoami");
-//! let result = cmd.exec(&mut zmq_socket).unwrap();
+//! let result = cmd.exec(&mut host).unwrap();
 //! println!("Exit: {}, Stdout: {}, Stderr: {}", result.exit_code, result.stdout, result.stderr);
-//! # }
 //! ```
 //!
 //! If all goes well, this will output:
@@ -44,12 +35,11 @@
 
 pub mod ffi;
 
-use ::MissingFrameError;
-use std::convert;
+use error::Result;
+use host::Host;
 use zmq;
 
 /// Reusable container for sending commands to managed hosts.
-#[derive(Debug)]
 pub struct Command {
     /// The shell command
     cmd: String,
@@ -89,44 +79,24 @@ impl Command {
     /// # Examples
     ///
     /// ```no_run
-    /// # #[macro_use] extern crate zmq;
-    /// # #[macro_use] extern crate inapi;
-    /// # use inapi::Command;
-    /// # fn main() {
-    /// # let mut ctx = zmq::Context::new();
-    /// # let mut web1_sock = ctx.socket(zmq::REQ).unwrap();
-    /// # let mut web2_sock = ctx.socket(zmq::REQ).unwrap();
+    /// # use inapi::{Command, Host};
     /// let cmd = Command::new("whoami");
-    /// let result_web1 = cmd.exec(&mut web1_sock).unwrap();
-    /// let result_web2 = cmd.exec(&mut web2_sock).unwrap();
-    /// # }
+    ///
+    /// let mut web1 = Host::new("web1.example.com", 7101).unwrap();
+    /// let w1_result = cmd.exec(&mut web1).unwrap();
+    ///
+    /// let mut web2 = Host::new("web2.example.com", 7101).unwrap();
+    /// let w2_result = cmd.exec(&mut web2).unwrap();
     /// ```
-    pub fn exec(&self, sock: &mut zmq::Socket) -> Result<CommandResult, CommandError> {
-        try!(sock.send_str("command::exec", zmq::SNDMORE));
-        try!(sock.send_str(&self.cmd, 0));
+    pub fn exec(&self, host: &mut Host) -> Result<CommandResult> {
+        try!(host.send("command::exec", zmq::SNDMORE));
+        try!(host.send(&self.cmd, 0));
 
-        let status = try!(sock.recv_string(0));
-        if status.unwrap() == "Err" {
-            if sock.get_rcvmore().unwrap() == false {
-                return Err(CommandError::FrameError(MissingFrameError { order: 1, name: "err_msg" }));
-            }
+        try!(host.recv_header());
 
-            return Err(CommandError::AgentError(try!(sock.recv_string(0)).unwrap()));
-        }
-
-        let exit_code = try!(sock.recv_msg(0)).as_str().unwrap().parse::<i32>().unwrap();
-
-        if sock.get_rcvmore().unwrap() == false {
-            return Err(CommandError::FrameError(MissingFrameError { order: 1, name: "stdout" }));
-        }
-
-        let stdout = try!(sock.recv_string(0)).unwrap();
-
-        if sock.get_rcvmore().unwrap() == false {
-            return Err(CommandError::FrameError(MissingFrameError { order: 1, name: "stderr" }));
-        }
-
-        let stderr = try!(sock.recv_string(0)).unwrap();
+        let exit_code = try!(host.expect_recvmsg("exit_code", 1)).as_str().unwrap().parse::<i32>().unwrap();
+        let stdout = try!(host.expect_recv("stdout", 2));
+        let stderr = try!(host.expect_recv("stderr", 3));
 
         Ok(CommandResult {
             exit_code: exit_code,
@@ -136,27 +106,12 @@ impl Command {
     }
 }
 
-#[derive(Debug)]
-pub enum CommandError {
-    /// An error string returned from the host's Intecture Agent
-    AgentError(String),
-    /// Message frames missing in the response from host's Intecture Agent
-    FrameError(MissingFrameError),
-    /// ZMQ transmission error
-    ZmqError(zmq::Error),
-}
-
-impl convert::From<zmq::Error> for CommandError {
-	fn from(err: zmq::Error) -> CommandError {
-		CommandError::ZmqError(err)
-	}
-}
-
 #[cfg(test)]
 mod tests {
+    use host::Host;
+    use std::thread;
     use super::*;
     use zmq;
-    use std::thread;
 
     #[test]
     fn test_exec() {
@@ -176,11 +131,14 @@ mod tests {
             agent_sock.send_str("err", 0).unwrap();
         });
 
-        let mut req_sock = ctx.socket(zmq::REQ).unwrap();
-        req_sock.connect("inproc://test_exec").unwrap();
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_exec").unwrap();
+
+        let mut host = Host::test_new(sock);
 
         let cmd = Command::new("moo");
-        let result = cmd.exec(&mut req_sock).unwrap();
+        let result = cmd.exec(&mut host).unwrap();
 
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stdout, "cow");

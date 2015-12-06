@@ -8,12 +8,12 @@
 
 //! FFI interface for Command
 
-use super::{Command, CommandResult};
-use libc::{c_char, c_void};
-use std::{convert, str};
+use host::Host;
+use host::ffi::Ffi__Host;
+use libc::c_char;
+use std::{convert, ptr, str};
 use std::ffi::{CStr, CString};
-use std::ptr;
-use zmq;
+use super::{Command, CommandResult};
 
 #[repr(C)]
 pub struct Ffi__Command {
@@ -23,7 +23,7 @@ pub struct Ffi__Command {
 impl convert::From<Command> for Ffi__Command {
     fn from(command: Command) -> Ffi__Command {
         Ffi__Command {
-            cmd: CString::new(command.cmd).unwrap().as_ptr(),
+            cmd: CString::new(command.cmd).unwrap().into_raw(),
         }
     }
 }
@@ -48,8 +48,8 @@ impl convert::From<CommandResult> for Ffi__CommandResult {
     fn from(result: CommandResult) -> Ffi__CommandResult {
         Ffi__CommandResult {
             exit_code: result.exit_code,
-            stdout: CString::new(result.stdout).unwrap().as_ptr(),
-            stderr: CString::new(result.stderr).unwrap().as_ptr(),
+            stdout: CString::new(result.stdout).unwrap().into_raw(),
+            stderr: CString::new(result.stderr).unwrap().into_raw(),
         }
     }
 }
@@ -62,23 +62,59 @@ pub extern "C" fn command_new(cmd: *const c_char) -> Ffi__Command {
 }
 
 #[no_mangle]
-pub extern "C" fn command_exec(ffi_cmd_ptr: *const Ffi__Command, raw_sock: *mut c_void) -> Ffi__CommandResult {
+pub extern "C" fn command_exec(ffi_cmd_ptr: *const Ffi__Command, ffi_host_ptr: *const Ffi__Host) -> Ffi__CommandResult {
     let cmd = Command::from(unsafe { ptr::read(ffi_cmd_ptr) });
-    Ffi__CommandResult::from(cmd.exec(&mut zmq::Socket::from_raw(raw_sock, true)).unwrap())
+    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
+
+    let result = Ffi__CommandResult::from(cmd.exec(&mut host).unwrap());
+
+    // Convert ZMQ socket to raw to avoid destructor closing sock
+    Ffi__Host::from(host);
+
+    result
 }
 
 #[cfg(test)]
 mod tests {
     extern crate zmq_sys;
 
-    use std::ffi::{CString, CStr};
+    use {Command, CommandResult, Host};
+    use host::ffi::Ffi__Host;
     use std::{str, thread};
+    use std::ffi::{CStr, CString};
+    use super::*;
     use zmq;
+
+    #[test]
+    fn test_convert_command() {
+        let command = Command {
+            cmd: "whoami".to_string(),
+        };
+        Ffi__Command::from(command);
+    }
+
+    #[test]
+    fn test_convert_ffi_command() {
+        let ffi_command = Ffi__Command {
+            cmd: CString::new("whoami").unwrap().as_ptr(),
+        };
+        Command::from(ffi_command);
+    }
+
+    #[test]
+    fn test_convert_command_result() {
+        let result = CommandResult {
+            exit_code: 0,
+            stdout: "moo".to_string(),
+            stderr: "cow".to_string(),
+        };
+        Ffi__CommandResult::from(result);
+    }
 
     #[test]
     fn test_command_new() {
         let cmd_cstr = CString::new("moo").unwrap().as_ptr();
-        let ffi_cmd = super::command_new(cmd_cstr);
+        let ffi_cmd = command_new(cmd_cstr);
         assert_eq!(ffi_cmd.cmd, cmd_cstr);
     }
 
@@ -98,15 +134,21 @@ mod tests {
             agent_sock.send_str("0", zmq::SNDMORE).unwrap();
             agent_sock.send_str("cow", zmq::SNDMORE).unwrap();
             agent_sock.send_str("err", 0).unwrap();
+            agent_sock.close().unwrap();
         });
 
-        let mut req_sock = ctx.socket(zmq::REQ).unwrap();
-        req_sock.connect("inproc://test_exec").unwrap();
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.connect("inproc://test_exec").unwrap();
 
-        let ffi_command = super::Ffi__Command {
+        let ffi_host = Ffi__Host::from(Host::test_new(sock));
+
+        let ffi_command = Ffi__Command {
             cmd: CString::new("moo").unwrap().as_ptr(),
         };
-        let result = super::command_exec(&ffi_command, req_sock.to_raw());
+
+        let result = command_exec(&ffi_command, &ffi_host);
+
+        Host::from(ffi_host);
 
         assert_eq!(result.exit_code, 0);
 

@@ -2,6 +2,7 @@ UNAME_S := $(shell uname -s)
 CARGO := $(shell which cargo)
 TARGET = release
 USRPATH = /usr/local
+LIBEXT = so
 
 ifeq ($(UNAME_S), Linux)
 	FEDORA := $(grep -qs Fedora /etc/redhat-release)
@@ -11,6 +12,8 @@ ifeq ($(UNAME_S), Linux)
 	else
 		USRPATH = /usr
 	endif
+else ifeq ($(UNAME_S), Darwin)
+	LIBEXT = dylib
 endif
 
 all:
@@ -21,10 +24,10 @@ else
 endif
 
 install:
-	install -m 0644 target/$(TARGET)/libinapi.so $(USRPATH)/lib/
+	install -m 0644 target/$(TARGET)/libinapi.$(LIBEXT) $(USRPATH)/lib/
 
 uninstall:
-	rm -f $(USRPATH)/lib/libinapi.so
+	rm -f $(USRPATH)/lib/libinapi.$(LIBEXT)
 
 test:
 ifeq ($(TARGET), release)
