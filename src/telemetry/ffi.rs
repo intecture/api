@@ -109,9 +109,9 @@ pub struct Ffi__FsMount {
     pub used: uint64_t,
     pub available: uint64_t,
     pub capacity: c_float,
-    pub inodes_used: uint64_t,
-    pub inodes_available: uint64_t,
-    pub inodes_capacity: c_float,
+//    pub inodes_used: uint64_t,
+//    pub inodes_available: uint64_t,
+//    pub inodes_capacity: c_float,
 }
 
 impl convert::From<FsMount> for Ffi__FsMount {
@@ -123,9 +123,9 @@ impl convert::From<FsMount> for Ffi__FsMount {
             used: mount.used as uint64_t,
             available: mount.available as uint64_t,
             capacity: mount.capacity as c_float,
-            inodes_used: mount.inodes_used as uint64_t,
-            inodes_available: mount.inodes_available as uint64_t,
-            inodes_capacity: mount.inodes_capacity as c_float,
+//            inodes_used: mount.inodes_used as uint64_t,
+//            inodes_available: mount.inodes_available as uint64_t,
+//            inodes_capacity: mount.inodes_capacity as c_float,
         }
     }
 }
@@ -139,9 +139,9 @@ impl convert::From<Ffi__FsMount> for FsMount {
             used: ffi_mount.used as u64,
             available: ffi_mount.available as u64,
             capacity: ffi_mount.capacity as f32,
-            inodes_used: ffi_mount.inodes_used as u64,
-            inodes_available: ffi_mount.inodes_available as u64,
-            inodes_capacity: ffi_mount.inodes_capacity as f32,
+//            inodes_used: ffi_mount.inodes_used as u64,
+//            inodes_available: ffi_mount.inodes_available as u64,
+//            inodes_capacity: ffi_mount.inodes_capacity as f32,
         }
     }
 }
@@ -398,9 +398,9 @@ mod tests {
                 5000,
                 5000,
                 0.5,
-                20,
-                0,
-                1.0,
+//                20,
+//                0,
+//                1.0,
             )],
             "localhost".to_string(),
             2048,
