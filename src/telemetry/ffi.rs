@@ -435,9 +435,9 @@ mod tests {
             used: 5000 as uint64_t,
             available: 5000 as uint64_t,
             capacity: 0.5 as c_float,
-            inodes_used: 20 as uint64_t,
-            inodes_available: 0 as uint64_t,
-            inodes_capacity: 1.0 as c_float,
+//            inodes_used: 20 as uint64_t,
+//            inodes_available: 0 as uint64_t,
+//            inodes_capacity: 1.0 as c_float,
         }];
 
         let mut net = vec![Ffi__Netif {
