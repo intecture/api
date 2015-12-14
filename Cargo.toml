@@ -12,7 +12,7 @@ build = "build.rs"
 
 [dependencies]
 
-intecture-host-primitives = { git = "https://github.com/betweenlines/intecture-host-primitives.git" }
+intecture-host-primitives = { tag = "0.0.1", git = "https://github.com/betweenlines/intecture-host-primitives.git" }
 lazy_static = "0.1.*"
 libc = "0.2.*"
 rustc-serialize = "0.3.*"
