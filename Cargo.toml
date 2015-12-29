@@ -10,16 +10,32 @@ homepage = "https://intecture.io"
 repository = "https://github.com/betweenlines/intecture-api"
 build = "build.rs"
 
+[features]
+
+default = ["remote-run"]
+
+# Run API endpoints against the local machine
+local-run = []
+
+# Run API endpoints against a remote agent
+remote-run = ["zmq", "zmq-sys"]
+
+[build-dependencies]
+
+regex = "0.1.*"
+
 [dependencies]
 
-intecture-host-primitives = { tag = "0.0.1", git = "https://github.com/betweenlines/intecture-host-primitives.git" }
 lazy_static = "0.1.*"
 libc = "0.2.*"
 rustc-serialize = "0.3.*"
-zmq = { git = "https://github.com/petehayes102/rust-zmq.git" }
-zmq-sys = "*"
+regex = "0.1.*"
+
+# Feature `remote-run`
+zmq = { git = "https://github.com/petehayes102/rust-zmq.git", optional = true }
+zmq-sys = { version = "*", optional = true }
 
 [lib]
 
 name = "inapi"
-crate_type = [ "rlib", "dylib" ]
+crate_type = ["rlib", "dylib"]

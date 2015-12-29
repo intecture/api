@@ -24,19 +24,29 @@
 //! Intecture API primitives, or the program will hang while it
 //! attempts to connect to a non-existent socket.
 
-extern crate inprimitives;
 #[macro_use]
 extern crate lazy_static;
 extern crate libc;
+extern crate regex;
 extern crate rustc_serialize;
+#[cfg(feature = "remote-run")]
 extern crate zmq;
+#[cfg(all(test, feature = "remote-run"))]
+extern crate zmq_sys;
 
 pub mod command;
-mod error;
+pub mod error;
 pub mod host;
+pub mod package;
+mod target;
 pub mod telemetry;
 
 pub use command::{Command, CommandResult};
-pub use error::{Error, Result};
+pub use error::Error;
 pub use host::Host;
-pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry, TelemetryInit};
+pub use package::Package;
+pub use package::providers::Providers;
+pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
+
+use std::result;
+pub type Result<T> = result::Result<T, Error>;

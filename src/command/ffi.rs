@@ -76,13 +76,17 @@ pub extern "C" fn command_exec(ffi_cmd_ptr: *const Ffi__Command, ffi_host_ptr: *
 
 #[cfg(test)]
 mod tests {
-    extern crate zmq_sys;
-
-    use {Command, CommandResult, Host};
+    use {Command, CommandResult};
+    #[cfg(feature = "remote-run")]
+    use Host;
     use host::ffi::Ffi__Host;
+    #[cfg(feature = "remote-run")]
     use std::{str, thread};
-    use std::ffi::{CStr, CString};
+    #[cfg(feature = "remote-run")]
+    use std::ffi::CStr;
+    use std::ffi::CString;
     use super::*;
+    #[cfg(feature = "remote-run")]
     use zmq;
 
     #[test]
@@ -118,6 +122,16 @@ mod tests {
         assert_eq!(ffi_cmd.cmd, cmd_cstr);
     }
 
+    #[cfg(feature = "local-run")]
+    #[test]
+    fn test_exec() {
+        let host = Ffi__Host;
+        let cmd = command_new(CString::new("whoami").unwrap().as_ptr());
+        let result = command_exec(&cmd as *const Ffi__Command, &host as *const Ffi__Host);
+        assert_eq!(result.exit_code, 0);
+    }
+
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_command_exec() {
         let mut ctx = zmq::Context::new();

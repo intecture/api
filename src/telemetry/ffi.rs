@@ -167,12 +167,19 @@ impl convert::From<Netif> for Ffi__Netif {
             inet: if netif.inet.is_some() {
                     Ffi__NetifIPv4::from(netif.inet.unwrap())
                 } else {
-                    Ffi__NetifIPv4::from(NetifIPv4::new(String::new(), String::new()))
+                    Ffi__NetifIPv4::from(NetifIPv4 {
+                        address: String::new(),
+                        netmask: String::new(),
+                    })
                 },
             inet6: if netif.inet6.is_some() {
                     Ffi__NetifIPv6::from(netif.inet6.unwrap())
                 } else {
-                    Ffi__NetifIPv6::from(NetifIPv6::new(String::new(), 0, None))
+                    Ffi__NetifIPv6::from(NetifIPv6 {
+                        address: String::new(),
+                        prefixlen: 0,
+                        scopeid: None,
+                    })
                 },
             status: if netif.status.is_some() {
                     match netif.status.unwrap() {
@@ -385,46 +392,46 @@ mod tests {
     }
 
     fn create_telemetry() -> Telemetry {
-        Telemetry::new(
-            Cpu::new(
-                "moo".to_string(),
-                "Moo Cow Super Fun Happy CPU".to_string(),
-                100,
-            ),
-            vec![FsMount::new(
-                "/dev/disk0".to_string(),
-                "/".to_string(),
-                10000,
-                5000,
-                5000,
-                0.5,
-//                20,
-//                0,
-//                1.0,
-            )],
-            "localhost".to_string(),
-            2048,
-            vec![Netif::new(
-                "em0".to_string(),
-                Some("01:23:45:67:89:ab".to_string()),
-                Some(NetifIPv4::new(
-                    "127.0.0.1".to_string(),
-                    "255.255.255.255".to_string(),
-                )),
-                Some(NetifIPv6::new(
-                    "::1".to_string(),
-                    8,
-                    Some("0x4".to_string()),
-                )),
-                Some(NetifStatus::Active),
-            )],
-            Os::new(
-                "doctor string".to_string(),
-                "moo".to_string(),
-                "cow".to_string(),
-                "1.0".to_string(),
-            ),
-        )
+        Telemetry {
+            cpu: Cpu {
+                vendor: "moo".to_string(),
+                brand_string: "Moo Cow Super Fun Happy CPU".to_string(),
+                cores: 100,
+            },
+            fs: vec![FsMount {
+                filesystem: "/dev/disk0".to_string(),
+                mountpoint: "/".to_string(),
+                size: 10000,
+                used: 5000,
+                available: 5000,
+                capacity: 0.5,
+                // inodes_used: 20,
+                // inodes_available: 0,
+                // inodes_capacity: 1.0,
+            }],
+            hostname: "localhost".to_string(),
+            memory: 2048,
+            net: vec![Netif {
+                interface: "em0".to_string(),
+                mac: Some("01:23:45:67:89:ab".to_string()),
+                inet: Some(NetifIPv4 {
+                    address: "127.0.0.1".to_string(),
+                    netmask: "255.255.255.255".to_string(),
+                }),
+                inet6: Some(NetifIPv6 {
+                    address: "::1".to_string(),
+                    prefixlen: 8,
+                    scopeid: Some("0x4".to_string()),
+                }),
+                status: Some(NetifStatus::Active),
+            }],
+            os: Os {
+                arch: "doctor string".to_string(),
+                family: "moo".to_string(),
+                platform: "cow".to_string(),
+                version: "1.0".to_string(),
+            },
+        }
     }
 
     fn create_ffi_telemetry() -> Ffi__Telemetry {

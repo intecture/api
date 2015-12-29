@@ -13,64 +13,226 @@
 //!
 //! # Examples
 //!
-//! Initialise a new Host using your managed host's IP address and
-//! port number:
+//! Initialise a new Host:
 //!
 //! ```no_run
 //! # use inapi::Host;
-//! let host = Host::new("127.0.0.1", 7101);
+//! let mut host = Host::new();
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101).unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
 //!
 //! ```no_run
-//! # use inapi::{Host, Telemetry, TelemetryInit};
-//! # let mut host = Host::new("127.0.0.1", 7101).unwrap();
+//! # use inapi::{Host, Telemetry};
+//! # let mut host = Host::new();
 //! let telemetry = Telemetry::init(&mut host);
 //! ```
 
 pub mod ffi;
 
-use error::Result;
-use host::Host;
-pub use inprimitives::telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
-use rustc_serialize::json;
+use Host;
+use Result;
+use target::Target;
 
-/// The TelemetryInit trait is used to initialise new Telemetry
-/// structs.
-pub trait TelemetryInit {
+#[derive(Debug, RustcDecodable, RustcEncodable)]
+pub struct Telemetry {
+    pub cpu: Cpu,
+    pub fs: Vec<FsMount>,
+    pub hostname: String,
+    pub memory: u64,
+    pub net: Vec<Netif>,
+    pub os: Os,
+}
+
+impl Telemetry {
+    #[doc(hidden)]
+    pub fn new(cpu: Cpu, fs: Vec<FsMount>, hostname: String, memory: u64, net: Vec<Netif>, os: Os) -> Telemetry {
+        Telemetry {
+            cpu: cpu,
+            fs: fs,
+            hostname: hostname,
+            memory: memory,
+            net: net,
+            os: os,
+        }
+    }
+
     /// Initialise a new Telemetry struct for the given Host.
     ///
     /// # Examples
     ///
     /// ```no_run
-    /// # use inapi::Host;
-    /// use inapi::{Telemetry, TelemetryInit};
-    /// # let mut host = Host::new("127.0.0.1", 7101).unwrap();
+    /// # use inapi::{Host, Telemetry};
+    /// # let mut host = Host::new();
     /// let telemetry = Telemetry::init(&mut host);
-    fn init(host: &mut Host) -> Result<Telemetry>;
+    /// ```
+    pub fn init(host: &mut Host) -> Result<Telemetry> {
+        Target::telemetry_init(host)
+    }
 }
 
-impl TelemetryInit for Telemetry {
-    fn init(host: &mut Host) -> Result<Telemetry> {
-        try!(host.send("telemetry", 0));
+pub trait TelemetryTarget {
+    fn telemetry_init(host: &mut Host) -> Result<Telemetry>;
+}
 
-        try!(host.recv_header());
+#[derive(Debug, RustcDecodable, RustcEncodable)]
+pub struct Cpu {
+    pub vendor: String,
+    pub brand_string: String,
+    pub cores: u32,
+}
 
-        let telemetry = try!(host.expect_recv("telemetry", 1));
+impl Cpu {
+    #[doc(hidden)]
+    pub fn new(vendor: &str, brand_string: &str, cores: u32) -> Cpu {
+        Cpu {
+            vendor: vendor.to_string(),
+            brand_string: brand_string.to_string(),
+            cores: cores,
+        }
+    }
+}
 
-        Ok(try!(json::decode(&telemetry)))
+#[derive(Debug, RustcDecodable, RustcEncodable)]
+pub struct FsMount {
+    pub filesystem: String,
+    pub mountpoint: String,
+    pub size: u64,
+    pub used: u64,
+    pub available: u64,
+    pub capacity: f32,
+//    pub inodes_used: u64,
+//    pub inodes_available: u64,
+//    pub inodes_capacity: f32,
+}
+
+impl FsMount {
+    #[doc(hidden)]
+    pub fn new(filesystem: &str, mountpoint: &str, size: u64, used: u64, available: u64, capacity: f32/*, inodes_used: u64, inodes_available: u64, inodes_capacity: f32*/) -> FsMount {
+        FsMount {
+            filesystem: filesystem.to_string(),
+            mountpoint: mountpoint.to_string(),
+            size: size,
+            used: used,
+            available: available,
+            capacity: capacity,
+            // inodes_used: inodes_used,
+            // inodes_available: inodes_available,
+            // inodes_capacity: inodes_capacity,
+        }
+    }
+}
+
+#[derive(Debug, RustcDecodable, RustcEncodable)]
+pub struct Netif {
+    pub interface: String,
+    pub mac: Option<String>,
+    pub inet: Option<NetifIPv4>,
+    pub inet6: Option<NetifIPv6>,
+    pub status: Option<NetifStatus>,
+}
+
+impl Netif {
+    #[doc(hidden)]
+    pub fn new(interface: &str, mac: Option<&str>, inet: Option<NetifIPv4>, inet6: Option<NetifIPv6>, status: Option<NetifStatus>) -> Netif {
+        Netif {
+            interface: interface.to_string(),
+            mac: if mac.is_some() {
+                Some(mac.unwrap().to_string())
+            } else {
+                None
+            },
+            inet: inet,
+            inet6: inet6,
+            status: status,
+        }
+    }
+}
+
+#[derive(Debug, RustcDecodable, RustcEncodable)]
+pub enum NetifStatus {
+    Active,
+    Inactive,
+}
+
+#[derive(Debug, RustcDecodable, RustcEncodable)]
+pub struct NetifIPv4 {
+    pub address: String,
+    pub netmask: String,
+}
+
+impl NetifIPv4 {
+    #[doc(hidden)]
+    pub fn new(address: &str, netmask: &str) -> NetifIPv4 {
+        NetifIPv4 {
+            address: address.to_string(),
+            netmask: netmask.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, RustcDecodable, RustcEncodable)]
+pub struct NetifIPv6 {
+    pub address: String,
+    pub prefixlen: u8,
+    pub scopeid: Option<String>,
+}
+
+impl NetifIPv6 {
+    #[doc(hidden)]
+    pub fn new(address: &str, prefixlen: u8, scopeid: Option<&str>) -> NetifIPv6 {
+        NetifIPv6 {
+            address: address.to_string(),
+            prefixlen: prefixlen,
+            scopeid: if scopeid.is_some() {
+                Some(scopeid.unwrap().to_string())
+            } else {
+                None
+            }
+        }
+    }
+}
+
+#[derive(Debug, RustcDecodable, RustcEncodable)]
+pub struct Os {
+    pub arch: String,
+    pub family: String,
+    pub platform: String,
+    pub version: String,
+}
+
+impl Os {
+    #[doc(hidden)]
+    pub fn new(arch: &str, family: &str, platform: &str, version: &str) -> Os {
+        Os {
+            arch: arch.to_string(),
+            family: family.to_string(),
+            platform: platform.to_string(),
+            version: version.to_string(),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use host::Host;
+    use Host;
+    #[cfg(feature = "remote-run")]
     use rustc_serialize::json;
-    use super::*;
+    #[cfg(feature = "remote-run")]
     use std::thread;
+    use super::*;
+    #[cfg(feature = "remote-run")]
     use zmq;
 
+    #[cfg(feature = "local-run")]
+    #[test]
+    fn test_telemetry_init() {
+        let mut host = Host::new();
+        assert!(Telemetry::init(&mut host).is_ok());
+    }
+
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_telemetry_init() {
         let mut ctx = zmq::Context::new();
@@ -81,46 +243,46 @@ mod tests {
             assert_eq!("telemetry", agent_sock.recv_string(0).unwrap().unwrap());
             assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
 
-            let telemetry = Telemetry::new(
-                Cpu::new(
-                    "moo".to_string(),
-                    "Moo Cow Super Fun Happy CPU".to_string(),
-                    100,
-                ),
-                vec![FsMount::new(
-                    "/dev/disk0".to_string(),
-                    "/".to_string(),
-                    10000,
-                    5000,
-                    5000,
-                    0.5,
-//                    20,
-//                    0,
-//                    1.0,
-                )],
-                "localhost".to_string(),
-                2048,
-                vec![Netif::new(
-                    "em0".to_string(),
-                    Some("01:23:45:67:89:ab".to_string()),
-                    Some(NetifIPv4::new(
-                        "127.0.0.1".to_string(),
-                        "255.255.255.255".to_string(),
-                    )),
-                    Some(NetifIPv6::new(
-                        "::1".to_string(),
-                        8,
-                        Some("0x4".to_string()),
-                    )),
-                    Some(NetifStatus::Active),
-                )],
-                Os::new(
-                    "doctor string".to_string(),
-                    "moo".to_string(),
-                    "cow".to_string(),
-                    "1.0".to_string(),
-                ),
-            );
+            let telemetry = Telemetry {
+                cpu: Cpu {
+                    vendor: "moo".to_string(),
+                    brand_string: "Moo Cow Super Fun Happy CPU".to_string(),
+                    cores: 100,
+                },
+                fs: vec![FsMount {
+                    filesystem: "/dev/disk0".to_string(),
+                    mountpoint: "/".to_string(),
+                    size: 10000,
+                    used: 5000,
+                    available: 5000,
+                    capacity: 0.5,
+//                    inodes_used: 20,
+//                    inodes_available: 0,
+//                    inodes_capacity: 1.0,
+                }],
+                hostname: "localhost".to_string(),
+                memory: 2048,
+                net: vec![Netif {
+                    interface: "em0".to_string(),
+                    mac: Some("01:23:45:67:89:ab".to_string()),
+                    inet: Some(NetifIPv4 {
+                        address: "127.0.0.1".to_string(),
+                        netmask: "255.255.255.255".to_string(),
+                    }),
+                    inet6: Some(NetifIPv6 {
+                        address: "::1".to_string(),
+                        prefixlen: 8,
+                        scopeid: Some("0x4".to_string()),
+                    }),
+                    status: Some(NetifStatus::Active),
+                }],
+                os: Os {
+                    arch: "doctor string".to_string(),
+                    family: "moo".to_string(),
+                    platform: "cow".to_string(),
+                    version: "1.0".to_string(),
+                },
+            };
 
             agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
             agent_sock.send_str(&json::encode(&telemetry).unwrap(), 0).unwrap();

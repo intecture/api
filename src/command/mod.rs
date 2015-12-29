@@ -16,14 +16,15 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-//! let host = Host::new("127.0.0.1", 7101);
+//! let mut host = Host::new();
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101).unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
 //!
 //! ```no_run
 //! # use inapi::{Command, Host};
-//! # let mut host = Host::new("127.0.0.1", 7101).unwrap();
+//! # let mut host = Host::new();
 //! let cmd = Command::new("whoami");
 //! let result = cmd.exec(&mut host).unwrap();
 //! println!("Exit: {}, Stdout: {}, Stderr: {}", result.exit_code, result.stdout, result.stderr);
@@ -31,13 +32,13 @@
 //!
 //! If all goes well, this will output:
 //!
-//! > Exit: 0, Stdout: root, Stderr:
+//! > Exit: 0, Stdout: <agent_runtime_user>, Stderr:
 
 pub mod ffi;
 
-use error::Result;
-use host::Host;
-use zmq;
+use Host;
+use Result;
+use target::Target;
 
 /// Reusable container for sending commands to managed hosts.
 pub struct Command {
@@ -66,11 +67,11 @@ impl Command {
     /// ```
     pub fn new(cmd: &str) -> Command {
         Command {
-            cmd: String::from(cmd),
+            cmd: cmd.to_string(),
         }
     }
 
-    /// Send request to the Agent to run your shell command.
+    /// Execute command on shell.
     ///
     /// Command structs are reusable accross multiple hosts, which is
     /// helpful if you are configuring a group of servers
@@ -82,37 +83,50 @@ impl Command {
     /// # use inapi::{Command, Host};
     /// let cmd = Command::new("whoami");
     ///
-    /// let mut web1 = Host::new("web1.example.com", 7101).unwrap();
+    /// let mut web1 = Host::new();
+    #[cfg_attr(feature = "remote-run", doc = "web1.connect(\"web1.example.com\", 7101).unwrap();")]
     /// let w1_result = cmd.exec(&mut web1).unwrap();
     ///
-    /// let mut web2 = Host::new("web2.example.com", 7101).unwrap();
+    /// let mut web2 = Host::new();
+    #[cfg_attr(feature = "remote-run", doc = "web2.connect(\"web2.example.com\", 7101).unwrap();")]
     /// let w2_result = cmd.exec(&mut web2).unwrap();
     /// ```
+    #[allow(unused_variables)]
     pub fn exec(&self, host: &mut Host) -> Result<CommandResult> {
-        try!(host.send("command::exec", zmq::SNDMORE));
-        try!(host.send(&self.cmd, 0));
-
-        try!(host.recv_header());
-
-        let exit_code = try!(host.expect_recvmsg("exit_code", 1)).as_str().unwrap().parse::<i32>().unwrap();
-        let stdout = try!(host.expect_recv("stdout", 2));
-        let stderr = try!(host.expect_recv("stderr", 3));
-
-        Ok(CommandResult {
-            exit_code: exit_code,
-            stdout: stdout,
-            stderr: stderr,
-        })
+        Target::exec(host, &self.cmd)
     }
+}
+
+pub trait CommandTarget {
+    fn exec(host: &mut Host, cmd: &str) -> Result<CommandResult>;
 }
 
 #[cfg(test)]
 mod tests {
-    use host::Host;
+    use Host;
+    #[cfg(feature = "local-run")]
+    use std::{process, str};
+    #[cfg(feature = "remote-run")]
     use std::thread;
     use super::*;
+    #[cfg(feature = "remote-run")]
     use zmq;
 
+    #[cfg(feature = "local-run")]
+    #[test]
+    fn test_exec() {
+        let mut host = Host::new();
+        let cmd = Command::new("whoami");
+        let result = cmd.exec(&mut host).unwrap();
+
+        let output = process::Command::new("sh").arg("-c").arg(&cmd.cmd).output().unwrap();
+
+        assert_eq!(result.exit_code, output.status.code().unwrap());
+        assert_eq!(result.stdout, str::from_utf8(&output.stdout).unwrap().trim().to_string());
+        assert_eq!(result.stderr, str::from_utf8(&output.stderr).unwrap().trim().to_string());
+    }
+
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_exec() {
         let mut ctx = zmq::Context::new();
