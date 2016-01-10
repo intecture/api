@@ -15,6 +15,10 @@ use super::*;
 pub struct Homebrew;
 
 impl Provider for Homebrew {
+    fn get_providers(&self) -> Providers {
+        Providers::Homebrew
+    }
+
     fn is_active(&self, host: &mut Host) -> Result<bool> {
         let cmd = Command::new("which brew");
         let result = try!(cmd.exec(host));

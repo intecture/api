@@ -15,6 +15,10 @@ use super::*;
 pub struct Dnf;
 
 impl Provider for Dnf {
+    fn get_providers(&self) -> Providers {
+        Providers::Dnf
+    }
+
     #[allow(unused_variables)]
     fn is_active(&self, host: &mut Host) -> Result<bool> {
         unimplemented!();

@@ -39,9 +39,9 @@ impl convert::From<Ffi__Command> for Command {
 
 #[repr(C)]
 pub struct Ffi__CommandResult {
-    exit_code: i32,
-    stdout: *const c_char,
-    stderr: *const c_char,
+    pub exit_code: i32,
+    pub stdout: *const c_char,
+    pub stderr: *const c_char,
 }
 
 impl convert::From<CommandResult> for Ffi__CommandResult {
@@ -124,7 +124,7 @@ mod tests {
 
     #[cfg(feature = "local-run")]
     #[test]
-    fn test_exec() {
+    fn test_command_exec() {
         let host = Ffi__Host;
         let cmd = command_new(CString::new("whoami").unwrap().as_ptr());
         let result = command_exec(&cmd as *const Ffi__Command, &host as *const Ffi__Host);

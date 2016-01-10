@@ -45,34 +45,54 @@ pub mod providers;
 
 use {CommandResult, Host, Result};
 use self::providers::*;
-use target::Target;
 
-///
+/// Container for operating on a package.
 pub struct Package {
+    /// The name of the package, e.g. `nginx`
     name: String,
+    /// The package source
     provider: Box<Provider + 'static>,
+    /// Package installed bool
+    installed: bool,
 }
 
 impl Package {
-    pub fn new(host: &mut Host, name: &str, provider: Option<Providers>) -> Result<Package> {
-        Ok(Package {
+    /// Create a new Package.
+    ///
+    /// If you have multiple package providers, you can specify one
+    /// or allow Intecture to select a default based on the OS.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use inapi::{Host, Package, Providers};
+    /// # let mut host = Host::new();
+    /// let pkg = Package::new(&mut host, "nginx", Some(Providers::Yum));
+    /// ```
+    pub fn new(host: &mut Host, name: &str, providers: Option<Providers>) -> Result<Package> {
+        let provider = try!(ProviderFactory::create(host, providers));
+        let installed = try!(provider.is_installed(host, name));
+
+        let pkg = Package {
             name: name.to_string(),
-            provider: if provider.is_some() {
-                try!(resolve_provider(provider.unwrap()))
-            } else {
-                try!(Target::default_provider(host))
-            },
-        })
+            provider: provider,
+            installed: installed,
+        };
+
+        Ok(pkg)
     }
 
-    pub fn is_installed(&self, host: &mut Host) -> Result<bool> {
-        self.provider.is_installed(host, &self.name)
+    /// Check if the package is installed.
+    pub fn is_installed(&self) -> bool {
+        self.installed
     }
 
+    /// Install the package.
     pub fn install(&self, host: &mut Host) -> Result<CommandResult> {
         self.provider.install(host, &self.name)
     }
 
+    /// Uninstall the package.
     pub fn uninstall(&self, host: &mut Host) -> Result<CommandResult> {
         self.provider.uninstall(host, &self.name)
     }

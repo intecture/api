@@ -15,6 +15,10 @@ use super::*;
 pub struct Yum;
 
 impl Provider for Yum {
+    fn get_providers(&self) -> Providers {
+        Providers::Yum
+    }
+
     fn is_active(&self, host: &mut Host) -> Result<bool> {
         let cmd = Command::new("which yum");
         let result = try!(cmd.exec(host));

@@ -15,6 +15,10 @@ use super::*;
 pub struct Ports;
 
 impl Provider for Ports {
+    fn get_providers(&self) -> Providers {
+        Providers::Ports
+    }
+
     #[allow(unused_variables)]
     fn is_active(&self, host: &mut Host) -> Result<bool> {
         unimplemented!();

@@ -15,6 +15,10 @@ use super::*;
 pub struct Apt;
 
 impl Provider for Apt {
+    fn get_providers(&self) -> Providers {
+        Providers::Apt
+    }
+
     #[allow(unused_variables)]
     fn is_active(&self, host: &mut Host) -> Result<bool> {
         unimplemented!();

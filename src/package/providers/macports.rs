@@ -15,6 +15,10 @@ use super::*;
 pub struct Macports;
 
 impl Provider for Macports {
+    fn get_providers(&self) -> Providers {
+        Providers::Macports
+    }
+
     #[allow(unused_variables)]
     fn is_active(&self, host: &mut Host) -> Result<bool> {
         unimplemented!();

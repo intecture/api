@@ -16,7 +16,16 @@ else ifeq ($(UNAME_S), Darwin)
 	LIBEXT = dylib
 endif
 
-all:
+all: remote
+
+local:
+ifeq ($(TARGET), release)
+	$(CARGO) build --release --no-default-features --features=local-run
+else
+	$(CARGO) build --no-default-features --features=local-run
+endif
+
+remote:
 ifeq ($(TARGET), release)
 	$(CARGO) build --release
 else
@@ -29,7 +38,14 @@ install:
 uninstall:
 	rm -f $(USRPATH)/lib/libinapi.$(LIBEXT)
 
-test:
+test-local:
+ifeq ($(TARGET), release)
+	$(CARGO) test --release --no-default-features --features=local-run
+else
+	$(CARGO) test --no-default-features --features=local-run
+endif
+
+test-remote:
 ifeq ($(TARGET), release)
 	$(CARGO) test --release
 else

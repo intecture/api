@@ -6,11 +6,22 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use {CommandResult, Result};
+use {CommandResult, Host, ProviderFactory, Providers, Result};
 use error::Error;
 use regex::Regex;
 use std::{process, str};
 use telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
+
+pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Box<Provider + 'static>> {
+    for p in providers {
+        let provider = try!(ProviderFactory::create(host, Some(p)));
+        if try!(provider.is_active(host)) {
+            return Ok(provider);
+        }
+    }
+
+    Err(Error::Generic("No package providers are available".to_string()))
+}
 
 pub fn command_exec(cmd: &str) -> Result<CommandResult> {
     let output = try!(process::Command::new("sh").arg("-c").arg(cmd).output());
