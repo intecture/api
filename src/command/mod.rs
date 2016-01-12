@@ -47,6 +47,7 @@ pub struct Command {
 }
 
 /// Result attributes returned from the managed host.
+#[derive(Debug)]
 pub struct CommandResult {
     /// Exit code for the shell command's process
     pub exit_code: i32,

@@ -44,8 +44,8 @@ pub mod telemetry;
 pub use command::{Command, CommandResult};
 pub use error::Error;
 pub use host::Host;
-pub use package::Package;
-pub use package::providers::{ProviderFactory, Providers};
+pub use package::{Package, PackageResult};
+pub use package::providers::{Provider, ProviderFactory, Providers};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
 
 use std::result;

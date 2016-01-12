@@ -12,11 +12,12 @@ use regex::Regex;
 use std::{process, str};
 use telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
 
-pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Box<Provider + 'static>> {
+pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Providers> {
     for p in providers {
-        let provider = try!(ProviderFactory::create(host, Some(p)));
-        if try!(provider.is_active(host)) {
-            return Ok(provider);
+        let provider = ProviderFactory::create(host, Some(p));
+
+        if provider.is_ok() {
+            return Ok(provider.unwrap().get_providers());
         }
     }
 

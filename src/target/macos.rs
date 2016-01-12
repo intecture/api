@@ -16,8 +16,6 @@ use {
 use command::CommandTarget;
 use error::Error;
 use package::PackageTarget;
-use package::providers::ProviderFactory;
-use package::providers;
 use std::{env, process, str};
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;
@@ -38,7 +36,7 @@ impl CommandTarget for Target {
 //
 
 impl PackageTarget for Target {
-    fn default_provider(host: &mut Host) -> Result<Box<Provider + 'static>> {
+    fn default_provider(host: &mut Host) -> Result<Providers> {
         default::default_provider(host, vec![Providers::Homebrew, Providers::Macports])
     }
 }

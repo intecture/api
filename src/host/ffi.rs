@@ -81,9 +81,7 @@ pub extern "C" fn host_connect(ffi_host_ptr: *mut Ffi__Host, ip: *const c_char, 
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
     host.connect(ip_str, port).unwrap();
 
-    unsafe {
-        ptr::write(&mut *ffi_host_ptr, Ffi__Host::from(host));
-    }
+    unsafe { ptr::write(&mut *ffi_host_ptr, Ffi__Host::from(host)); }
 }
 
 #[cfg(feature = "remote-run")]

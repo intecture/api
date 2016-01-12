@@ -14,7 +14,6 @@ use {
 };
 use command::CommandTarget;
 use package::PackageTarget;
-use package::providers::{Provider, ProviderFactory};//,macports
 use rustc_serialize::json;
 use super::Target;
 use telemetry::{Telemetry, TelemetryTarget};
@@ -47,13 +46,13 @@ impl CommandTarget for Target {
 //
 
 impl PackageTarget for Target {
-    fn default_provider(host: &mut Host) -> Result<Box<Provider + 'static>> {
+    fn default_provider(host: &mut Host) -> Result<Providers> {
         try!(host.send("package::default_provider", 0));
         try!(host.recv_header());
 
         let provider = try!(host.expect_recv("provider", 1));
 
-        ProviderFactory::create(host, Some(Providers::from(provider)))
+        Ok(Providers::from(provider))
     }
 }
 

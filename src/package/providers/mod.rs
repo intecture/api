@@ -64,21 +64,21 @@ pub struct ProviderFactory;
 
 impl ProviderFactory {
     pub fn create(host: &mut Host, providers: Option<Providers>) -> Result<Box<Provider + 'static>> {
-        let provider: Box<Provider + 'static>;
-
-        if let Some(p) = providers {
-            provider = match p {
-                Providers::Apt => Box::new(apt::Apt),
-                Providers::Dnf => Box::new(dnf::Dnf),
-                Providers::Homebrew => Box::new(homebrew::Homebrew),
-                Providers::Macports => Box::new(macports::Macports),
-                Providers::Pkg => Box::new(pkg::Pkg),
-                Providers::Ports => Box::new(ports::Ports),
-                Providers::Yum => Box::new(yum::Yum),
-            };
+        let p = if providers.is_some() {
+            providers.unwrap()
         } else {
-            provider = try!(Target::default_provider(host));
-        }
+            try!(Target::default_provider(host))
+        };
+
+        let provider: Box<Provider + 'static> = match p {
+            Providers::Apt => Box::new(apt::Apt),
+            Providers::Dnf => Box::new(dnf::Dnf),
+            Providers::Homebrew => Box::new(homebrew::Homebrew),
+            Providers::Macports => Box::new(macports::Macports),
+            Providers::Pkg => Box::new(pkg::Pkg),
+            Providers::Ports => Box::new(ports::Ports),
+            Providers::Yum => Box::new(yum::Yum),
+        };
 
         if try!(provider.is_active(host)) {
             Ok(provider)

@@ -25,7 +25,7 @@
 //! ```no_run
 //! # use inapi::{Host, Package};
 //! # let mut host = Host::new();
-//! let package = Package::new(&mut host, "nginx", None).unwrap();
+//! let mut package = Package::new(&mut host, "nginx", None).unwrap();
 //! package.install(&mut host);
 //! ```
 //!
@@ -36,7 +36,7 @@
 //! ```no_run
 //! # use inapi::{Host, Package, Providers};
 //! # let mut host = Host::new();
-//! let package = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
+//! let mut package = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
 //! package.install(&mut host);
 //! ```
 
@@ -88,35 +88,102 @@ impl Package {
     }
 
     /// Install the package.
-    pub fn install(&self, host: &mut Host) -> Result<CommandResult> {
-        self.provider.install(host, &self.name)
+    pub fn install(&mut self, host: &mut Host) -> Result<PackageResult> {
+        if self.installed {
+            Ok(PackageResult::NoAction)
+        } else {
+            let result = try!(self.provider.install(host, &self.name));
+
+            if result.exit_code == 0 {
+                self.installed = true;
+            }
+
+            Ok(PackageResult::Result(result))
+        }
     }
 
     /// Uninstall the package.
-    pub fn uninstall(&self, host: &mut Host) -> Result<CommandResult> {
-        self.provider.uninstall(host, &self.name)
+    pub fn uninstall(&mut self, host: &mut Host) -> Result<PackageResult> {
+        if self.installed {
+            let result = try!(self.provider.uninstall(host, &self.name));
+
+            if result.exit_code == 0 {
+                self.installed = false;
+            }
+
+            Ok(PackageResult::Result(result))
+        } else {
+            Ok(PackageResult::NoAction)
+        }
     }
 }
 
+/// Result of package operation.
+#[derive(Debug)]
+pub enum PackageResult {
+    /// The command result from a package operation
+    /// (e.g. installing/uninstalling)
+    Result(CommandResult),
+    /// No action was necessary to achieve the desired state
+    /// (e.g. calling install() on a currently installed package)
+    NoAction,
+}
+
 pub trait PackageTarget {
-    fn default_provider(host: &mut Host) -> Result<Box<Provider + 'static>>;
+    fn default_provider(host: &mut Host) -> Result<Providers>;
 }
 
 #[cfg(test)]
 mod tests {
     use Host;
     use super::*;
+    #[cfg(feature = "remote-run")]
     use super::providers::Providers;
     #[cfg(feature = "remote-run")]
     use std::thread;
     #[cfg(feature = "remote-run")]
     use zmq;
 
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_new_homebrew() {
-        let mut host = Host::new();
-        let pkg = Package::new(&mut host, "nginx", Some(Providers::Homebrew));
-        assert!(pkg.is_ok());
+        let mut ctx = zmq::Context::new();
+
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_new_homebrew").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("which brew", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("/usr/local/bin/brew", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("", 0).unwrap();
+
+            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("brew list | grep nginx", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.connect("inproc://test_new_homebrew").unwrap();
+
+        let mut host = Host::test_new(sock);
+        let pkg = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
+
+        assert_eq!(pkg.name, "nginx");
+        assert!(!pkg.is_installed());
+
+        agent_mock.join().unwrap();
     }
 
     #[cfg(feature = "local-run")]
@@ -137,8 +204,29 @@ mod tests {
         let agent_mock = thread::spawn(move || {
             assert_eq!("package::default_provider", agent_sock.recv_string(0).unwrap().unwrap());
             assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
             agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
             agent_sock.send_str("Homebrew", 0).unwrap();
+
+            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("which brew", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("/usr/local/bin/brew", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("", 0).unwrap();
+
+            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("brew list | grep nginx", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("", 0).unwrap();
         });
 
         let mut sock = ctx.socket(zmq::REQ).unwrap();
