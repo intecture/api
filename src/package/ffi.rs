@@ -51,15 +51,6 @@ pub enum Ffi__PackageResult {
     NoAction,
 }
 
-impl convert::From<PackageResult> for Ffi__PackageResult {
-    fn from(result: PackageResult) -> Ffi__PackageResult {
-        match result {
-            PackageResult::Result(r) => Ffi__PackageResult::Result,
-            PackageResult::NoAction => Ffi__PackageResult::NoAction,
-        }
-    }
-}
-
 #[repr(C)]
 pub enum Ffi__Providers {
     Default,
@@ -114,17 +105,19 @@ pub extern "C" fn package_install(ffi_pkg_ptr: *mut Ffi__Package, ffi_host_ptr: 
 
     let result = pkg.install(&mut host).unwrap();
 
-    match result {
-        PackageResult::Result(r) => unsafe { ptr::write(&mut *ffi_result_ptr, Ffi__CommandResult::from(r)); },
-        _ => (),
-    }
-
+    // Write mutated Package state back to pointer
     unsafe { ptr::write(&mut *ffi_pkg_ptr, Ffi__Package::from(pkg)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    Ffi__PackageResult::from(result)
+    match result {
+        PackageResult::Result(r) => {
+            unsafe { ptr::write(&mut *ffi_result_ptr, Ffi__CommandResult::from(r)); };
+            Ffi__PackageResult::Result
+        },
+        PackageResult::NoAction => Ffi__PackageResult::NoAction,
+    }
 }
 
 #[no_mangle]
@@ -134,31 +127,35 @@ pub extern "C" fn package_uninstall(ffi_pkg_ptr: *mut Ffi__Package, ffi_host_ptr
 
     let result = pkg.uninstall(&mut host).unwrap();
 
-    match result {
-        PackageResult::Result(r) => unsafe { ptr::write(&mut *ffi_result_ptr, Ffi__CommandResult::from(r)); },
-        _ => (),
-    }
-
+    // Write mutated Package state back to pointer
     unsafe { ptr::write(&mut *ffi_pkg_ptr, Ffi__Package::from(pkg)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    Ffi__PackageResult::from(result)
+    match result {
+        PackageResult::Result(r) => {
+            unsafe { ptr::write(&mut *ffi_result_ptr, Ffi__CommandResult::from(r)); };
+            Ffi__PackageResult::Result
+        },
+        PackageResult::NoAction => Ffi__PackageResult::NoAction,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "remote-run")]
+    use command::ffi::Ffi__CommandResult;
+    #[cfg(feature = "remote-run")]
     use Host;
-    use Package;
     use host::ffi::Ffi__Host;
     use libc::uint8_t;
+    use Package;
     use package::providers::Homebrew;
     use std::ffi::{CStr, CString};
+    use std::str;
     #[cfg(feature = "remote-run")]
     use std::thread;
-    use std::str;
     use super::*;
     #[cfg(feature = "remote-run")]
     use zmq;
@@ -188,9 +185,8 @@ mod tests {
     fn test_package_new_default() {
         let host = Ffi__Host;
         let name = CString::new("nginx").unwrap().into_raw();
-        let provider = CString::new("default").unwrap().into_raw();
 
-        let ffi_pkg = package_new(&host as *const Ffi__Host, name, provider);
+        let ffi_pkg = package_new(&host as *const Ffi__Host, name, Ffi__Providers::Default);
 
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap() }, "nginx");
     }
@@ -252,9 +248,8 @@ mod tests {
     fn test_package_new_homebrew() {
         let host = Ffi__Host;
         let name = CString::new("nginx").unwrap().into_raw();
-        let provider = CString::new("Homebrew").unwrap().into_raw();
 
-        let ffi_pkg = package_new(&host as *const Ffi__Host, name, provider);
+        let ffi_pkg = package_new(&host as *const Ffi__Host, name, Ffi__Providers::Homebrew);
 
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap() }, "nginx");
     }
@@ -357,16 +352,21 @@ mod tests {
         sock.connect("inproc://test_package_install").unwrap();
 
         let ffi_host = Ffi__Host::from(Host::test_new(sock));
-        let ffi_pkg = Ffi__Package {
+        let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Box::into_raw(Box::new(Homebrew)),
             installed: 0,
         };
 
-        let result = package_install(&ffi_pkg as *const Ffi__Package, &ffi_host as *const Ffi__Host);
+        let mut result = Ffi__CommandResult {
+            exit_code: 0,
+            stdout: CString::new("").unwrap().into_raw(),
+            stderr: CString::new("").unwrap().into_raw(),
+        };
+        let action = package_install(&mut ffi_pkg as *mut Ffi__Package, &ffi_host as *const Ffi__Host, &mut result as *mut Ffi__CommandResult);
 
-        match result {
-            Ffi__PackageResult::Result(r) => assert_eq!(r.exit_code, 0),
+        match action {
+            Ffi__PackageResult::Result => assert_eq!(result.exit_code, 0),
             _ => panic!("Package install not attempted"),
         }
 
@@ -415,16 +415,21 @@ mod tests {
         sock.connect("inproc://test_package_uninstall").unwrap();
 
         let ffi_host = Ffi__Host::from(Host::test_new(sock));
-        let ffi_pkg = Ffi__Package {
+        let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Box::into_raw(Box::new(Homebrew)),
             installed: 1,
         };
 
-        let result = package_uninstall(&ffi_pkg as *const Ffi__Package, &ffi_host as *const Ffi__Host);
+        let mut result = Ffi__CommandResult {
+            exit_code: 0,
+            stdout: CString::new("").unwrap().into_raw(),
+            stderr: CString::new("").unwrap().into_raw(),
+        };
+        let action = package_uninstall(&mut ffi_pkg as *mut Ffi__Package, &ffi_host as *const Ffi__Host, &mut result as *mut Ffi__CommandResult);
 
-        match result {
-            Ffi__PackageResult::Result(r) => assert_eq!(r.exit_code, 0),
+        match action {
+            Ffi__PackageResult::Result => assert_eq!(result.exit_code, 0),
             _ => panic!("Package uninstall not attempted"),
         }
 
