@@ -27,7 +27,7 @@ impl Provider for Apt {
     }
 
     fn is_installed(&self, host: &mut Host, name: &str) -> Result<bool> {
-        let cmd = Command::new(&format!("dpkg -l {}", name));
+        let cmd = Command::new(&format!("dpkg --get-selections | grep -E \"{}\\s+install$\"", name));
         let result = try!(cmd.exec(host));
 
         Ok(result.exit_code == 0)
