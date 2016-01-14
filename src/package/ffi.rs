@@ -245,11 +245,34 @@ mod tests {
 
     #[cfg(feature = "local-run")]
     #[test]
-    fn test_package_new_homebrew() {
+    fn test_package_new_specific() {
         let host = Ffi__Host;
         let name = CString::new("nginx").unwrap().into_raw();
+        let mut providers = Ffi__Providers::Default;
 
-        let ffi_pkg = package_new(&host as *const Ffi__Host, name, Ffi__Providers::Homebrew);
+        if cfg!(in_os_platform = "centos") {
+            providers = Ffi__Providers::Yum;
+        }
+        if cfg!(in_os_platform = "debian") {
+            providers = Ffi__Providers::Apt;
+        }
+        if cfg!(in_os_platform = "fedora") {
+            providers = Ffi__Providers::Dnf;
+        }
+        if cfg!(in_os_platform = "freebsd") {
+            providers = Ffi__Providers::Pkg;
+        }
+        if cfg!(in_os_platform = "macos") {
+            providers = Ffi__Providers::Homebrew;
+        }
+        if cfg!(in_os_platform = "redhat") {
+            providers = Ffi__Providers::Yum;
+        }
+        if cfg!(in_os_platform = "ubuntu") {
+            providers = Ffi__Providers::Apt;
+        }
+
+        let ffi_pkg = package_new(&host as *const Ffi__Host, name, providers);
 
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap() }, "nginx");
     }

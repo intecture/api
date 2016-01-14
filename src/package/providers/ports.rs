@@ -21,7 +21,7 @@ impl Provider for Ports {
 
     #[allow(unused_variables)]
     fn is_active(&self, host: &mut Host) -> Result<bool> {
-        unimplemented!();
+        Ok(false)
     }
 
     #[allow(unused_variables)]

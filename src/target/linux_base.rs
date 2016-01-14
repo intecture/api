@@ -6,11 +6,12 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use error::Error;
 use regex::Regex;
+use Result;
 use std::{process, str};
 use std::io::prelude::*;
 use std::fs::File;
-use super::{Result, TargetError};
 use target::default_base as default;
 use telemetry::Netif;
 
@@ -18,7 +19,7 @@ pub fn memory() -> Result<u64> {
     let output = process::Command::new("/usr/bin/free").arg("-b").output().unwrap();
 
     if !output.status.success() {
-        return Err(TargetError::Generic("Could not determine memory".to_string()));
+        return Err(Error::Generic("Could not determine memory".to_string()));
     }
 
     let regex = Regex::new(r"(?m)^Mem:\s+([0-9]+)").unwrap();
@@ -27,7 +28,7 @@ pub fn memory() -> Result<u64> {
     if capture.is_some() {
         Ok(capture.unwrap().at(1).unwrap().parse::<u64>().unwrap())
     } else {
-        Err(TargetError::Generic("Invalid memory output".to_string()))
+        Err(Error::Generic("Invalid memory output".to_string()))
     }
 }
 
@@ -56,7 +57,7 @@ fn get_cpu_item(item: &str) -> Result<String> {
     if capture.is_some() {
         Ok(capture.unwrap().at(1).unwrap().to_string())
     } else {
-        Err(TargetError::Generic(format!("Could not find CPU item: {}", item)))
+        Err(Error::Generic(format!("Could not find CPU item: {}", item)))
     }
 }
 

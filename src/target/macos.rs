@@ -49,12 +49,14 @@ impl TelemetryTarget for Target {
     #[allow(unused_variables)]
     fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
         let cpu_vendor = try!(unix::get_sysctl_item("machdep\\.cpu\\.vendor"));
-        let cpu_brand_string = try!(unix::get_sysctl_item("machdep\\.cpu\\.brand_string"));
+        let cpu_brand = try!(unix::get_sysctl_item("machdep\\.cpu\\.brand_string"));
+        let hostname = try!(default::hostname());
         let telemetry_version = try!(telemetry_version());
-        let t = Telemetry::new(
+
+        Ok(Telemetry::new(
             Cpu::new(
                 &cpu_vendor,
-                &cpu_brand_string,
+                &cpu_brand,
                 try!(try!(unix::get_sysctl_item("hw\\.physicalcpu")).parse::<u32>())
             ),
             try!(default::parse_fs(vec![
@@ -68,13 +70,11 @@ impl TelemetryTarget for Target {
                 default::FsFieldOrder::Blank,
                 default::FsFieldOrder::Mount,
             ])),
-            try!(default::hostname()),
+            &hostname,
             try!(try!(unix::get_sysctl_item("hw\\.memsize")).parse::<u64>()),
             try!(unix::net()),
             Os::new(env::consts::ARCH, "unix", "macos", &telemetry_version),
-        );
-
-        Ok(t)
+        ))
     }
 }
 
@@ -86,4 +86,26 @@ fn telemetry_version() -> Result<String> {
     }
 
     Ok(try!(str::from_utf8(&output.stdout)).trim().to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use Host;
+    use package::PackageTarget;
+    use target::Target;
+    use telemetry::TelemetryTarget;
+
+    #[test]
+    fn test_package_default_provider() {
+        let mut host = Host::new();
+        let result = Target::default_provider(&mut host);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_telemetry_init() {
+        let mut host = Host::new();
+        let result = Target::telemetry_init(&mut host);
+        assert!(result.is_ok());
+    }
 }

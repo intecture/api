@@ -178,6 +178,7 @@ mod tests {
         sock.connect("inproc://test_new_homebrew").unwrap();
 
         let mut host = Host::test_new(sock);
+
         let pkg = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
 
         assert_eq!(pkg.name, "nginx");

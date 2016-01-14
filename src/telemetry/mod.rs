@@ -47,11 +47,11 @@ pub struct Telemetry {
 
 impl Telemetry {
     #[doc(hidden)]
-    pub fn new(cpu: Cpu, fs: Vec<FsMount>, hostname: String, memory: u64, net: Vec<Netif>, os: Os) -> Telemetry {
+    pub fn new(cpu: Cpu, fs: Vec<FsMount>, hostname: &str, memory: u64, net: Vec<Netif>, os: Os) -> Telemetry {
         Telemetry {
             cpu: cpu,
             fs: fs,
-            hostname: hostname,
+            hostname: hostname.to_string(),
             memory: memory,
             net: net,
             os: os,

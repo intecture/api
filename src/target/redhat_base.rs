@@ -6,10 +6,11 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use error::Error;
 use regex::Regex;
+use Result;
 use std::fs::File;
 use std::io::Read;
-use super::{Result, TargetError};
 
 pub fn version() -> Result<String> {
     let mut fh = try!(File::open("/etc/redhat-release"));
@@ -20,7 +21,7 @@ pub fn version() -> Result<String> {
     if let Some(cap) = regex.captures(&fc) {
         Ok(cap.at(1).unwrap().to_string())
     } else {
-        Err(TargetError::Generic("Could not match OS version".to_string()))
+        Err(Error::Generic("Could not match OS version".to_string()))
     }
 }
 

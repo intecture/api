@@ -6,64 +6,76 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use std::env;
-use super::{Result, Target, TargetInterface};
-use target::{default_base as default, linux_base as linux, redhat_base as redhat};
-use telemetry::{FsMount, Netif};
+use {
+    CommandResult,
+    Host,
+    Providers,
+    Result,
+    Cpu, Os, Telemetry,
+};
+use command::CommandTarget;
+use error::Error;
+use package::PackageTarget;
+use std::{env, process, str};
+use super::{default_base as default, linux_base as linux, redhat_base as redhat, Target};
+use telemetry::TelemetryTarget;
 
-impl TargetInterface for Target {
-    fn hostname() -> Result<String> {
-        default::hostname()
+//
+// Command
+//
+
+impl CommandTarget for Target {
+    #[allow(unused_variables)]
+    fn exec(host: &mut Host, cmd: &str) -> Result<CommandResult> {
+        default::command_exec(cmd)
     }
+}
 
-    fn arch() -> String {
-        env::consts::ARCH.to_string()
+//
+// Package
+//
+
+impl PackageTarget for Target {
+    fn default_provider(host: &mut Host) -> Result<Providers> {
+        default::default_provider(host, vec![Providers::Yum])
     }
+}
 
-    fn family() -> String {
-        "redhat".to_string()
-    }
+//
+// Telemetry
+//
 
-    fn platform() -> String {
-        "redhat".to_string()
-    }
+impl TelemetryTarget for Target {
+    #[allow(unused_variables)]
+    fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
+        let cpu_vendor = try!(linux::cpu_vendor());
+        let cpu_brand = try!(linux::cpu_brand_string());
+        let hostname = try!(default::hostname());
+        let os_version = try!(redhat::version());
 
-    fn version() -> Result<String> {
-        redhat::version()
-    }
-
-    fn memory() -> Result<u64> {
-        linux::memory()
-    }
-
-    fn cpu_vendor() -> Result<String> {
-        linux::cpu_vendor()
-    }
-
-    fn cpu_brand_string() -> Result<String> {
-        linux::cpu_brand_string()
-    }
-
-    fn cpu_cores() -> Result<u32> {
-        linux::cpu_cores()
-    }
-
-    fn fs() -> Result<Vec<FsMount>> {
-        default::fs()
-    }
-
-    fn net() -> Result<Vec<Netif>> {
-        linux::net()
+        Ok(Telemetry::new(
+            Cpu::new(
+                &cpu_vendor,
+                &cpu_brand,
+                try!(linux::cpu_cores())
+            ),
+            try!(default::fs()),
+            &hostname,
+            try!(linux::memory()),
+            try!(linux::net()),
+            Os::new(env::consts::ARCH, "redhat", "redhat", &os_version),
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::super::*;
+    use Host;
+    use super::*;
 
     #[test]
-    fn test_fs() {
-        // XXX Not a proper test. Requires mocking.
-        assert!(Target::fs().is_ok());
+    fn test_telemetry_init() {
+        let mut host = Host::new();
+        Target::telemetry_init(&mut host);
     }
 }

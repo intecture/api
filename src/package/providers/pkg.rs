@@ -8,7 +8,7 @@
 
 //! Pkg package provider
 
-use {/*Command, */CommandResult, Host};
+use {Command, CommandResult, Host};
 use Result;
 use super::*;
 
@@ -19,23 +19,27 @@ impl Provider for Pkg {
         Providers::Pkg
     }
 
-    #[allow(unused_variables)]
     fn is_active(&self, host: &mut Host) -> Result<bool> {
-        unimplemented!();
+        let cmd = Command::new("which pkg");
+        let result = try!(cmd.exec(host));
+
+        Ok(result.exit_code == 0)
     }
 
-    #[allow(unused_variables)]
     fn is_installed(&self, host: &mut Host, name: &str) -> Result<bool> {
-        unimplemented!();
+        let cmd = Command::new(&format!("pkg info | grep {}", name));
+        let result = try!(cmd.exec(host));
+
+        Ok(result.exit_code == 0)
     }
 
-    #[allow(unused_variables)]
     fn install(&self, host: &mut Host, name: &str) -> Result<CommandResult> {
-        unimplemented!();
+        let cmd = Command::new(&format!("env ASSUME_ALWAYS_YES=YES pkg install {}", name));
+        cmd.exec(host)
     }
 
-    #[allow(unused_variables)]
     fn uninstall(&self, host: &mut Host, name: &str) -> Result<CommandResult> {
-        unimplemented!();
+        let cmd = Command::new(&format!("env ASSUME_ALWAYS_YES=YES pkg delete {}", name));
+        cmd.exec(host)
     }
 }
