@@ -40,7 +40,7 @@ impl convert::From<Ffi__Package> for Package {
         Package {
             name: unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap().to_string() },
             provider: unsafe { Box::from_raw(ffi_pkg.provider) },
-            installed: if ffi_pkg.installed == 1 { true } else { false },
+            installed: ffi_pkg.installed == 1,
         }
     }
 }
@@ -94,8 +94,8 @@ pub extern "C" fn package_new(ffi_host_ptr: *const Ffi__Host, name_ptr: *const c
 
 #[no_mangle]
 pub extern "C" fn package_is_installed(ffi_pkg_ptr: *const Ffi__Package) -> uint8_t {
-    let pkg = Package::from(unsafe { ptr::read(ffi_pkg_ptr) });
-    if pkg.installed { 1 } else { 0 }
+    let pkg = unsafe { ptr::read(ffi_pkg_ptr) };
+    pkg.installed
 }
 
 #[no_mangle]
@@ -149,7 +149,6 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use Host;
     use host::ffi::Ffi__Host;
-    use libc::uint8_t;
     use Package;
     use package::providers::Homebrew;
     use std::ffi::{CStr, CString};
@@ -175,7 +174,7 @@ mod tests {
         let ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Box::into_raw(Box::new(Homebrew)),
-            installed: 1 as uint8_t,
+            installed: 1,
         };
         Package::from(ffi_pkg);
     }
@@ -329,7 +328,7 @@ mod tests {
         let pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Box::into_raw(Box::new(Homebrew)),
-            installed: 1 as uint8_t,
+            installed: 1,
         };
         let result = package_is_installed(&pkg as *const Ffi__Package);
         assert_eq!(result, 1);
@@ -342,9 +341,8 @@ mod tests {
     //     let host = Ffi__Host;
     //     let pkg = Ffi__Package {
     //         name: CString::new("nginx").unwrap().as_ptr(),
-    //         provider: Ffi__Provider {
-    //             provider: Box::into_raw(Box::new(Homebrew)),
-    //         },
+    //         provider: Box::into_raw(Box::new(Homebrew)),
+    //         installed: 0,
     //     };
     //     let result = package_install(&pkg as *const Ffi__Package, &host as *const Ffi__Host);
     //     assert_eq!(result.exit_code, 0);

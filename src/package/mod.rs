@@ -73,13 +73,11 @@ impl Package {
         let provider = try!(ProviderFactory::create(host, providers));
         let installed = try!(provider.is_installed(host, name));
 
-        let pkg = Package {
+        Ok(Package {
             name: name.to_string(),
             provider: provider,
             installed: installed,
-        };
-
-        Ok(pkg)
+        })
     }
 
     /// Check if the package is installed.

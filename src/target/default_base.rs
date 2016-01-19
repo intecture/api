@@ -66,7 +66,7 @@ pub fn fs() -> Result<Vec<FsMount>> {
 }
 
 pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
-    let mount_out = try!(process::Command::new("/bin/df").arg("-k").output());
+    let mount_out = try!(process::Command::new("/bin/df").arg("-Pk").output());
     let mount = try!(String::from_utf8(mount_out.stdout));
 
     let mut pattern = "(?m)^".to_string();
