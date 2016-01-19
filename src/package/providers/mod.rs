@@ -70,7 +70,17 @@ impl ProviderFactory {
             try!(Target::default_provider(host))
         };
 
-        let provider: Box<Provider + 'static> = match p {
+        let provider = Self::resolve(p);
+
+        if try!(provider.is_active(host)) {
+            Ok(provider)
+        } else {
+            Err(Error::Generic("Provider is not active".to_string()))
+        }
+    }
+
+    pub fn resolve(providers: Providers) -> Box<Provider + 'static> {
+        match providers {
             Providers::Apt => Box::new(apt::Apt),
             Providers::Dnf => Box::new(dnf::Dnf),
             Providers::Homebrew => Box::new(homebrew::Homebrew),
@@ -78,12 +88,6 @@ impl ProviderFactory {
             Providers::Pkg => Box::new(pkg::Pkg),
             Providers::Ports => Box::new(ports::Ports),
             Providers::Yum => Box::new(yum::Yum),
-        };
-
-        if try!(provider.is_active(host)) {
-            Ok(provider)
-        } else {
-            Err(Error::Generic("Provider is not active".to_string()))
         }
     }
 }

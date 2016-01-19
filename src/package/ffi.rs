@@ -13,15 +13,14 @@ use command::ffi::Ffi__CommandResult;
 use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t};
 use std::{convert, ptr, str};
-use std::boxed::Box;
 use std::ffi::{CStr, CString};
 use super::*;
-use super::providers::Provider;
+use super::providers::{Provider, ProviderFactory};
 
 #[repr(C)]
 pub struct Ffi__Package {
     name: *mut c_char,
-    provider: *mut Provider,
+    provider: Ffi__Providers,
     installed: uint8_t,
 }
 
@@ -29,7 +28,7 @@ impl convert::From<Package> for Ffi__Package {
     fn from(pkg: Package) -> Ffi__Package {
         Ffi__Package {
             name: CString::new(pkg.name).unwrap().into_raw(),
-            provider: Box::into_raw(pkg.provider),
+            provider: Ffi__Providers::from(pkg.provider.get_providers()),
             installed: if pkg.installed { 1 } else { 0 },
         }
     }
@@ -39,7 +38,7 @@ impl convert::From<Ffi__Package> for Package {
     fn from(ffi_pkg: Ffi__Package) -> Package {
         Package {
             name: unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap().to_string() },
-            provider: unsafe { Box::from_raw(ffi_pkg.provider) },
+            provider: ProviderFactory::resolve(Option::<Providers>::from(ffi_pkg.provider).unwrap()),
             installed: ffi_pkg.installed == 1,
         }
     }
@@ -61,6 +60,20 @@ pub enum Ffi__Providers {
     Pkg,
     Ports,
     Yum,
+}
+
+impl convert::From<Providers> for Ffi__Providers {
+    fn from(providers: Providers) -> Ffi__Providers {
+        match providers {
+            Providers::Apt => Ffi__Providers::Apt,
+            Providers::Dnf => Ffi__Providers::Dnf,
+            Providers::Homebrew => Ffi__Providers::Homebrew,
+            Providers::Macports => Ffi__Providers::Macports,
+            Providers::Pkg => Ffi__Providers::Pkg,
+            Providers::Ports => Ffi__Providers::Ports,
+            Providers::Yum => Ffi__Providers::Yum,
+        }
+    }
 }
 
 impl convert::From<Ffi__Providers> for Option<Providers> {
@@ -173,7 +186,7 @@ mod tests {
     fn test_convert_ffi_package() {
         let ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
-            provider: Box::into_raw(Box::new(Homebrew)),
+            provider: Ffi__Providers::Homebrew,
             installed: 1,
         };
         Package::from(ffi_pkg);
@@ -327,7 +340,7 @@ mod tests {
     fn test_package_is_installed() {
         let pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
-            provider: Box::into_raw(Box::new(Homebrew)),
+            provider: Ffi__Providers::Homebrew,
             installed: 1,
         };
         let result = package_is_installed(&pkg as *const Ffi__Package);
@@ -375,7 +388,7 @@ mod tests {
         let ffi_host = Ffi__Host::from(Host::test_new(sock));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
-            provider: Box::into_raw(Box::new(Homebrew)),
+            provider: Ffi__Providers::Homebrew,
             installed: 0,
         };
 
@@ -438,7 +451,7 @@ mod tests {
         let ffi_host = Ffi__Host::from(Host::test_new(sock));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
-            provider: Box::into_raw(Box::new(Homebrew)),
+            provider: Ffi__Providers::Homebrew,
             installed: 1,
         };
 
