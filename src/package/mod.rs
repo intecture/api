@@ -6,7 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! The primitive for installing and manging software packages on a
+//! The primitive for installing and managing software packages on a
 //! managed host.
 //!
 //! # Examples
