@@ -22,85 +22,134 @@ impl Host {
     /// Create a new Host to represent your managed host.
     pub fn new() -> Host {
         Host {
-            zmq_sock: None,
+            hostname: None,
+            api_sock: None,
+            upload_sock: None,
+            download_port: None,
         }
     }
 
     #[cfg(test)]
     pub fn test_new(sock: zmq::Socket) -> Host {
         let host = Host {
-            zmq_sock: Some(sock),
+            hostname: None,
+            api_sock: Some(sock),
+            upload_sock: None,
+            download_port: None,
         };
 
         host
     }
 
-    pub fn connect(&mut self, ip: &str, port: u32) -> Result<()> {
-        let mut sock = ZMQCTX.lock().unwrap().socket(zmq::REQ).unwrap();
-        try!(sock.set_linger(5000));
-        try!(sock.connect(&format!("tcp://{}:{}", ip, port)));
+    pub fn connect(&mut self, hostname: &str, api_port: u32, upload_port: u32, download_port: u32) -> Result<()> {
+        self.hostname = Some(hostname.to_string());
 
-        self.zmq_sock = Some(sock);
+        self.api_sock = Some(ZMQCTX.lock().unwrap().socket(zmq::REQ).unwrap());
+        try!(self.api_sock.as_mut().unwrap().set_linger(5000));
+        try!(self.api_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, api_port)));
+
+        self.upload_sock = Some(ZMQCTX.lock().unwrap().socket(zmq::PUB).unwrap());
+        try!(self.upload_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, upload_port)));
+
+        self.download_port = Some(download_port);
+
         Ok(())
     }
 
     pub fn close(&mut self) -> Result<()> {
-        if self.zmq_sock.is_none() {
+        if self.api_sock.is_none() {
             return Err(Error::Generic("Host is not connected".to_string()));
         }
 
-        try!(self.zmq_sock.as_mut().unwrap().close());
-        self.zmq_sock = None;
+        try!(self.api_sock.as_mut().unwrap().close());
+        self.api_sock = None;
+
+        try!(self.upload_sock.as_mut().unwrap().close());
+        self.upload_sock = None;
+
         Ok(())
     }
 
     #[doc(hidden)]
     pub fn send(&mut self, msg: &str, flags: i32) -> Result<()> {
-        if self.zmq_sock.is_none() {
+        if self.api_sock.is_none() {
             return Err(Error::Generic("Host is not connected".to_string()));
         }
 
-        try!(self.zmq_sock.as_mut().unwrap().send_str(msg, flags));
+        try!(self.api_sock.as_mut().unwrap().send_str(msg, flags));
+        Ok(())
+    }
+
+    #[doc(hidden)]
+    pub fn send_file(&mut self, path: &str, hash: u64, size: u64, total_chunks: u64) -> Result<zmq::Socket> {
+        let mut download_sock = ZMQCTX.lock().unwrap().socket(zmq::SUB).unwrap();
+        try!(download_sock.connect(&format!("tcp://{}:{}", self.hostname.as_mut().unwrap(), self.download_port.unwrap())));
+        try!(download_sock.set_subscribe(path.as_bytes()));
+
+        try!(self.upload_sock.as_mut().unwrap().send_str(path, zmq::SNDMORE));
+        try!(self.upload_sock.as_mut().unwrap().send_str(&hash.to_string(), zmq::SNDMORE));
+        try!(self.upload_sock.as_mut().unwrap().send_str(&size.to_string(), zmq::SNDMORE));
+        try!(self.upload_sock.as_mut().unwrap().send_str(&total_chunks.to_string(), 0));
+
+        Ok(download_sock)
+    }
+
+    #[doc(hidden)]
+    pub fn send_chunk(&mut self, path: &str, index: u64, chunk: &[u8]) -> Result<()> {
+        try!(self.upload_sock.as_mut().unwrap().send_str(path, zmq::SNDMORE));
+        try!(self.upload_sock.as_mut().unwrap().send_str(&index.to_string(), zmq::SNDMORE));
+        try!(self.upload_sock.as_mut().unwrap().send(chunk, 0));
         Ok(())
     }
 
     #[doc(hidden)]
     pub fn recv_header(&mut self) -> Result<()> {
-        if self.zmq_sock.is_none() {
+        if self.api_sock.is_none() {
             return Err(Error::Generic("Host is not connected".to_string()));
         }
 
-        match try!(self.zmq_sock.as_mut().unwrap().recv_string(0)).unwrap().as_ref() {
-            "Err" => Err(Error::Agent(try!(self.expect_recv("err_msg", 1)))),
+        match try!(self.api_sock.as_mut().unwrap().recv_string(0)).unwrap().as_ref() {
             "Ok" => Ok(()),
+            "Err" => Err(Error::Agent(try!(self.expect_recv("err_msg", 1)))),
             _ => unreachable!(),
         }
     }
 
     #[doc(hidden)]
+    pub fn recv_chunk(&mut self, download_sock: &mut zmq::Socket) -> Result<u64> {
+        try!(download_sock.recv_string(0)).unwrap();
+
+        if download_sock.get_rcvmore().unwrap() == false {
+            return Err(Error::Frame(MissingFrame::new("chunk", 2)));
+        }
+
+        Ok(try!(download_sock.recv_string(0)).unwrap().parse::<u64>().unwrap())
+    }
+
+    #[doc(hidden)]
     pub fn expect_recv(&mut self, name: &str, order: u8) -> Result<String> {
-        if self.zmq_sock.is_none() {
+        if self.api_sock.is_none() {
             return Err(Error::Generic("Host is not connected".to_string()));
         }
 
-        if self.zmq_sock.as_mut().unwrap().get_rcvmore().unwrap() == false {
+        if self.api_sock.as_mut().unwrap().get_rcvmore().unwrap() == false {
             return Err(Error::Frame(MissingFrame::new(name, order)));
         }
 
-        Ok(try!(self.zmq_sock.as_mut().unwrap().recv_string(0)).unwrap())
+        Ok(try!(self.api_sock.as_mut().unwrap().recv_string(0)).unwrap())
     }
 
     #[doc(hidden)]
     pub fn expect_recvmsg(&mut self, name: &str, order: u8) -> Result<zmq::Message> {
-        if self.zmq_sock.is_none() {
+        if self.api_sock.is_none() {
             return Err(Error::Generic("Host is not connected".to_string()));
         }
 
-        if self.zmq_sock.as_mut().unwrap().get_rcvmore().unwrap() == false {
+        if self.api_sock.as_mut().unwrap().get_rcvmore().unwrap() == false {
             return Err(Error::Frame(MissingFrame::new(name, order)));
         }
 
-        Ok(try!(self.zmq_sock.as_mut().unwrap().recv_msg(0)))
+        Ok(try!(self.api_sock.as_mut().unwrap().recv_msg(0)))
     }
 }
 
@@ -111,7 +160,7 @@ mod tests {
     #[test]
     fn test_host_connect() {
         let mut host = Host::new();
-        assert!(host.connect("127.0.0.1", 7101).is_ok());
+        assert!(host.connect("127.0.0.1", 7101, 7102, 7103).is_ok());
     }
 
     #[test]

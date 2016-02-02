@@ -13,6 +13,7 @@ use {
     Result,
 };
 use command::CommandTarget;
+use file::FileTarget;
 use package::PackageTarget;
 use rustc_serialize::json;
 use super::Target;
@@ -38,6 +39,53 @@ impl CommandTarget for Target {
             stdout: stdout,
             stderr: stderr,
         })
+    }
+}
+
+//
+// File
+//
+
+impl FileTarget for Target {
+    fn file_is_file(host: &mut Host, path: &str) -> Result<bool> {
+        try!(host.send("file::is_file", zmq::SNDMORE));
+        try!(host.send(path, 0));
+
+        try!(host.recv_header());
+        let result = try!(host.expect_recv("is_file", 1));
+        Ok(result == "1")
+    }
+
+    fn file_exists(host: &mut Host, path: &str) -> Result<bool> {
+        try!(host.send("file::exists", zmq::SNDMORE));
+        try!(host.send(path, 0));
+
+        try!(host.recv_header());
+        let result = try!(host.expect_recv("exists", 1));
+        Ok(result == "1")
+    }
+
+    fn file_delete(host: &mut Host, path: &str) -> Result<()> {
+        try!(host.send("file::delete", zmq::SNDMORE));
+        try!(host.send(path, 0));
+        try!(host.recv_header());
+        Ok(())
+    }
+
+    fn file_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+        try!(host.send("file::get_mode", zmq::SNDMORE));
+        try!(host.send(path, 0));
+
+        try!(host.recv_header());
+        Ok(try!(host.expect_recv("mode", 1)).parse::<u16>().unwrap())
+    }
+
+    fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+        try!(host.send("file::set_mode", zmq::SNDMORE));
+        try!(host.send(path, zmq::SNDMORE));
+        try!(host.send(&mode.to_string(), 0));
+        try!(host.recv_header());
+        Ok(())
     }
 }
 

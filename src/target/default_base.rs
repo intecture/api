@@ -9,7 +9,7 @@
 use {CommandResult, Host, ProviderFactory, Providers, Result};
 use error::Error;
 use regex::Regex;
-use std::{process, str};
+use std::{fs, process, str};
 use telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
 
 pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Providers> {
@@ -32,6 +32,20 @@ pub fn command_exec(cmd: &str) -> Result<CommandResult> {
         stdout: str::from_utf8(&output.stdout).unwrap().trim().to_string(),
         stderr: str::from_utf8(&output.stderr).unwrap().trim().to_string(),
     })
+}
+
+pub fn file_is_file(path: &str) -> Result<bool> {
+    let meta = fs::metadata(path);
+    Ok(meta.is_err() || meta.unwrap().is_file())
+}
+
+pub fn file_exists(path: &str) -> Result<bool> {
+    Ok(fs::metadata(path).is_ok())
+}
+
+pub fn file_delete(path: &str) -> Result<()> {
+    try!(fs::remove_file(path));
+    Ok(())
 }
 
 pub fn hostname() -> Result<String> {

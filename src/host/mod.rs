@@ -46,6 +46,12 @@ use zmq;
 pub struct Host;
 #[cfg(feature = "remote-run")]
 pub struct Host {
-    /// ZMQ socket connection to host
-    zmq_sock: Option<zmq::Socket>,
+    // Hostname or IP of managed host
+    hostname: Option<String>,
+    /// API socket
+    api_sock: Option<zmq::Socket>,
+    /// File upload socket
+    upload_sock: Option<zmq::Socket>,
+    /// File download port
+    download_port: Option<u32>,
 }

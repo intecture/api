@@ -15,6 +15,7 @@ use {
 };
 use command::CommandTarget;
 use error::Error;
+use file::FileTarget;
 use package::PackageTarget;
 use regex::Regex;
 use std::env;
@@ -31,6 +32,37 @@ impl CommandTarget for Target {
     #[allow(unused_variables)]
     fn exec(host: &mut Host, cmd: &str) -> Result<CommandResult> {
         default::command_exec(cmd)
+    }
+}
+
+//
+// File
+//
+
+impl FileTarget for Target {
+    #[allow(unused_variables)]
+    fn file_is_file(host: &mut Host, path: &str) -> Result<bool> {
+        default::file_is_file(path)
+    }
+
+    #[allow(unused_variables)]
+    fn file_exists(host: &mut Host, path: &str) -> Result<bool> {
+        default::file_exists(path)
+    }
+
+    #[allow(unused_variables)]
+    fn file_delete(host: &mut Host, path: &str) -> Result<()> {
+        default::file_delete(path)
+    }
+
+    #[allow(unused_variables)]
+    fn file_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+        unix::file_get_mode(path)
+    }
+
+    #[allow(unused_variables)]
+    fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+        unix::file_set_mode(path, mode)
     }
 }
 

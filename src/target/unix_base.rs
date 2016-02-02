@@ -9,9 +9,21 @@
 use error::Error;
 use regex::Regex;
 use Result;
-use std::{process, str};
+use std::{fs, process, str};
+use std::os::unix::fs::PermissionsExt;
 use super::default_base as default;
 use telemetry::Netif;
+
+pub fn file_get_mode(path: &str) -> Result<u16> {
+    let meta = try!(fs::metadata(path));
+    Ok(meta.permissions().mode())
+}
+
+pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
+    let meta = try!(fs::metadata(path));
+    meta.permissions().set_mode(mode);
+    Ok(())
+}
 
 pub fn version() -> Result<String> {
     let output = try!(process::Command::new("uname").arg("-r").output());

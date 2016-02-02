@@ -36,6 +36,7 @@ extern crate zmq_sys;
 
 pub mod command;
 pub mod error;
+pub mod file;
 pub mod host;
 pub mod package;
 mod target;
@@ -43,6 +44,7 @@ pub mod telemetry;
 
 pub use command::{Command, CommandResult};
 pub use error::Error;
+pub use file::File;
 pub use host::Host;
 pub use package::{Package, PackageResult};
 pub use package::providers::{Provider, ProviderFactory, Providers};

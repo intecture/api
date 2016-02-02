@@ -28,20 +28,23 @@
 
 // pub mod ffi;
 
-use {Host, Target};
+use {Host, Result};
+use error::Error;
+#[cfg(feature = "remote-run")]
+use std::fs;
+#[cfg(feature = "remote-run")]
+use std::io::{Read, Seek, SeekFrom};
+#[cfg(feature = "remote-run")]
+use std::hash::{SipHasher, Hasher};
+use target::Target;
+
+#[cfg(feature = "remote-run")]
+const CHUNK_SIZE: u16 = 1024;
 
 /// Container for operating on a file.
 pub struct File {
     path: String,
-    exists: bool,
 }
-
-// EXAMPLE
-// let f = try!(File::new("/usr/local/bin/moo.sh"));
-// println!("{}", f.exists());
-// try!(f.upload("templates/moo.sh"));
-// f.setMode(644);
-// f.delete();
 
 impl File {
     /// Create a new File struct.
@@ -53,29 +56,69 @@ impl File {
     /// let file = File::new(&mut host, "/path/to/file");
     /// ```
     pub fn new(host: &mut Host, path: &str) -> Result<File> {
-        Target::file_exists(path);
+        if ! try!(Target::file_is_file(host, path)) {
+            return Err(Error::Generic("Path is not a file".to_string()));
+        }
 
         Ok(File {
-            path: remote_path.to_string(),
-            exists: exists,
+            path: path.to_string(),
         })
     }
 
-    pub fn exists();
+    /// Check if the file exists.
+    pub fn exists(&self, host: &mut Host) -> Result<bool> {
+        Target::file_exists(host, &self.path)
+    }
 
-    pub fn upload();
+    #[cfg(feature = "remote-run")]
+    /// Upload a file to the managed host.
+    pub fn upload(&mut self, host: &mut Host) -> Result<()> {
+        let mut local_file = try!(fs::File::open(&self.path));
 
-    pub fn delete();
+        let length = try!(local_file.metadata()).len();
+        let total_chunks = (length as f64 / CHUNK_SIZE as f64).ceil() as u64;
 
-    pub fn getMode() -> Result<u32>;
+        let mut hasher = SipHasher::new();
+        let mut buf = [0; CHUNK_SIZE as usize];
 
-    pub fn setMode(&self, host: &mut Host, mode: u32) -> Result<()> {
+        for _ in 0..total_chunks {
+            try!(local_file.read(&mut buf));
+            hasher.write(&buf);
+        }
 
+        let mut download_sock = try!(host.send_file(&self.path, hasher.finish(), length, total_chunks));
+
+        loop {
+            let chunk_index = try!(host.recv_chunk(&mut download_sock));
+            try!(local_file.seek(SeekFrom::Start(chunk_index * CHUNK_SIZE as u64)));
+            let mut chunk = [0; CHUNK_SIZE as usize];
+            try!(local_file.read(&mut chunk));
+            try!(host.send_chunk(&self.path, chunk_index, &chunk));
+        }
+    }
+
+    /// Delete the file.
+    pub fn delete(&self, host: &mut Host) -> Result<()> {
+        Target::file_delete(host, &self.path)
+    }
+
+    /// Get the file's permissions mode.
+    pub fn get_mode(&self, host: &mut Host) -> Result<u16> {
+        Target::file_get_mode(host, &self.path)
+    }
+
+    /// Set the file's permissions mode.
+    pub fn set_mode(&self, host: &mut Host, mode: u16) -> Result<()> {
+        Target::file_set_mode(host, &self.path, mode)
     }
 }
 
 pub trait FileTarget {
-    fn setMode(host: &mut Host, path: &str) -> Result<()>;
+    fn file_is_file(host: &mut Host, path: &str) -> Result<bool>;
+    fn file_exists(host: &mut Host, path: &str) -> Result<bool>;
+    fn file_delete(host: &mut Host, path: &str) -> Result<()>;
+    fn file_get_mode(host: &mut Host, path: &str) -> Result<u16>;
+    fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()>;
 }
 
 #[cfg(test)]
