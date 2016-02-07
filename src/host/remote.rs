@@ -81,15 +81,16 @@ impl Host {
     }
 
     #[doc(hidden)]
-    pub fn send_file(&mut self, path: &str, hash: u64, size: u64, total_chunks: u64) -> Result<zmq::Socket> {
+    pub fn send_file(&mut self, endpoint: &str, path: &str, hash: u64, size: u64, total_chunks: u64) -> Result<zmq::Socket> {
         let mut download_sock = ZMQCTX.lock().unwrap().socket(zmq::SUB).unwrap();
         try!(download_sock.connect(&format!("tcp://{}:{}", self.hostname.as_mut().unwrap(), self.download_port.unwrap())));
         try!(download_sock.set_subscribe(path.as_bytes()));
 
-        try!(self.upload_sock.as_mut().unwrap().send_str(path, zmq::SNDMORE));
-        try!(self.upload_sock.as_mut().unwrap().send_str(&hash.to_string(), zmq::SNDMORE));
-        try!(self.upload_sock.as_mut().unwrap().send_str(&size.to_string(), zmq::SNDMORE));
-        try!(self.upload_sock.as_mut().unwrap().send_str(&total_chunks.to_string(), 0));
+        try!(self.api_sock.as_mut().unwrap().send_str(endpoint, zmq::SNDMORE));
+        try!(self.api_sock.as_mut().unwrap().send_str(path, zmq::SNDMORE));
+        try!(self.api_sock.as_mut().unwrap().send_str(&hash.to_string(), zmq::SNDMORE));
+        try!(self.api_sock.as_mut().unwrap().send_str(&size.to_string(), zmq::SNDMORE));
+        try!(self.api_sock.as_mut().unwrap().send_str(&total_chunks.to_string(), 0));
 
         Ok(download_sock)
     }

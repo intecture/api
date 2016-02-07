@@ -72,8 +72,8 @@ impl File {
 
     #[cfg(feature = "remote-run")]
     /// Upload a file to the managed host.
-    pub fn upload(&mut self, host: &mut Host) -> Result<()> {
-        let mut local_file = try!(fs::File::open(&self.path));
+    pub fn upload(&self, host: &mut Host, local_path: &str) -> Result<()> {
+        let mut local_file = try!(fs::File::open(local_path));
 
         let length = try!(local_file.metadata()).len();
         let total_chunks = (length as f64 / CHUNK_SIZE as f64).ceil() as u64;
@@ -86,7 +86,10 @@ impl File {
             hasher.write(&buf);
         }
 
-        let mut download_sock = try!(host.send_file(&self.path, hasher.finish(), length, total_chunks));
+        let mut download_sock = try!(host.send_file("file::upload", &self.path, hasher.finish(), length, total_chunks));
+
+        // Ensure that the Agent acknowledged our request
+        try!(host.recv_header());
 
         loop {
             let chunk_index = try!(host.recv_chunk(&mut download_sock));
