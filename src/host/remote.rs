@@ -14,6 +14,9 @@ use std::sync::Mutex;
 use super::*;
 use zmq;
 
+use std::thread::sleep;
+use std::time::Duration;
+
 lazy_static! {
     static ref ZMQCTX: Mutex<zmq::Context> = Mutex::new(zmq::Context::new());
 }
@@ -86,6 +89,9 @@ impl Host {
         try!(download_sock.connect(&format!("tcp://{}:{}", self.hostname.as_mut().unwrap(), self.download_port.unwrap())));
         try!(download_sock.set_subscribe(path.as_bytes()));
 
+        // Try to mitigate late joiner syndrome
+        sleep(Duration::from_millis(100));
+
         try!(self.api_sock.as_mut().unwrap().send_str(endpoint, zmq::SNDMORE));
         try!(self.api_sock.as_mut().unwrap().send_str(path, zmq::SNDMORE));
         try!(self.api_sock.as_mut().unwrap().send_str(&hash.to_string(), zmq::SNDMORE));
@@ -114,17 +120,6 @@ impl Host {
             "Err" => Err(Error::Agent(try!(self.expect_recv("err_msg", 1)))),
             _ => unreachable!(),
         }
-    }
-
-    #[doc(hidden)]
-    pub fn recv_chunk(&mut self, download_sock: &mut zmq::Socket) -> Result<u64> {
-        try!(download_sock.recv_string(0)).unwrap();
-
-        if download_sock.get_rcvmore().unwrap() == false {
-            return Err(Error::Frame(MissingFrame::new("chunk", 2)));
-        }
-
-        Ok(try!(download_sock.recv_string(0)).unwrap().parse::<u64>().unwrap())
     }
 
     #[doc(hidden)]

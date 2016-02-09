@@ -31,6 +31,8 @@
 use {Host, Result};
 use error::Error;
 #[cfg(feature = "remote-run")]
+use error::MissingFrame;
+#[cfg(feature = "remote-run")]
 use std::fs;
 #[cfg(feature = "remote-run")]
 use std::io::{Read, Seek, SeekFrom};
@@ -82,8 +84,13 @@ impl File {
         let mut buf = [0; CHUNK_SIZE as usize];
 
         for _ in 0..total_chunks {
-            try!(local_file.read(&mut buf));
-            hasher.write(&buf);
+            let bytes_read = try!(local_file.read(&mut buf));
+
+            // Ensure that the chunk buffer only contains the number
+            // of bytes read, rather than 1024.
+            let (sized_buf, _) = buf.split_at(bytes_read);
+
+            hasher.write(&sized_buf);
         }
 
         let mut download_sock = try!(host.send_file("file::upload", &self.path, hasher.finish(), length, total_chunks));
@@ -92,10 +99,43 @@ impl File {
         try!(host.recv_header());
 
         loop {
-            let chunk_index = try!(host.recv_chunk(&mut download_sock));
+            try!(download_sock.recv_msg(0)); // File path
+
+            let chunk_index: u64;
+
+            match try!(download_sock.recv_string(0)).unwrap().as_ref() {
+                "Chk" => {
+                    if download_sock.get_rcvmore().unwrap() == false {
+                        return Err(Error::Frame(MissingFrame::new("chunk", 2)));
+                    }
+
+                    chunk_index = try!(download_sock.recv_string(0)).unwrap().parse::<u64>().unwrap();
+                },
+                "Err" => {
+                    if download_sock.get_rcvmore().unwrap() == false {
+                        return Err(Error::Frame(MissingFrame::new("chunk", 2)));
+                    }
+
+                    return Err(Error::Agent(try!(download_sock.recv_string(0)).unwrap()));
+                },
+                "Done" => {
+                    return Ok(());
+                }
+                _ => unreachable!(),
+            }
+
+            // println!("Received chunk request {}", chunk_index);
+
             try!(local_file.seek(SeekFrom::Start(chunk_index * CHUNK_SIZE as u64)));
-            let mut chunk = [0; CHUNK_SIZE as usize];
-            try!(local_file.read(&mut chunk));
+            let mut unsized_chunk = [0; CHUNK_SIZE as usize];
+            let bytes_read = try!(local_file.read(&mut unsized_chunk));
+
+            // Ensure that the chunk buffer only contains the number
+            // of bytes read, rather than 1024.
+            let (chunk, _) = unsized_chunk.split_at(bytes_read);
+
+            // println!("Sending chunk {} with contents: {}", chunk_index, String::from_utf8_lossy(&chunk));
+
             try!(host.send_chunk(&self.path, chunk_index, &chunk));
         }
     }
