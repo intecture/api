@@ -9,6 +9,7 @@
 //! The host wrapper for communicating with a remote host.
 
 use error::{Error, MissingFrame};
+use file::FileOpts;
 use Result;
 use std::sync::Mutex;
 use super::*;
@@ -84,7 +85,7 @@ impl Host {
     }
 
     #[doc(hidden)]
-    pub fn send_file(&mut self, endpoint: &str, path: &str, hash: u64, size: u64, total_chunks: u64) -> Result<zmq::Socket> {
+    pub fn send_file(&mut self, endpoint: &str, path: &str, hash: u64, size: u64, total_chunks: u64, options: Option<&[FileOpts]>) -> Result<zmq::Socket> {
         let mut download_sock = ZMQCTX.lock().unwrap().socket(zmq::SUB).unwrap();
         try!(download_sock.connect(&format!("tcp://{}:{}", self.hostname.as_mut().unwrap(), self.download_port.unwrap())));
         try!(download_sock.set_subscribe(path.as_bytes()));
@@ -92,11 +93,28 @@ impl Host {
         // Try to mitigate late joiner syndrome
         sleep(Duration::from_millis(100));
 
-        try!(self.api_sock.as_mut().unwrap().send_str(endpoint, zmq::SNDMORE));
-        try!(self.api_sock.as_mut().unwrap().send_str(path, zmq::SNDMORE));
-        try!(self.api_sock.as_mut().unwrap().send_str(&hash.to_string(), zmq::SNDMORE));
-        try!(self.api_sock.as_mut().unwrap().send_str(&size.to_string(), zmq::SNDMORE));
-        try!(self.api_sock.as_mut().unwrap().send_str(&total_chunks.to_string(), 0));
+        try!(self.send(endpoint, zmq::SNDMORE));
+        try!(self.send(path, zmq::SNDMORE));
+        try!(self.send(&hash.to_string(), zmq::SNDMORE));
+        try!(self.send(&size.to_string(), zmq::SNDMORE));
+        try!(self.send(&total_chunks.to_string(), if options.is_some() { zmq::SNDMORE } else { 0 }));
+
+        if let Some(opts) = options {
+            let mut cnt = 1;
+
+            for opt in opts {
+                let send_more = if cnt < opts.len() { zmq::SNDMORE } else { 0 };
+
+                match opt {
+                    &FileOpts::BackupExistingFile(ref suffix) => {
+                        try!(self.send("OPT_BackupExistingFile", zmq::SNDMORE));
+                        try!(self.send(suffix, send_more));
+                    },
+                }
+
+                cnt += 1;
+            }
+        }
 
         Ok(download_sock)
     }

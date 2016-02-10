@@ -44,7 +44,7 @@ pub mod telemetry;
 
 pub use command::{Command, CommandResult};
 pub use error::Error;
-pub use file::File;
+pub use file::{File, FileOpts};
 pub use host::Host;
 pub use package::{Package, PackageResult};
 pub use package::providers::{Provider, ProviderFactory, Providers};

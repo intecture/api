@@ -41,7 +41,11 @@ use std::hash::{SipHasher, Hasher};
 use target::Target;
 
 #[cfg(feature = "remote-run")]
-const CHUNK_SIZE: u16 = 1024;
+const CHUNK_SIZE: u16 = 10240;
+
+pub enum FileOpts {
+    BackupExistingFile(String),
+}
 
 /// Container for operating on a file.
 pub struct File {
@@ -74,7 +78,7 @@ impl File {
 
     #[cfg(feature = "remote-run")]
     /// Upload a file to the managed host.
-    pub fn upload(&self, host: &mut Host, local_path: &str) -> Result<()> {
+    pub fn upload(&self, host: &mut Host, local_path: &str, options: Option<&[FileOpts]>) -> Result<()> {
         let mut local_file = try!(fs::File::open(local_path));
 
         let length = try!(local_file.metadata()).len();
@@ -93,7 +97,7 @@ impl File {
             hasher.write(&sized_buf);
         }
 
-        let mut download_sock = try!(host.send_file("file::upload", &self.path, hasher.finish(), length, total_chunks));
+        let mut download_sock = try!(host.send_file("file::upload", &self.path, hasher.finish(), length, total_chunks, options));
 
         // Ensure that the Agent acknowledged our request
         try!(host.recv_header());
@@ -124,8 +128,6 @@ impl File {
                 _ => unreachable!(),
             }
 
-            // println!("Received chunk request {}", chunk_index);
-
             try!(local_file.seek(SeekFrom::Start(chunk_index * CHUNK_SIZE as u64)));
             let mut unsized_chunk = [0; CHUNK_SIZE as usize];
             let bytes_read = try!(local_file.read(&mut unsized_chunk));
@@ -133,8 +135,6 @@ impl File {
             // Ensure that the chunk buffer only contains the number
             // of bytes read, rather than 1024.
             let (chunk, _) = unsized_chunk.split_at(bytes_read);
-
-            // println!("Sending chunk {} with contents: {}", chunk_index, String::from_utf8_lossy(&chunk));
 
             try!(host.send_chunk(&self.path, chunk_index, &chunk));
         }
