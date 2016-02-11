@@ -17,7 +17,7 @@
 //! ```no_run
 //! # use inapi::Host;
 //! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101, 7102, 7103).unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
@@ -85,11 +85,11 @@ impl Command {
     /// let cmd = Command::new("whoami");
     ///
     /// let mut web1 = Host::new();
-    #[cfg_attr(feature = "remote-run", doc = "web1.connect(\"web1.example.com\", 7101).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "web1.connect(\"web1.example.com\", 7101, 7102, 7103).unwrap();")]
     /// let w1_result = cmd.exec(&mut web1).unwrap();
     ///
     /// let mut web2 = Host::new();
-    #[cfg_attr(feature = "remote-run", doc = "web2.connect(\"web2.example.com\", 7101).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "web2.connect(\"web2.example.com\", 7101, 7102, 7103).unwrap();")]
     /// let w2_result = cmd.exec(&mut web2).unwrap();
     /// ```
     #[allow(unused_variables)]

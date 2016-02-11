@@ -75,7 +75,6 @@ impl FileTarget for Target {
     fn file_get_mode(host: &mut Host, path: &str) -> Result<u16> {
         try!(host.send("file::get_mode", zmq::SNDMORE));
         try!(host.send(path, 0));
-
         try!(host.recv_header());
         Ok(try!(host.expect_recv("mode", 1)).parse::<u16>().unwrap())
     }

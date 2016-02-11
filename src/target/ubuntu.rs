@@ -62,7 +62,7 @@ impl FileTarget for Target {
 
     #[allow(unused_variables)]
     fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
-        linux::file_set_mode(path, mode)
+        default::file_set_mode(path, mode)
     }
 }
 

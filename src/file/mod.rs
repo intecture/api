@@ -16,14 +16,19 @@
 //! ```no_run
 //! # use inapi::Host;
 //! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = " host.connect(\"127.0.0.1\", 7101).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = " host.connect(\"127.0.0.1\", 7101, 7102, 7103).unwrap();")]
 //! ```
 //!
-//! Now ...
+//! Now you can upload a file to your managed host.
 //!
 //! ```no_run
-//! # use inapi::{Host, File};
+//! # use inapi::{Host, File, FileOpts};
 //! # let mut host = Host::new();
+//! let file = File::new(&mut host, "/path/to/destination_file").unwrap();
+//! // Upload the file at /path/to/local_file. If a file exists at the
+//! // destination path, create a backup with the suffix "_bk"
+//! file.upload(&mut host, "/path/to/local_file", Some(&vec![FileOpts::BackupExistingFile("_bk".to_string())]));
+//! file.set_mode(&mut host, 644).unwrap();
 //! ```
 
 // pub mod ffi;
@@ -41,6 +46,7 @@ use std::hash::{SipHasher, Hasher};
 use target::Target;
 
 #[cfg(feature = "remote-run")]
+/// Size of each chunk in bytes
 const CHUNK_SIZE: u16 = 10240;
 
 pub enum FileOpts {
@@ -58,7 +64,8 @@ impl File {
     /// # Examples
     ///
     /// ```no_run
-    /// # use inapi::File;
+    /// # use inapi::{File, Host};
+    /// let mut host = Host::new();
     /// let file = File::new(&mut host, "/path/to/file");
     /// ```
     pub fn new(host: &mut Host, path: &str) -> Result<File> {
@@ -168,9 +175,215 @@ pub trait FileTarget {
 mod tests {
     use Host;
     use super::*;
+    use std::thread;
+    use zmq;
 
     #[test]
-    fn test_() {
+    fn test_new_ok() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_new_ok").unwrap();
 
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_new_ok").unwrap();
+
+        let mut host = Host::test_new(sock);
+
+        let file = File::new(&mut host, "/tmp/test");
+        assert!(file.is_ok());
+
+        agent_mock.join().unwrap();
+    }
+
+    #[test]
+    fn test_new_fail() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_new_fail").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("0", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_new_fail").unwrap();
+
+        let mut host = Host::test_new(sock);
+
+        let file = File::new(&mut host, "/tmp/test");
+        assert!(file.is_err());
+
+        agent_mock.join().unwrap();
+    }
+
+    #[test]
+    fn test_exists() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_exists").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::exists", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("0", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_exists").unwrap();
+
+        let mut host = Host::test_new(sock);
+
+        let file = File::new(&mut host, "/tmp/test");
+        assert!(file.is_ok());
+        assert_eq!(file.unwrap().exists(&mut host).unwrap(), false);
+
+        agent_mock.join().unwrap();
+    }
+
+    // XXX Need to mock FS before we can test upload effectively
+    // #[test]
+    // fn test_upload() {
+    // }
+
+    #[test]
+    fn test_delete() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_delete").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::delete", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_delete").unwrap();
+
+        let mut host = Host::test_new(sock);
+
+        let file = File::new(&mut host, "/tmp/test");
+        assert!(file.is_ok());
+        assert!(file.unwrap().delete(&mut host).is_ok());
+
+        agent_mock.join().unwrap();
+    }
+
+    #[test]
+    fn test_get_mode() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_get_mode").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::get_mode", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("755", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_get_mode").unwrap();
+
+        let mut host = Host::test_new(sock);
+
+        let file = File::new(&mut host, "/tmp/test");
+        assert!(file.is_ok());
+        assert_eq!(file.unwrap().get_mode(&mut host).unwrap(), 755);
+
+        agent_mock.join().unwrap();
+    }
+
+    #[test]
+    fn test_set_mode() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_set_mode").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::set_mode", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("644", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_set_mode").unwrap();
+
+        let mut host = Host::test_new(sock);
+
+        let file = File::new(&mut host, "/tmp/test");
+        assert!(file.is_ok());
+        assert!(file.unwrap().set_mode(&mut host, 644).is_ok());
+
+        agent_mock.join().unwrap();
     }
 }

@@ -48,6 +48,29 @@ pub fn file_delete(path: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn file_get_mode<'a>(path: &'a str, args: Vec<&'a str>) -> Result<u16> {
+    let mut args = args;
+    args.push(path);
+    let output = process::Command::new("/usr/bin/stat").args(&args).output().unwrap();
+
+    if !output.status.success() {
+        return Err(Error::Generic("Could not stat file".to_string()));
+    }
+
+    Ok(try!(str::from_utf8(&output.stdout)).trim().parse::<u16>().unwrap())
+}
+
+pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
+    let mode_s: &str = &mode.to_string();
+    let output = process::Command::new("/bin/chmod").args(&vec![mode_s, path]).output().unwrap();
+
+    if !output.status.success() {
+        return Err(Error::Generic("Could not chmod file".to_string()));
+    }
+
+    Ok(())
+}
+
 pub fn hostname() -> Result<String> {
     let output = try!(process::Command::new("hostname").arg("-f").output());
 

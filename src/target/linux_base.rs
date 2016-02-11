@@ -16,24 +16,7 @@ use target::default_base as default;
 use telemetry::Netif;
 
 pub fn file_get_mode(path: &str) -> Result<u16> {
-    let output = process::Command::new("/usr/bin/stat").args(&vec!["-c", "%a", path]).output().unwrap();
-
-    if !output.status.success() {
-        return Err(Error::Generic("Could not stat file".to_string()));
-    }
-
-    Ok(try!(str::from_utf8(&output.stdout)).trim().parse::<u16>().unwrap())
-}
-
-pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
-    let mode_s: &str = &mode.to_string();
-    let output = process::Command::new("/bin/chmod").args(&vec![mode_s, path]).output().unwrap();
-
-    if !output.status.success() {
-        return Err(Error::Generic("Could not chmod file".to_string()));
-    }
-
-    Ok(())
+    default::file_get_mode(path, vec!["-c", "%a"])
 }
 
 pub fn memory() -> Result<u64> {

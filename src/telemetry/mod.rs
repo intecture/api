@@ -18,7 +18,7 @@
 //! ```no_run
 //! # use inapi::Host;
 //! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101, 7102, 7103).unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
