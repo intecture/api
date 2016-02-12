@@ -175,7 +175,7 @@ mod tests {
         let mut sock = ctx.socket(zmq::REQ).unwrap();
         sock.connect("inproc://test_new_homebrew").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let pkg = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
 
@@ -232,7 +232,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_new_default").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let pkg = Package::new(&mut host, "nginx", None);
         assert!(pkg.is_ok());

@@ -34,12 +34,12 @@ impl Host {
     }
 
     #[cfg(test)]
-    pub fn test_new(sock: zmq::Socket) -> Host {
+    pub fn test_new(hostname: Option<String>, api_sock: Option<zmq::Socket>, upload_sock: Option<zmq::Socket>, download_port: Option<u32>) -> Host {
         let host = Host {
-            hostname: None,
-            api_sock: Some(sock),
-            upload_sock: None,
-            download_port: None,
+            hostname: hostname,
+            api_sock: api_sock,
+            upload_sock: upload_sock,
+            download_port: download_port,
         };
 
         host
@@ -170,6 +170,7 @@ impl Host {
 #[cfg(test)]
 mod tests {
     use {Host, zmq};
+    use file::FileOpts;
 
     #[test]
     fn test_host_connect() {
@@ -187,13 +188,92 @@ mod tests {
         let mut client = ctx.socket(zmq::REQ).unwrap();
         client.connect("inproc://test_host_send").unwrap();
 
-        let mut host = Host::test_new(client);
+        let mut host = Host::test_new(None, Some(client), None, None);
         host.send("moo", zmq::SNDMORE).unwrap();
         host.send("cow", 0).unwrap();
 
         assert_eq!(server.recv_string(0).unwrap().unwrap(), "moo");
         assert!(server.get_rcvmore().unwrap());
         assert_eq!(server.recv_string(0).unwrap().unwrap(), "cow");
+    }
+
+    #[test]
+    fn test_send_file_noopts() {
+        let mut ctx = zmq::Context::new();
+
+        let mut server = ctx.socket(zmq::REP).unwrap();
+        server.bind("inproc://test_host_send_file_noopts").unwrap();
+
+        let mut client = ctx.socket(zmq::REQ).unwrap();
+        client.connect("inproc://test_host_send_file_noopts").unwrap();
+
+        let mut host = Host::test_new(Some("localhost".to_string()), Some(client), None, Some(7103));
+        host.send_file("file::upload", "/tmp/moo", 123, 0, 0, None).unwrap();
+
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "file::upload");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "/tmp/moo");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "123");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
+        assert!(!server.get_rcvmore().unwrap());
+    }
+
+    #[test]
+    fn test_send_file_opts() {
+        let mut ctx = zmq::Context::new();
+
+        let mut server = ctx.socket(zmq::REP).unwrap();
+        server.bind("inproc://test_host_send_file_opts").unwrap();
+
+        let mut client = ctx.socket(zmq::REQ).unwrap();
+        client.connect("inproc://test_host_send_file_opts").unwrap();
+
+        let mut host = Host::test_new(Some("localhost".to_string()), Some(client), None, Some(7103));
+
+        let opts = vec![FileOpts::BackupExistingFile("_moo".to_string())];
+
+        host.send_file("file::upload", "/tmp/moo", 123, 0, 0, Some(&opts)).unwrap();
+
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "file::upload");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "/tmp/moo");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "123");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "OPT_BackupExistingFile");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "_moo");
+    }
+
+    #[test]
+    fn test_host_send_chunk() {
+        let mut ctx = zmq::Context::new();
+
+        let mut server = ctx.socket(zmq::REP).unwrap();
+        server.bind("inproc://test_host_send_chunk").unwrap();
+
+        let mut client = ctx.socket(zmq::REQ).unwrap();
+        client.connect("inproc://test_host_send_chunk").unwrap();
+
+        let mut host = Host::test_new(None, None, Some(client), None);
+
+        let bytes = [1, 2, 3];
+
+        host.send_chunk("/tmp/moo", 0, &bytes).unwrap();
+
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "/tmp/moo");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
+        assert!(server.get_rcvmore().unwrap());
+        assert_eq!(server.recv_bytes(0).unwrap(), &bytes);
     }
 
     #[test]
@@ -207,7 +287,7 @@ mod tests {
         let mut rep = ctx.socket(zmq::REP).unwrap();
         rep.bind("inproc://test_host_recv_header_ok").unwrap();
 
-        let mut host = Host::test_new(rep);
+        let mut host = Host::test_new(None, Some(rep), None, None);
         assert!(host.recv_header().is_ok());
     }
 
@@ -222,7 +302,7 @@ mod tests {
         let mut rep = ctx.socket(zmq::REP).unwrap();
         rep.bind("inproc://test_host_recv_header_err").unwrap();
 
-        let mut host = Host::test_new(rep);
+        let mut host = Host::test_new(None, Some(rep), None, None);
         assert!(host.recv_header().is_err());
     }
 
@@ -240,7 +320,7 @@ mod tests {
         rep.bind("inproc://test_host_expect_recv_ok").unwrap();
         rep.recv_string(0).unwrap().unwrap();
 
-        let mut host = Host::test_new(rep);
+        let mut host = Host::test_new(None, Some(rep), None, None);
         assert_eq!(host.expect_recv("Frame 0", 0).unwrap(), "Frame 0");
         assert_eq!(host.expect_recv("Frame 1", 1).unwrap(), "Frame 1");
     }
@@ -257,7 +337,7 @@ mod tests {
         rep.bind("inproc://test_host_expect_recv_ok").unwrap();
         rep.recv_string(0).unwrap().unwrap();
 
-        let mut host = Host::test_new(rep);
+        let mut host = Host::test_new(None, Some(rep), None, None);
         assert!(host.expect_recv("Frame 0", 0).is_err());
     }
 
@@ -275,7 +355,7 @@ mod tests {
         rep.bind("inproc://test_host_expect_recvmsg_ok").unwrap();
         rep.recv_string(0).unwrap().unwrap();
 
-        let mut host = Host::test_new(rep);
+        let mut host = Host::test_new(None, Some(rep), None, None);
         assert_eq!(host.expect_recvmsg("Frame 0", 0).unwrap().as_str().unwrap(), "Frame 0");
         assert_eq!(host.expect_recvmsg("Frame 1", 1).unwrap().as_str().unwrap(), "Frame 1");
     }
@@ -292,7 +372,7 @@ mod tests {
         rep.bind("inproc://test_host_expect_recvmsg_ok").unwrap();
         rep.recv_string(0).unwrap().unwrap();
 
-        let mut host = Host::test_new(rep);
+        let mut host = Host::test_new(None, Some(rep), None, None);
         assert!(host.expect_recvmsg("Frame 0", 0).is_err());
     }
 }

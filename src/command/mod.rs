@@ -150,7 +150,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_exec").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let cmd = Command::new("moo");
         let result = cmd.exec(&mut host).unwrap();

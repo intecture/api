@@ -154,7 +154,7 @@ mod tests {
         let mut sock = ctx.socket(zmq::REQ).unwrap();
         sock.connect("inproc://test_exec").unwrap();
 
-        let ffi_host = Ffi__Host::from(Host::test_new(sock));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
 
         let ffi_command = Ffi__Command {
             cmd: CString::new("moo").unwrap().as_ptr(),

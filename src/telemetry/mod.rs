@@ -292,7 +292,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_init").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let telemetry = Telemetry::init(&mut host).unwrap();
 

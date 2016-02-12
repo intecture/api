@@ -198,7 +198,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_new_ok").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let file = File::new(&mut host, "/tmp/test");
         assert!(file.is_ok());
@@ -226,7 +226,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_new_fail").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let file = File::new(&mut host, "/tmp/test");
         assert!(file.is_err());
@@ -262,7 +262,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_exists").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let file = File::new(&mut host, "/tmp/test");
         assert!(file.is_ok());
@@ -303,7 +303,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_delete").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let file = File::new(&mut host, "/tmp/test");
         assert!(file.is_ok());
@@ -340,7 +340,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_get_mode").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let file = File::new(&mut host, "/tmp/test");
         assert!(file.is_ok());
@@ -378,7 +378,7 @@ mod tests {
         sock.set_linger(0).unwrap();
         sock.connect("inproc://test_set_mode").unwrap();
 
-        let mut host = Host::test_new(sock);
+        let mut host = Host::test_new(None, Some(sock), None, None);
 
         let file = File::new(&mut host, "/tmp/test");
         assert!(file.is_ok());

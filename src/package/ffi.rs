@@ -242,7 +242,7 @@ mod tests {
         let mut sock = ctx.socket(zmq::REQ).unwrap();
         sock.connect("inproc://test_package_new_default").unwrap();
 
-        let ffi_host = Ffi__Host::from(Host::test_new(sock));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
 
         let name = CString::new("nginx").unwrap().into_raw();
 
@@ -322,7 +322,7 @@ mod tests {
         let mut sock = ctx.socket(zmq::REQ).unwrap();
         sock.connect("inproc://test_package_new_homebrew").unwrap();
 
-        let ffi_host = Ffi__Host::from(Host::test_new(sock));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
         let name = CString::new("nginx").unwrap().into_raw();
 
         let ffi_pkg = package_new(&ffi_host as *const Ffi__Host, name, Ffi__Providers::Homebrew);
@@ -385,7 +385,7 @@ mod tests {
         let mut sock = ctx.socket(zmq::REQ).unwrap();
         sock.connect("inproc://test_package_install").unwrap();
 
-        let ffi_host = Ffi__Host::from(Host::test_new(sock));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,
@@ -448,7 +448,7 @@ mod tests {
         let mut sock = ctx.socket(zmq::REQ).unwrap();
         sock.connect("inproc://test_package_uninstall").unwrap();
 
-        let ffi_host = Ffi__Host::from(Host::test_new(sock));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,
