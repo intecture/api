@@ -48,7 +48,19 @@ pub fn file_delete(path: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn file_get_mode<'a>(path: &'a str, args: Vec<&'a str>) -> Result<u16> {
+pub fn file_set_owner(path: &str, user: &str, group: &str) -> Result<()> {
+    let user_group = format!("{}:{}", user, group);
+    let args: Vec<&str> = vec![&user_group, path];
+    let output = process::Command::new("/usr/sbin/chown").args(&args).output().unwrap();
+
+    if !output.status.success() {
+        return Err(Error::Generic("Could not chown file".to_string()));
+    }
+
+    Ok(())
+}
+
+pub fn file_stat<'a>(path: &'a str, args: Vec<&'a str>) -> Result<String> {
     let mut args = args;
     args.push(path);
     let output = process::Command::new("/usr/bin/stat").args(&args).output().unwrap();
@@ -57,7 +69,7 @@ pub fn file_get_mode<'a>(path: &'a str, args: Vec<&'a str>) -> Result<u16> {
         return Err(Error::Generic("Could not stat file".to_string()));
     }
 
-    Ok(try!(str::from_utf8(&output.stdout)).trim().parse::<u16>().unwrap())
+    Ok(try!(str::from_utf8(&output.stdout)).trim().to_string())
 }
 
 pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {

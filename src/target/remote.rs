@@ -13,7 +13,7 @@ use {
     Result,
 };
 use command::CommandTarget;
-use file::FileTarget;
+use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use rustc_serialize::json;
 use super::Target;
@@ -68,6 +68,28 @@ impl FileTarget for Target {
     fn file_delete(host: &mut Host, path: &str) -> Result<()> {
         try!(host.send("file::delete", zmq::SNDMORE));
         try!(host.send(path, 0));
+        try!(host.recv_header());
+        Ok(())
+    }
+
+    fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+        try!(host.send("file::get_owner", zmq::SNDMORE));
+        try!(host.send(path, 0));
+        try!(host.recv_header());
+
+        Ok(FileOwner {
+            user_name: try!(host.expect_recv("user_name", 1)),
+            user_uid: try!(host.expect_recv("user_uid", 2)).parse::<u64>().unwrap(),
+            group_name: try!(host.expect_recv("group_name", 3)),
+            group_gid: try!(host.expect_recv("group_gid", 4)).parse::<u64>().unwrap()
+        })
+    }
+
+    fn file_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+        try!(host.send("file::set_owner", zmq::SNDMORE));
+        try!(host.send(path, zmq::SNDMORE));
+        try!(host.send(user, zmq::SNDMORE));
+        try!(host.send(group, 0));
         try!(host.recv_header());
         Ok(())
     }

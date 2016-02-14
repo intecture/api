@@ -25,6 +25,7 @@ pub struct Ffi__Host;
 
 #[cfg(feature = "remote-run")]
 #[repr(C)]
+#[derive(Debug)]
 pub struct Ffi__Host {
     hostname: *mut c_char,
     api_sock: *mut c_void,

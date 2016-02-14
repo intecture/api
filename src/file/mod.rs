@@ -25,13 +25,20 @@
 //! # use inapi::{Host, File, FileOpts};
 //! # let mut host = Host::new();
 //! let file = File::new(&mut host, "/path/to/destination_file").unwrap();
-//! // Upload the file at /path/to/local_file. If a file exists at the
-//! // destination path, create a backup with the suffix "_bk"
-//! file.upload(&mut host, "/path/to/local_file", Some(&vec![FileOpts::BackupExistingFile("_bk".to_string())]));
+//! file.upload(&mut host, "/path/to/local_file", None);
+//!
+//! // Now let's upload another file and backup the original
+//! file.upload(&mut host, "/path/to/new_file", Some(&vec![FileOpts::BackupExistingFile("_bk".to_string())])).unwrap();
+//!
+//! // Your remote path now has two entries:
+//! // "/path/to/destination_file" and "/path/to/destination_file_bk"
+//!
+//! // Let's also change the permissions and ownership of this file
+//! file.set_owner(&mut host, "root", "wheel").unwrap();
 //! file.set_mode(&mut host, 644).unwrap();
 //! ```
 
-// pub mod ffi;
+pub mod ffi;
 
 use {Host, Result};
 use error::Error;
@@ -49,12 +56,29 @@ use target::Target;
 /// Size of each chunk in bytes
 const CHUNK_SIZE: u16 = 10240;
 
+/// Options for controlling file upload behaviour.
 pub enum FileOpts {
+    /// Backup any existing file during upload using the provided
+    /// suffix.
     BackupExistingFile(String),
+}
+
+/// Owner's user and group for a file.
+#[derive(Debug)]
+pub struct FileOwner {
+    /// User name
+    pub user_name: String,
+    /// User UID
+    pub user_uid: u64,
+    /// Group name
+    pub group_name: String,
+    /// Group GID
+    pub group_gid: u64,
 }
 
 /// Container for operating on a file.
 pub struct File {
+    /// Absolute path to file on managed host
     path: String,
 }
 
@@ -152,12 +176,22 @@ impl File {
         Target::file_delete(host, &self.path)
     }
 
-    /// Get the file's permissions mode.
+    /// Get the file's owner.
+    pub fn get_owner(&self, host: &mut Host) -> Result<FileOwner> {
+        Target::file_get_owner(host, &self.path)
+    }
+
+    // Set the file's owner.
+    pub fn set_owner(&self, host: &mut Host, user: &str, group: &str) -> Result<()> {
+        Target::file_set_owner(host, &self.path, user, group)
+    }
+
+    /// Get the file's permissions mask.
     pub fn get_mode(&self, host: &mut Host) -> Result<u16> {
         Target::file_get_mode(host, &self.path)
     }
 
-    /// Set the file's permissions mode.
+    /// Set the file's permissions mask.
     pub fn set_mode(&self, host: &mut Host, mode: u16) -> Result<()> {
         Target::file_set_mode(host, &self.path, mode)
     }
@@ -167,6 +201,8 @@ pub trait FileTarget {
     fn file_is_file(host: &mut Host, path: &str) -> Result<bool>;
     fn file_exists(host: &mut Host, path: &str) -> Result<bool>;
     fn file_delete(host: &mut Host, path: &str) -> Result<()>;
+    fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner>;
+    fn file_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()>;
     fn file_get_mode(host: &mut Host, path: &str) -> Result<u16>;
     fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()>;
 }

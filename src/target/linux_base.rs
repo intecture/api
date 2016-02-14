@@ -15,8 +15,17 @@ use std::fs::File;
 use target::default_base as default;
 use telemetry::Netif;
 
+pub fn file_get_owner(path: &str) -> Result<FileOwner> {
+    Ok(FileOwner {
+        user_name: try!(default::file_stat(path, vec!["-c", "%U"])),
+        user_pid: try!(default::file_stat(path, vec!["-c", "%u"])).parse::<u64>().unwrap(),
+        group_name: try!(default::file_stat(path, vec!["-c", "%G"])),
+        group_pid: try!(default::file_stat(path, vec!["-c", "%g"])).parse::<u64>().unwrap()
+    })
+}
+
 pub fn file_get_mode(path: &str) -> Result<u16> {
-    default::file_get_mode(path, vec!["-c", "%a"])
+    Ok(try!(default::file_stat(path, vec!["-c", "%a"])).parse::<u16>().unwrap())
 }
 
 pub fn memory() -> Result<u64> {

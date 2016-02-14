@@ -14,7 +14,7 @@ use {
     Cpu, Os, Telemetry,
 };
 use command::CommandTarget;
-use file::FileTarget;
+use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use std::env;
 use super::{default_base as default, linux_base as linux, redhat_base as redhat, Target};
@@ -49,6 +49,16 @@ impl FileTarget for Target {
     #[allow(unused_variables)]
     fn file_delete(host: &mut Host, path: &str) -> Result<()> {
         default::file_delete(path)
+    }
+
+    #[allow(unused_variables)]
+    fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+        linux::file_get_owner(path)
+    }
+
+    #[allow(unused_variables)]
+    fn file_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+        default::file_set_owner(path, user, group)
     }
 
     #[allow(unused_variables)]
