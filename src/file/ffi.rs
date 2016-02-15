@@ -169,8 +169,8 @@ pub extern "C" fn file_get_owner(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *
 pub extern "C" fn file_set_owner(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host, user_ptr: *const c_char, group_ptr: *const c_char) {
     let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let user = unsafe { str::from_utf8(CStr::from_ptr(user_ptr).to_bytes()).unwrap() };;
-    let group = unsafe { str::from_utf8(CStr::from_ptr(group_ptr).to_bytes()).unwrap() };;
+    let user = unsafe { str::from_utf8(CStr::from_ptr(user_ptr).to_bytes()).unwrap() };
+    let group = unsafe { str::from_utf8(CStr::from_ptr(group_ptr).to_bytes()).unwrap() };
 
     file.set_owner(&mut host, user, group).unwrap();
 
@@ -202,14 +202,431 @@ pub extern "C" fn file_set_mode(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *c
     Ffi__Host::from(host);
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use Host;
-//     use host::ffi::Ffi__Host;
-//     use super::*;
-//
-//     #[test]
-//     fn test_() {
-//
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use {File, FileOpts, FileOwner, Host};
+    #[cfg(feature = "remote-run")]
+    use host::ffi::Ffi__Host;
+    use std::ffi::{CStr, CString};
+    use std::str;
+    use super::*;
+    #[cfg(feature = "remote-run")]
+    use std::thread;
+    #[cfg(feature = "remote-run")]
+    use zmq;
+
+    // XXX local-run tests require FS mocking
+
+    #[cfg(feature = "local-run")]
+    #[test]
+    fn test_convert_file() {
+        let mut host = Host::new();
+        // XXX Without FS mocking this could potentially fail where
+        // /path/to/file is a real path to a directory.
+        let file = File::new(&mut host, "/path/to/file").unwrap();
+        let ffi_file = Ffi__File::from(file);
+
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_file.path).to_bytes()).unwrap() }, "/path/to/file");
+    }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_convert_file() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_convert_file").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_convert_file").unwrap();
+
+        let mut host = Host::test_new(None, Some(sock), None, None);
+
+        let file = File::new(&mut host, "/path/to/file").unwrap();
+        let ffi_file = Ffi__File::from(file);
+
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_file.path).to_bytes()).unwrap() }, "/path/to/file");
+
+        agent_mock.join().unwrap();
+    }
+
+    #[test]
+    fn test_convert_ffi_file() {
+        let ffi_file = Ffi__File {
+            path: CString::new("/path/to/file").unwrap().into_raw(),
+        };
+        let file = File::from(ffi_file);
+
+        assert_eq!(file.path, "/path/to/file");
+    }
+
+    #[test]
+    fn test_convert_fileopts() {
+        let fileopts = vec![FileOpts::BackupExistingFile("_bak".to_string())];
+        let ffi_fileopts = Ffi__FileOpts::from(fileopts);
+
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_fileopts.backup_existing_file).to_bytes()).unwrap() }, "_bak");
+    }
+
+    #[test]
+    fn test_convert_ffi_fileopts() {
+        let ffi_fileopts = Ffi__FileOpts {
+            backup_existing_file: CString::new("_bak").unwrap().into_raw(),
+        };
+        let fileopts = Vec::<FileOpts>::from(ffi_fileopts);
+
+        for opt in fileopts {
+            match opt {
+                FileOpts::BackupExistingFile(suffix) => assert_eq!(suffix, "_bak"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_convert_fileowner() {
+        let owner = FileOwner {
+            user_name: "Moo".to_string(),
+            user_uid: 123,
+            group_name: "Cow".to_string(),
+            group_gid: 456
+        };
+        let ffi_owner = Ffi__FileOwner::from(owner);
+
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_owner.user_name).to_bytes()).unwrap() }, "Moo");
+        assert_eq!(ffi_owner.user_uid, 123);
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_owner.group_name).to_bytes()).unwrap() }, "Cow");
+        assert_eq!(ffi_owner.group_gid, 456);
+    }
+
+    #[test]
+    fn test_convert_ffi_fileowner() {
+        let ffi_owner = Ffi__FileOwner {
+            user_name: CString::new("Moo").unwrap().into_raw(),
+            user_uid: 123,
+            group_name: CString::new("Cow").unwrap().into_raw(),
+            group_gid: 456
+        };
+        let owner = FileOwner::from(ffi_owner);
+
+        assert_eq!(&owner.user_name, "Moo");
+        assert_eq!(owner.user_uid, 123);
+        assert_eq!(&owner.group_name, "Cow");
+        assert_eq!(owner.group_gid, 456);
+    }
+
+    // #[cfg(feature = "remote-run")]
+    // #[test]
+    // fn test_new_ok() {
+    //     let mut ctx = zmq::Context::new();
+    //     let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+    //     agent_sock.bind("inproc://test_new_ok").unwrap();
+    //
+    //     let agent_mock = thread::spawn(move || {
+    //         assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+    //         assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+    //         assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+    //         assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+    //
+    //         agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+    //         agent_sock.send_str("1", 0).unwrap();
+    //     });
+    //
+    //     let mut sock = ctx.socket(zmq::REQ).unwrap();
+    //     sock.set_linger(0).unwrap();
+    //     sock.connect("inproc://test_new_ok").unwrap();
+    //
+    //     let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+    //
+    //     let path = CString::new("/path/to/file").unwrap().into_raw();
+    //     let file = file_new(&host as *const Ffi__Host, path);
+    //     assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(file.path).to_bytes()).unwrap() }, "/path/to/file");
+    //
+    //     agent_mock.join().unwrap();
+    // }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    #[should_panic()]
+    fn test_new_fail() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_new_fail").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("0", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_new_fail").unwrap();
+
+        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+
+        let path = CString::new("/path/to/file").unwrap().into_raw();
+        file_new(&host as *const Ffi__Host, path);
+
+        agent_mock.join().unwrap();
+    }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_exists() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_exists").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::exists", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("0", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_exists").unwrap();
+
+        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+
+        let path = CString::new("/path/to/file").unwrap().into_raw();
+        let file = file_new(&host as *const Ffi__Host, path);
+        assert_eq!(file_exists(&file as *const Ffi__File, &host as *const Ffi__Host), 0);
+
+        agent_mock.join().unwrap();
+    }
+
+    // XXX Need to mock FS before we can test upload effectively
+    // #[test]
+    // fn test_upload() {
+    // }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_delete() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_delete").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::delete", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_delete").unwrap();
+
+        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+
+        let path = CString::new("/path/to/file").unwrap().into_raw();
+        let file = file_new(&host as *const Ffi__Host, path);
+        file_delete(&file as *const Ffi__File, &host as *const Ffi__Host);
+
+        agent_mock.join().unwrap();
+    }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_get_owner() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_get_owner").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::get_owner", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("Moo", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("123", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("Cow", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("456", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_get_owner").unwrap();
+
+        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+
+        let path = CString::new("/path/to/file").unwrap().into_raw();
+        let file = file_new(&host as *const Ffi__Host, path);
+
+        let owner = file_get_owner(&file as *const Ffi__File, &host as *const Ffi__Host);
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.user_name).to_bytes()).unwrap() }, "Moo");
+        assert_eq!(owner.user_uid, 123);
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.group_name).to_bytes()).unwrap() }, "Cow");
+        assert_eq!(owner.group_gid, 456);
+
+        agent_mock.join().unwrap();
+    }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_set_owner() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_set_owner").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::set_owner", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("Moo", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("Cow", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_set_owner").unwrap();
+
+        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+
+        let path = CString::new("/path/to/file").unwrap().into_raw();
+        let file = file_new(&host as *const Ffi__Host, path);
+        let user = CString::new("Moo").unwrap().into_raw();
+        let group = CString::new("Cow").unwrap().into_raw();
+        file_set_owner(&file as *const Ffi__File, &host as *const Ffi__Host, user, group);
+
+        agent_mock.join().unwrap();
+    }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_get_mode() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_get_mode").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::get_mode", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("755", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_get_mode").unwrap();
+
+        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+
+        let path = CString::new("/path/to/file").unwrap().into_raw();
+        let file = file_new(&host as *const Ffi__Host, path);
+        assert_eq!(file_get_mode(&file as *const Ffi__File, &host as *const Ffi__Host), 755);
+
+        agent_mock.join().unwrap();
+    }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_set_mode() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_set_mode").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::set_mode", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("644", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_set_mode").unwrap();
+
+        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+
+        let path = CString::new("/path/to/file").unwrap().into_raw();
+        let file = file_new(&host as *const Ffi__Host, path);
+        file_set_mode(&file as *const Ffi__File, &host as *const Ffi__Host, 644);
+
+        agent_mock.join().unwrap();
+    }
+}

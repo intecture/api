@@ -136,6 +136,7 @@ mod tests {
     use Host;
     #[cfg(feature = "remote-run")]
     use std::ffi::CString;
+    #[cfg(feature = "remote-run")]
     use std::ptr;
     use super::*;
     #[cfg(feature = "remote-run")]

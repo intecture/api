@@ -19,23 +19,21 @@
 #![cfg_attr(feature = "remote-run", doc = " host.connect(\"127.0.0.1\", 7101, 7102, 7103).unwrap();")]
 //! ```
 //!
-//! Now you can upload a file to your managed host.
+//! Now you can manage a file on your managed host.
 //!
 //! ```no_run
 //! # use inapi::{Host, File, FileOpts};
 //! # let mut host = Host::new();
 //! let file = File::new(&mut host, "/path/to/destination_file").unwrap();
-//! file.upload(&mut host, "/path/to/local_file", None);
-//!
-//! // Now let's upload another file and backup the original
-//! file.upload(&mut host, "/path/to/new_file", Some(&vec![FileOpts::BackupExistingFile("_bk".to_string())])).unwrap();
-//!
-//! // Your remote path now has two entries:
-//! // "/path/to/destination_file" and "/path/to/destination_file_bk"
-//!
-//! // Let's also change the permissions and ownership of this file
-//! file.set_owner(&mut host, "root", "wheel").unwrap();
+#![cfg_attr(feature = "remote-run", doc = " file.upload(&mut host, \"/path/to/local_file\", None);")]
+//! file.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
 //! file.set_mode(&mut host, 644).unwrap();
+//!
+#![cfg_attr(feature = "remote-run", doc = " // Now let's upload another file and backup the original")]
+#![cfg_attr(feature = "remote-run", doc = " file.upload(&mut host, \"/path/to/new_file\", Some(&vec![FileOpts::BackupExistingFile(\"_bk\".to_string())])).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "")]
+#![cfg_attr(feature = "remote-run", doc = " // Your remote path now has two entries:")]
+#![cfg_attr(feature = "remote-run", doc = " // \"/path/to/destination_file\" and \"/path/to/destination_file_bk\"")]
 //! ```
 
 pub mod ffi;
@@ -94,7 +92,7 @@ impl File {
     /// ```
     pub fn new(host: &mut Host, path: &str) -> Result<File> {
         if ! try!(Target::file_is_file(host, path)) {
-            return Err(Error::Generic("Path is not a file".to_string()));
+            return Err(Error::Generic("Path is a directory".to_string()));
         }
 
         Ok(File {
@@ -211,9 +209,22 @@ pub trait FileTarget {
 mod tests {
     use Host;
     use super::*;
+    #[cfg(feature = "remote-run")]
     use std::thread;
+    #[cfg(feature = "remote-run")]
     use zmq;
 
+    // XXX local-run tests require FS mocking
+
+    #[cfg(feature = "local-run")]
+    #[test]
+    fn test_new_ok() {
+        let mut host = Host::new();
+        let file = File::new(&mut host, "/path/to/file");
+        assert!(file.is_ok());
+    }
+
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_new_ok() {
         let mut ctx = zmq::Context::new();
@@ -242,6 +253,7 @@ mod tests {
         agent_mock.join().unwrap();
     }
 
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_new_fail() {
         let mut ctx = zmq::Context::new();
@@ -270,6 +282,7 @@ mod tests {
         agent_mock.join().unwrap();
     }
 
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_exists() {
         let mut ctx = zmq::Context::new();
@@ -312,6 +325,7 @@ mod tests {
     // fn test_upload() {
     // }
 
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_delete() {
         let mut ctx = zmq::Context::new();
@@ -348,6 +362,94 @@ mod tests {
         agent_mock.join().unwrap();
     }
 
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_get_owner() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_get_owner").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::get_owner", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("Moo", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("123", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("Cow", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("456", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_get_owner").unwrap();
+
+        let mut host = Host::test_new(None, Some(sock), None, None);
+
+        let file = File::new(&mut host, "/tmp/test");
+        assert!(file.is_ok());
+
+        let owner = file.unwrap().get_owner(&mut host).unwrap();
+        assert_eq!(owner.user_name, "Moo");
+        assert_eq!(owner.user_uid, 123);
+        assert_eq!(owner.group_name, "Cow");
+        assert_eq!(owner.group_gid, 456);
+
+        agent_mock.join().unwrap();
+    }
+
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_set_owner() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_set_owner").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+
+            assert_eq!("file::set_owner", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/tmp/test", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("Moo", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("Cow", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_set_owner").unwrap();
+
+        let mut host = Host::test_new(None, Some(sock), None, None);
+
+        let file = File::new(&mut host, "/tmp/test");
+        assert!(file.is_ok());
+        assert!(file.unwrap().set_owner(&mut host, "Moo", "Cow").is_ok());
+
+        agent_mock.join().unwrap();
+    }
+
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_get_mode() {
         let mut ctx = zmq::Context::new();
@@ -385,6 +487,7 @@ mod tests {
         agent_mock.join().unwrap();
     }
 
+    #[cfg(feature = "remote-run")]
     #[test]
     fn test_set_mode() {
         let mut ctx = zmq::Context::new();
