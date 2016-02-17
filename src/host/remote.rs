@@ -61,15 +61,15 @@ impl Host {
     }
 
     pub fn close(&mut self) -> Result<()> {
-        if self.api_sock.is_none() {
-            return Err(Error::Generic("Host is not connected".to_string()));
+        if self.api_sock.is_some() {
+            try!(self.api_sock.as_mut().unwrap().close());
+            self.api_sock = None;
         }
 
-        try!(self.api_sock.as_mut().unwrap().close());
-        self.api_sock = None;
-
-        try!(self.upload_sock.as_mut().unwrap().close());
-        self.upload_sock = None;
+        if self.upload_sock.is_some() {
+            try!(self.upload_sock.as_mut().unwrap().close());
+            self.upload_sock = None;
+        }
 
         Ok(())
     }
