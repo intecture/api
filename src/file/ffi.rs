@@ -324,35 +324,36 @@ mod tests {
         assert_eq!(owner.group_gid, 456);
     }
 
-    // #[cfg(feature = "remote-run")]
-    // #[test]
-    // fn test_new_ok() {
-    //     let mut ctx = zmq::Context::new();
-    //     let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-    //     agent_sock.bind("inproc://test_new_ok").unwrap();
-    //
-    //     let agent_mock = thread::spawn(move || {
-    //         assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
-    //         assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-    //         assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
-    //         assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
-    //
-    //         agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-    //         agent_sock.send_str("1", 0).unwrap();
-    //     });
-    //
-    //     let mut sock = ctx.socket(zmq::REQ).unwrap();
-    //     sock.set_linger(0).unwrap();
-    //     sock.connect("inproc://test_new_ok").unwrap();
-    //
-    //     let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
-    //
-    //     let path = CString::new("/path/to/file").unwrap().into_raw();
-    //     let file = file_new(&host as *const Ffi__Host, path);
-    //     assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(file.path).to_bytes()).unwrap() }, "/path/to/file");
-    //
-    //     agent_mock.join().unwrap();
-    // }
+    #[cfg(feature = "remote-run")]
+    #[test]
+    fn test_new_ok() {
+        let mut ctx = zmq::Context::new();
+        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
+        agent_sock.bind("inproc://test_new_ok").unwrap();
+
+        let agent_mock = thread::spawn(move || {
+            assert_eq!("file::is_file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
+            assert_eq!("/path/to/file", agent_sock.recv_string(0).unwrap().unwrap());
+            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+
+            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
+            agent_sock.send_str("1", 0).unwrap();
+        });
+
+        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        sock.set_linger(0).unwrap();
+        sock.connect("inproc://test_new_ok").unwrap();
+
+        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+
+        let path = CString::new("/path/to/file").unwrap().into_raw();
+        let file = file_new(&host as *const Ffi__Host, path);
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(file.path).to_bytes()).unwrap() }, "/path/to/file");
+
+        Host::from(host);
+        agent_mock.join().unwrap();
+    }
 
     #[cfg(feature = "remote-run")]
     #[test]
@@ -381,6 +382,7 @@ mod tests {
         let path = CString::new("/path/to/file").unwrap().into_raw();
         file_new(&host as *const Ffi__Host, path);
 
+        Host::from(host);
         agent_mock.join().unwrap();
     }
 
@@ -419,6 +421,7 @@ mod tests {
         let file = file_new(&host as *const Ffi__Host, path);
         assert_eq!(file_exists(&file as *const Ffi__File, &host as *const Ffi__Host), 0);
 
+        Host::from(host);
         agent_mock.join().unwrap();
     }
 
@@ -461,6 +464,7 @@ mod tests {
         let file = file_new(&host as *const Ffi__Host, path);
         file_delete(&file as *const Ffi__File, &host as *const Ffi__Host);
 
+        Host::from(host);
         agent_mock.join().unwrap();
     }
 
@@ -507,6 +511,7 @@ mod tests {
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.group_name).to_bytes()).unwrap() }, "Cow");
         assert_eq!(owner.group_gid, 456);
 
+        Host::from(host);
         agent_mock.join().unwrap();
     }
 
@@ -550,6 +555,7 @@ mod tests {
         let group = CString::new("Cow").unwrap().into_raw();
         file_set_owner(&file as *const Ffi__File, &host as *const Ffi__Host, user, group);
 
+        Host::from(host);
         agent_mock.join().unwrap();
     }
 
@@ -588,6 +594,7 @@ mod tests {
         let file = file_new(&host as *const Ffi__Host, path);
         assert_eq!(file_get_mode(&file as *const Ffi__File, &host as *const Ffi__Host), 755);
 
+        Host::from(host);
         agent_mock.join().unwrap();
     }
 
@@ -627,6 +634,7 @@ mod tests {
         let file = file_new(&host as *const Ffi__Host, path);
         file_set_mode(&file as *const Ffi__File, &host as *const Ffi__Host, 644);
 
+        Host::from(host);
         agent_mock.join().unwrap();
     }
 }
