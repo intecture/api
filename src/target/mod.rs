@@ -7,6 +7,9 @@
 // modified, or distributed except according to those terms.
 
 #[cfg(feature = "local-run")]
+pub mod bin_resolver;
+
+#[cfg(feature = "local-run")]
 #[allow(dead_code)]
 pub mod default_base;
 

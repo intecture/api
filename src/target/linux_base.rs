@@ -30,7 +30,7 @@ pub fn file_get_mode(path: &str) -> Result<u16> {
 }
 
 pub fn memory() -> Result<u64> {
-    let output = process::Command::new("/usr/bin/free").arg("-b").output().unwrap();
+    let output = process::Command::new(&try!(BinResolver::resolve("free"))).arg("-b").output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic("Could not determine memory".to_string()));

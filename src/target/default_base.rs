@@ -10,6 +10,7 @@ use {CommandResult, Host, ProviderFactory, Providers, Result};
 use error::Error;
 use regex::Regex;
 use std::{fs, process, str};
+use target::bin_resolver::BinResolver;
 use telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
 
 pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Providers> {
@@ -51,7 +52,7 @@ pub fn file_delete(path: &str) -> Result<()> {
 pub fn file_set_owner(path: &str, user: &str, group: &str) -> Result<()> {
     let user_group = format!("{}:{}", user, group);
     let args: Vec<&str> = vec![&user_group, path];
-    let output = process::Command::new("/usr/sbin/chown").args(&args).output().unwrap();
+    let output = process::Command::new(&try!(BinResolver::resolve("chown"))).args(&args).output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic("Could not chown file".to_string()));
@@ -63,7 +64,7 @@ pub fn file_set_owner(path: &str, user: &str, group: &str) -> Result<()> {
 pub fn file_stat<'a>(path: &'a str, args: Vec<&'a str>) -> Result<String> {
     let mut args = args;
     args.push(path);
-    let output = process::Command::new("/usr/bin/stat").args(&args).output().unwrap();
+    let output = process::Command::new(&try!(BinResolver::resolve("stat"))).args(&args).output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic("Could not stat file".to_string()));
@@ -74,7 +75,7 @@ pub fn file_stat<'a>(path: &'a str, args: Vec<&'a str>) -> Result<String> {
 
 pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
     let mode_s: &str = &mode.to_string();
-    let output = process::Command::new("/bin/chmod").args(&vec![mode_s, path]).output().unwrap();
+    let output = process::Command::new(&try!(BinResolver::resolve("chmod"))).args(&vec![mode_s, path]).output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic("Could not chmod file".to_string()));
@@ -84,7 +85,7 @@ pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
 }
 
 pub fn hostname() -> Result<String> {
-    let output = try!(process::Command::new("hostname").arg("-f").output());
+    let output = try!(process::Command::new(&try!(BinResolver::resolve("hostname"))).arg("-f").output());
 
     if output.status.success() == false {
         return Err(Error::Generic("Could not determine hostname".to_string()));
@@ -115,7 +116,7 @@ pub fn fs() -> Result<Vec<FsMount>> {
 }
 
 pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
-    let mount_out = try!(process::Command::new("/bin/df").arg("-Pk").output());
+    let mount_out = try!(process::Command::new(&try!(BinResolver::resolve("df"))).arg("-Pk").output());
     let mount = try!(String::from_utf8(mount_out.stdout));
 
     let mut pattern = "(?m)^".to_string();
@@ -160,7 +161,7 @@ pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
 }
 
 pub fn parse_net(if_pattern: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pattern: &str) -> Result<Vec<Netif>> {
-    let ifconfig_out = try!(process::Command::new("/sbin/ifconfig").output());
+    let ifconfig_out = try!(process::Command::new(&try!(BinResolver::resolve("ifconfig"))).output());
     let ifconfig = try!(str::from_utf8(&ifconfig_out.stdout));
 
     // Rust Regex doesn't support negative lookahead, so we are
