@@ -7,6 +7,7 @@
 // modified, or distributed except according to those terms.
 
 use error::Error;
+use file::FileOwner;
 use regex::Regex;
 use Result;
 use std::{process, str};
@@ -18,9 +19,9 @@ use telemetry::Netif;
 pub fn file_get_owner(path: &str) -> Result<FileOwner> {
     Ok(FileOwner {
         user_name: try!(default::file_stat(path, vec!["-c", "%U"])),
-        user_pid: try!(default::file_stat(path, vec!["-c", "%u"])).parse::<u64>().unwrap(),
+        user_uid: try!(default::file_stat(path, vec!["-c", "%u"])).parse::<u64>().unwrap(),
         group_name: try!(default::file_stat(path, vec!["-c", "%G"])),
-        group_pid: try!(default::file_stat(path, vec!["-c", "%g"])).parse::<u64>().unwrap()
+        group_gid: try!(default::file_stat(path, vec!["-c", "%g"])).parse::<u64>().unwrap()
     })
 }
 
