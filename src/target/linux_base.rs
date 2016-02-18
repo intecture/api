@@ -13,6 +13,7 @@ use Result;
 use std::{process, str};
 use std::io::prelude::*;
 use std::fs::File;
+use target::bin_resolver::BinResolver;
 use target::default_base as default;
 use telemetry::Netif;
 
