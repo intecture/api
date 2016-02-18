@@ -12,11 +12,10 @@ use error::{Error, MissingFrame};
 use file::FileOpts;
 use Result;
 use std::sync::Mutex;
-use super::*;
-use zmq;
-
 use std::thread::sleep;
 use std::time::Duration;
+use super::*;
+use zmq;
 
 lazy_static! {
     static ref ZMQCTX: Mutex<zmq::Context> = Mutex::new(zmq::Context::new());
