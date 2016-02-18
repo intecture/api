@@ -55,7 +55,7 @@ pub fn file_set_owner(path: &str, user: &str, group: &str) -> Result<()> {
     let output = process::Command::new(&try!(BinResolver::resolve("chown"))).args(&args).output().unwrap();
 
     if !output.status.success() {
-        return Err(Error::Generic("Could not chown file".to_string()));
+        return Err(Error::Generic(format!("Could not chown file with error: {}", str::from_utf8(&output.stderr).unwrap())));
     }
 
     Ok(())
@@ -67,7 +67,7 @@ pub fn file_stat<'a>(path: &'a str, args: Vec<&'a str>) -> Result<String> {
     let output = process::Command::new(&try!(BinResolver::resolve("stat"))).args(&args).output().unwrap();
 
     if !output.status.success() {
-        return Err(Error::Generic("Could not stat file".to_string()));
+        return Err(Error::Generic(format!("Could not stat file with error: {}", str::from_utf8(&output.stderr).unwrap())));
     }
 
     Ok(try!(str::from_utf8(&output.stdout)).trim().to_string())
@@ -78,7 +78,7 @@ pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
     let output = process::Command::new(&try!(BinResolver::resolve("chmod"))).args(&vec![mode_s, path]).output().unwrap();
 
     if !output.status.success() {
-        return Err(Error::Generic("Could not chmod file".to_string()));
+        return Err(Error::Generic(format!("Could not chmod file with error: {}", str::from_utf8(&output.stderr).unwrap())));
     }
 
     Ok(())
@@ -88,7 +88,7 @@ pub fn hostname() -> Result<String> {
     let output = try!(process::Command::new(&try!(BinResolver::resolve("hostname"))).arg("-f").output());
 
     if output.status.success() == false {
-        return Err(Error::Generic("Could not determine hostname".to_string()));
+        return Err(Error::Generic(format!("Could not determine hostname with error: {}", str::from_utf8(&output.stderr).unwrap())));
     }
 
     Ok(try!(str::from_utf8(&output.stdout)).trim().to_string())
