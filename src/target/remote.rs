@@ -72,6 +72,22 @@ impl FileTarget for Target {
         Ok(())
     }
 
+    fn file_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+        try!(host.send("file::mv", zmq::SNDMORE));
+        try!(host.send(path, zmq::SNDMORE));
+        try!(host.send(new_path, 0));
+        try!(host.recv_header());
+        Ok(())
+    }
+
+    fn file_copy(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+        try!(host.send("file::copy", zmq::SNDMORE));
+        try!(host.send(path, zmq::SNDMORE));
+        try!(host.send(new_path, 0));
+        try!(host.recv_header());
+        Ok(())
+    }
+
     fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
         try!(host.send("file::get_owner", zmq::SNDMORE));
         try!(host.send(path, 0));

@@ -49,6 +49,15 @@ pub fn file_delete(path: &str) -> Result<()> {
     Ok(())
 }
 
+pub fn file_mv(path: &str, new_path: &str) -> Result<()> {
+    try!(fs::rename(path, new_path))
+}
+
+pub fn file_copy(path: &str, new_path: &str) -> Result<()> {
+    try!(fs::copy(path, new_path));
+    Ok(())
+}
+
 pub fn file_set_owner(path: &str, user: &str, group: &str) -> Result<()> {
     let user_group = format!("{}:{}", user, group);
     let args: Vec<&str> = vec![&user_group, path];

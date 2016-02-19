@@ -52,6 +52,16 @@ impl FileTarget for Target {
     }
 
     #[allow(unused_variables)]
+    fn file_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+        default::file_mv(path, new_path)
+    }
+
+    #[allow(unused_variables)]
+    fn file_copy(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+        default::file_copy(path, new_path)
+    }
+
+    #[allow(unused_variables)]
     fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
         linux::file_get_owner(path)
     }
