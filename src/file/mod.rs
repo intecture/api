@@ -189,7 +189,7 @@ impl File {
         Target::file_get_owner(host, &self.path)
     }
 
-    // Set the file's owner.
+    /// Set the file's owner.
     pub fn set_owner(&self, host: &mut Host, user: &str, group: &str) -> Result<()> {
         Target::file_set_owner(host, &self.path, user, group)
     }
