@@ -50,7 +50,7 @@ pub fn file_delete(path: &str) -> Result<()> {
 }
 
 pub fn file_mv(path: &str, new_path: &str) -> Result<()> {
-    try!(fs::rename(path, new_path))
+    Ok(try!(fs::rename(path, new_path)))
 }
 
 pub fn file_copy(path: &str, new_path: &str) -> Result<()> {
