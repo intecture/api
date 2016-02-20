@@ -17,6 +17,7 @@ use command::CommandTarget;
 use error::Error;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
+use service::ServiceTarget;
 use std::{env, process, str};
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;

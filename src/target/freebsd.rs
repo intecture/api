@@ -18,6 +18,7 @@ use error::Error;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use regex::Regex;
+use service::ServiceTarget;
 use std::env;
 use std::fs::File;
 use std::io::Read;

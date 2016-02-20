@@ -16,6 +16,7 @@ use {
 use command::CommandTarget;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
+use service::ServiceTarget;
 use std::env;
 use std::fs::File;
 use std::io::Read;

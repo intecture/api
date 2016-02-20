@@ -94,7 +94,7 @@ pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
 }
 
 pub fn service_action(name: &str, action: &str) -> Result<CommandResult> {
-    command_exec(&format!("{} {} {}", BinResolver::resolve("service"), name, action))
+    command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("service")), name, action))
 }
 
 pub fn hostname() -> Result<String> {
