@@ -93,6 +93,10 @@ pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
     Ok(())
 }
 
+pub fn service_action(name: &str, action: &str) -> Result<CommandResult> {
+    command_exec(&format!("{} {} {}", BinResolver::resolve("service"), name, action))
+}
+
 pub fn hostname() -> Result<String> {
     let output = try!(process::Command::new(&try!(BinResolver::resolve("hostname"))).arg("-f").output());
 

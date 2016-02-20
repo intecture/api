@@ -97,6 +97,17 @@ impl PackageTarget for Target {
 }
 
 //
+// Service
+//
+
+impl ServiceTarget for Target {
+    #[allow(unused_variables)]
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+        default::service_action(name, action)
+    }
+}
+
+//
 // Telemetry
 //
 

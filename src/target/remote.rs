@@ -16,6 +16,7 @@ use command::CommandTarget;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use rustc_serialize::json;
+use service::ServiceTarget;
 use super::Target;
 use telemetry::{Telemetry, TelemetryTarget};
 use zmq;
@@ -138,6 +139,29 @@ impl PackageTarget for Target {
         let provider = try!(host.expect_recv("provider", 1));
 
         Ok(Providers::from(provider))
+    }
+}
+
+//
+// Service
+//
+
+impl ServiceTarget for Target {
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+        try!(host.send("service::action", zmq::SNDMORE));
+        try!(host.send(name, zmq::SNDMORE));
+        try!(host.send(action, 0));
+        try!(host.recv_header());
+
+        let exit_code = try!(host.expect_recvmsg("exit_code", 1)).as_str().unwrap().parse::<i32>().unwrap();
+        let stdout = try!(host.expect_recv("stdout", 2));
+        let stderr = try!(host.expect_recv("stderr", 3));
+
+        Ok(CommandResult {
+            exit_code: exit_code,
+            stdout: stdout,
+            stderr: stderr,
+        })
     }
 }
 
