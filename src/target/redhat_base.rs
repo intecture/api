@@ -11,6 +11,8 @@ use error::Error;
 use regex::Regex;
 use std::fs::File;
 use std::io::Read;
+use target::bin_resolver::BinResolver;
+use target::default_base as default;
 
 pub fn service_init(name: &str, action: &str) -> Result<CommandResult> {
     match action {

@@ -108,17 +108,17 @@ impl ServiceTarget for Target {
         let mut rc = String::new();
         rc_conf.read_to_string(&mut rc);
 
-        let match_daemon = Regex::new(&format!("(?m)^\\s*{}_enable\\s*=\\s*[\"']{0,1}(?:YES|yes)[\"']{0,1}", name)).unwrap();
+        let match_daemon = Regex::new(&format!("(?m)^\\s*{}_enable\\s*=\\s*[\"']{{0,1}}(?:YES|yes)[\"']{{0,1}}", name)).unwrap();
 
         match action {
             "enable" => {
                 if ! match_daemon.is_match(&rc) {
-                    try!(writeln!(rc_conf, &format!("{}_enable=\"YES\"", name)));
+                    try!(rc_conf.write_all(&format!("{}_enable=\"YES\"", name).into_bytes()).unwrap());
                 }
             },
             "disable" => {
                 if match_daemon.is_match(&rc) {
-                    try!(writeln!(rc_conf, re.replace(rc, "")));
+                    try!(rc_conf.write_all(re.replace(rc, "").into_bytes()).unwrap());
                 }
             },
             _ => default::service_action(name, action)

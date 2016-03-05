@@ -6,10 +6,10 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use {CommandResult, Result};
 use error::Error;
 use file::FileOwner;
 use regex::Regex;
-use Result;
 use std::{process, str};
 use std::io::prelude::*;
 use std::fs::File;
@@ -36,7 +36,7 @@ pub fn using_systemd() -> bool {
 }
 
 pub fn service_systemd(name: &str, action: &str) -> Result<CommandResult> {
-    command_exec(&format!("{} {} SERVICE.{}", &try!(BinResolver::resolve("systemctl")), action, name))
+    default::command_exec(&format!("{} {} SERVICE.{}", &try!(BinResolver::resolve("systemctl")), action, name))
 }
 
 pub fn memory() -> Result<u64> {

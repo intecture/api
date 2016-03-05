@@ -213,11 +213,10 @@ impl <'a>Service<'a> {
         let mut action = action;
 
         // Exchange this action with a mapped action if possible
-        match self.mapped_actions {
-            Some(ref mapped) => if mapped.contains_key(&action) {
+        if let Some(ref mapped) = self.mapped_actions {
+            if mapped.contains_key(&action) {
                 action = mapped.get(&action).unwrap();
-            },
-            None => (),
+            }
         }
 
         if self.actions.contains_key(&action) {
