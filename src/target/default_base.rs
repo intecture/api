@@ -26,7 +26,7 @@ pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Pr
 }
 
 pub fn command_exec(cmd: &str) -> Result<CommandResult> {
-    let output = try!(process::Command::new("sh").arg("-c").arg(cmd).output());
+    let output = try!(process::Command::new(&try!(BinResolver::resolve("sh"))).arg("-c").arg(cmd).output());
 
     Ok(CommandResult {
         exit_code: output.status.code().unwrap(),

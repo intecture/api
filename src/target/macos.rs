@@ -19,8 +19,17 @@ use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use service::ServiceTarget;
 use std::{env, process, str};
+use std::path::{Path, PathBuf};
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;
+
+// This implementation is legacy. More work is required to support
+// modern launchd implementations.
+//
+// const LD_PATHS: [&'static str; 2] = [
+//     "/Libarary/LaunchDaemons",
+//     "/System/Library/LaunchDaemons"
+// ];
 
 //
 // Command
@@ -101,7 +110,36 @@ impl PackageTarget for Target {
 impl ServiceTarget for Target {
     #[allow(unused_variables)]
     fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
-        default::service_action(name, action)
+        // This implementation is legacy. More work is required to
+        // support modern launchd implementations.
+        //
+        // let action = match action {
+        //     "start" => "load",
+        //     "stop" => "unload",
+        //     _ => action,
+        // };
+        //
+        // // If name is relative path, search known LaunchDaemon paths
+        // // for name's path.
+        // let mut name = name;
+        // let name_path = Path::new(name);
+        // if name_path.is_relative() {
+        //     for path in LD_PATHS.into_iter() {
+        //         let mut buf = PathBuf::from(path);
+        //
+        //         if buf.is_dir() {
+        //             buf.push(name);
+        //
+        //             if buf.is_file() {
+        //                 name = buf.to_str().unwrap();
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
+        //
+        // command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("launchctl")), action, name))
+        unimplemented!()
     }
 }
 

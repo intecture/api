@@ -20,7 +20,7 @@ use package::PackageTarget;
 use regex::Regex;
 use service::ServiceTarget;
 use std::env;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::Read;
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;
@@ -103,8 +103,26 @@ impl PackageTarget for Target {
 
 impl ServiceTarget for Target {
     #[allow(unused_variables)]
-    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
-        default::service_action(name, action)
+    pub fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+        let rc_conf = try!(OpenOptions::new().read(true).write(true).append(true).open("/etc/rc.conf"));
+        let mut rc = String::new();
+        rc_conf.read_to_string(&mut rc);
+
+        let match_daemon = Regex::new(&format!("(?m)^\\s*{}_enable\\s*=\\s*[\"']{0,1}(?:YES|yes)[\"']{0,1}", name)).unwrap();
+
+        match action {
+            "enable" => {
+                if ! match_daemon.is_match(&rc) {
+                    try!(writeln!(rc_conf, &format!("{}_enable=\"YES\"", name)));
+                }
+            },
+            "disable" => {
+                if match_daemon.is_match(&rc) {
+                    try!(writeln!(rc_conf, re.replace(rc, "")));
+                }
+            },
+            _ => default::service_action(name, action)
+        }
     }
 }
 

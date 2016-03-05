@@ -22,7 +22,7 @@ use service::ServiceTarget;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use super::{default_base as default, linux_base as linux, Target};
+use super::{debian_base as debian, default_base as default, linux_base as linux, Target};
 use telemetry::TelemetryTarget;
 
 //
@@ -104,7 +104,11 @@ impl PackageTarget for Target {
 impl ServiceTarget for Target {
     #[allow(unused_variables)]
     fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
-        default::service_action(name, action)
+        if linux::using_systemd() {
+            linux::service_systemd(name, action)
+        } else {
+            debian::service_init(name, action)
+        }
     }
 }
 
