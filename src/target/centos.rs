@@ -100,7 +100,7 @@ impl PackageTarget for Target {
 impl ServiceTarget for Target {
     #[allow(unused_variables)]
     fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
-        if linux::using_systemd() {
+        if try!(linux::using_systemd()) {
             linux::service_systemd(name, action)
         } else {
             redhat::service_init(name, action)

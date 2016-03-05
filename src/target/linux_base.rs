@@ -30,9 +30,9 @@ pub fn file_get_mode(path: &str) -> Result<u16> {
     Ok(try!(default::file_stat(path, vec!["-c", "%a"])).parse::<u16>().unwrap())
 }
 
-pub fn using_systemd() -> bool {
+pub fn using_systemd() -> Result<bool> {
     let output = process::Command::new(&try!(BinResolver::resolve("pidof"))).arg("systemd").output().unwrap();
-    output.status.success()
+    Ok(output.status.success())
 }
 
 pub fn service_systemd(name: &str, action: &str) -> Result<CommandResult> {

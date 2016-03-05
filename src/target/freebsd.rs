@@ -21,7 +21,7 @@ use regex::Regex;
 use service::ServiceTarget;
 use std::env;
 use std::fs::{File, OpenOptions};
-use std::io::Read;
+use std::io::{Read, Write};
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;
 
@@ -103,23 +103,35 @@ impl PackageTarget for Target {
 
 impl ServiceTarget for Target {
     #[allow(unused_variables)]
-    pub fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
-        let rc_conf = try!(OpenOptions::new().read(true).write(true).append(true).open("/etc/rc.conf"));
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+        let mut rc_conf = try!(OpenOptions::new().read(true).write(true).append(true).open("/etc/rc.conf"));
         let mut rc = String::new();
-        rc_conf.read_to_string(&mut rc);
+        try!(rc_conf.read_to_string(&mut rc));
 
         let match_daemon = Regex::new(&format!("(?m)^\\s*{}_enable\\s*=\\s*[\"']{{0,1}}(?:YES|yes)[\"']{{0,1}}", name)).unwrap();
 
         match action {
             "enable" => {
                 if ! match_daemon.is_match(&rc) {
-                    try!(rc_conf.write_all(&format!("{}_enable=\"YES\"", name).into_bytes()).unwrap());
+                    try!(rc_conf.write_all(&format!("{}_enable=\"YES\"", name).into_bytes()));
                 }
+
+                Ok(CommandResult{
+                    exit_code: 0,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                })
             },
             "disable" => {
                 if match_daemon.is_match(&rc) {
-                    try!(rc_conf.write_all(re.replace(rc, "").into_bytes()).unwrap());
+                    try!(rc_conf.write_all(&match_daemon.replace(&rc, "").into_bytes()));
                 }
+
+                Ok(CommandResult{
+                    exit_code: 0,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                })
             },
             _ => default::service_action(name, action)
         }

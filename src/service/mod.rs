@@ -246,7 +246,9 @@ pub trait ServiceTarget {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "remote-run")]
     use Host;
+    #[cfg(feature = "remote-run")]
     use super::*;
     #[cfg(feature = "remote-run")]
     use std::collections::HashMap;
