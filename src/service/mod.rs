@@ -51,15 +51,15 @@
 //! Runnables are the executable items that a Service calls actions
 //! on.
 //!
-//! The "Service" Runnable represents a daemon managed by the
-//! default system service manager. For example, on a Linux system
-//! using Init, the "Service" Runnable is executed as:
-//! "service <ServiceRunnable::Service> <action>"
-//!
 //! The "Command" Runnable represents a script that is executed by
 //! the shell. Wherever possible, use the "Service" Runnable. However
 //! if you are managing a service without Systemd, Upstart, Init etc.
 //! integration then you would use the Command Runnable.
+//!
+//! The "Service" Runnable represents a daemon managed by the
+//! default system service manager. For example, on a Linux system
+//! using Init, the "Service" Runnable is executed as:
+//! "service <ServiceRunnable::Service> <action>"
 //!
 //! # Mapping Actions to Runnables
 //!
@@ -145,16 +145,20 @@
 //! service.action(&mut host, "stop").unwrap(); // <-- Calls "/usr/local/bin/my_svc stop"
 //! ```
 
-// pub mod ffi;
+pub mod ffi;
 
 use {CommandResult, Error, Host, Result};
 use command::CommandTarget;
 use std::collections::HashMap;
 use target::Target;
 
+/// Runnables are the executable items that a Service calls actions
+/// on.
 pub enum ServiceRunnable<'a> {
-    Service(&'a str),
+    /// A script that is executed by the shell
     Command(&'a str),
+    /// A daemon managed by the default system service manager
+    Service(&'a str),
 }
 
 /// Container for managing a service.

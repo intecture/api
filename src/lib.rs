@@ -36,6 +36,7 @@ extern crate zmq_sys;
 
 pub mod command;
 pub mod error;
+mod ffi_helpers;
 pub mod file;
 pub mod host;
 pub mod package;
