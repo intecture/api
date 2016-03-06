@@ -194,6 +194,7 @@ pub extern "C" fn service_new_map(ffi_actions: *mut Ffi__ServiceAction, actions_
 #[no_mangle]
 pub extern "C" fn service_action(ffi_service_ptr: *const Ffi__Service, ffi_host_ptr: *const Ffi__Host, action_ptr: *const c_char) -> Ffi__CommandResult {
     let service = Service::from(unsafe { ptr::read(ffi_service_ptr) });
+    println!("{:?} - {:?}", ffi_service_ptr, service);
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
     let action = unsafe { str::from_utf8(CStr::from_ptr(action_ptr).to_bytes()).unwrap() };
 
