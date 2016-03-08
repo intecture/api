@@ -154,7 +154,6 @@ use target::Target;
 
 /// Runnables are the executable items that a Service calls actions
 /// on.
-#[derive(Debug)]
 pub enum ServiceRunnable<'a> {
     /// A script that is executed by the shell
     Command(&'a str),
@@ -163,7 +162,6 @@ pub enum ServiceRunnable<'a> {
 }
 
 /// Container for managing a service.
-#[derive(Debug)]
 pub struct Service<'a> {
     /// Actions map for Runnables
     actions: HashMap<&'a str, ServiceRunnable<'a>>,
