@@ -192,13 +192,19 @@ pub extern "C" fn service_new_map(ffi_actions: *mut Ffi__ServiceAction, actions_
 }
 
 #[no_mangle]
-pub extern "C" fn service_action(ffi_service_ptr: *const Ffi__Service, ffi_host_ptr: *const Ffi__Host, action_ptr: *const c_char) -> Ffi__CommandResult {
+pub extern "C" fn service_action(ffi_service_ptr: *mut Ffi__Service, ffi_host_ptr: *const Ffi__Host, action_ptr: *const c_char) -> Ffi__CommandResult {
     let service = Service::from(unsafe { ptr::read(ffi_service_ptr) });
-    println!("{:?} - {:?}", ffi_service_ptr, service);
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
     let action = unsafe { str::from_utf8(CStr::from_ptr(action_ptr).to_bytes()).unwrap() };
 
     let result = Ffi__CommandResult::from(service.action(&mut host, action).unwrap());
+
+    // When we convert the FFI service pointer into a Service, we
+    // convert the C string pointers into &str's, which have the same
+    // lifetime as the service binding. To avoid freeing this memory
+    // when the binding goes out of scope, we convert the Service
+    // back to an FFI Service and write it to the pointer.
+    unsafe { ptr::write(&mut *ffi_service_ptr, Ffi__Service::from(service)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
@@ -380,8 +386,8 @@ mod tests {
         sock.connect("inproc://test_action").unwrap();
 
         let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
-        let ffi_service = service_new_service(Ffi__ServiceRunnable::from(ServiceRunnable::Service("nginx")), ptr::null_mut(), 0);
-        let result = service_action(&ffi_service as *const Ffi__Service, &ffi_host as *const Ffi__Host, CString::new("start").unwrap().into_raw());
+        let mut ffi_service = service_new_service(Ffi__ServiceRunnable::from(ServiceRunnable::Service("nginx")), ptr::null_mut(), 0);
+        let result = service_action(&mut ffi_service as *mut Ffi__Service, &ffi_host as *const Ffi__Host, CString::new("start").unwrap().into_raw());
 
         assert_eq!(result.exit_code, 0);
 
