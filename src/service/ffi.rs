@@ -217,6 +217,7 @@ mod tests {
     use ffi_helpers::Ffi__Array;
     #[cfg(feature = "remote-run")]
     use Host;
+    #[cfg(feature = "remote-run")]
     use host::ffi::Ffi__Host;
     use {Service, ServiceRunnable};
     use std::collections::HashMap;

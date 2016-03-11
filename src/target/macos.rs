@@ -19,7 +19,7 @@ use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use service::ServiceTarget;
 use std::{env, process, str};
-use std::path::{Path, PathBuf};
+//use std::path::{Path, PathBuf};
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;
 

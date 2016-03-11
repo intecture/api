@@ -139,12 +139,8 @@ impl ServiceTarget for Target {
                     stderr: String::new(),
                 })
             },
-            "start" | "stop" | "restart" => {
-                if ! match_daemon.is_match(&rc) {
-                    default::service_action(name, &format!("one{}", action))
-                } else {
-                    default::service_action(name, action)
-                }
+            "start" | "stop" | "restart" if ! match_daemon.is_match(&rc) => {
+                default::service_action(name, &format!("one{}", action))
             },
             _ => default::service_action(name, action),
         }
