@@ -36,7 +36,7 @@ pub fn using_systemd() -> Result<bool> {
 }
 
 pub fn service_systemd(name: &str, action: &str) -> Result<CommandResult> {
-    default::command_exec(&format!("{} {} SERVICE.{}", &try!(BinResolver::resolve("systemctl")), action, name))
+    default::command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("systemctl")), action, name))
 }
 
 pub fn memory() -> Result<u64> {
