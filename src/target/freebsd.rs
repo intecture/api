@@ -14,6 +14,7 @@ use {
     Cpu, Os, Telemetry,
 };
 use command::CommandTarget;
+use directory::DirectoryTarget;
 use error::Error;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
