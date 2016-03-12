@@ -104,8 +104,10 @@ impl Directory {
     }
 
     /// Move the directory to a new path.
-    pub fn mv(&self, host: &mut Host, new_path: &str) -> Result<()> {
-        Target::directory_mv(host, &self.path, new_path)
+    pub fn mv(&mut self, host: &mut Host, new_path: &str) -> Result<()> {
+        try!(Target::directory_mv(host, &self.path, new_path));
+        self.path = new_path.to_string();
+        Ok(())
     }
 
     /// Get the directory's owner.

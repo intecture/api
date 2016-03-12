@@ -175,8 +175,10 @@ impl File {
     }
 
     /// Move the file to a new path.
-    pub fn mv(&self, host: &mut Host, new_path: &str) -> Result<()> {
-        Target::file_mv(host, &self.path, new_path)
+    pub fn mv(&mut self, host: &mut Host, new_path: &str) -> Result<()> {
+        try!(Target::file_mv(host, &self.path, new_path));
+        self.path = new_path.to_string();
+        Ok(())
     }
 
     /// Copy the file to a new path.

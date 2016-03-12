@@ -153,12 +153,15 @@ pub extern "C" fn file_delete(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *con
 }
 
 #[no_mangle]
-pub extern "C" fn file_mv(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
+pub extern "C" fn file_mv(ffi_file_ptr: *mut Ffi__File, ffi_host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) {
+    let mut file = File::from(unsafe { ptr::read(ffi_file_ptr) });
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
     let new_path = unsafe { str::from_utf8(CStr::from_ptr(new_path_ptr).to_bytes()).unwrap() };
 
     file.mv(&mut host, new_path).unwrap();
+
+    // Write mutated File path back to pointer
+    unsafe { ptr::write(&mut *ffi_file_ptr, Ffi__File::from(file)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);

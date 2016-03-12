@@ -125,12 +125,15 @@ pub extern "C" fn directory_delete(ffi_directory_ptr: *const Ffi__Directory, ffi
 }
 
 #[no_mangle]
-pub extern "C" fn directory_mv(ffi_directory_ptr: *const Ffi__Directory, ffi_host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) {
-    let directory = Directory::from(unsafe { ptr::read(ffi_directory_ptr) });
+pub extern "C" fn directory_mv(ffi_directory_ptr: *mut Ffi__Directory, ffi_host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) {
+    let mut directory = Directory::from(unsafe { ptr::read(ffi_directory_ptr) });
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
     let new_path = unsafe { str::from_utf8(CStr::from_ptr(new_path_ptr).to_bytes()).unwrap() };
 
     directory.mv(&mut host, new_path).unwrap();
+
+    // Write mutated Directory path back to pointer
+    unsafe { ptr::write(&mut *ffi_directory_ptr, Ffi__Directory::from(directory)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
