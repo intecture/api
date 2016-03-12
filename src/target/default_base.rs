@@ -26,7 +26,7 @@ pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Pr
 }
 
 pub fn command_exec(cmd: &str) -> Result<CommandResult> {
-    let output = try!(process::Command::new("sh").arg("-c").arg(cmd).output());
+    let output = try!(process::Command::new(&try!(BinResolver::resolve("sh"))).arg("-c").arg(cmd).output());
 
     Ok(CommandResult {
         exit_code: output.status.code().unwrap(),
@@ -91,6 +91,10 @@ pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub fn service_action(name: &str, action: &str) -> Result<CommandResult> {
+    command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("service")), name, action))
 }
 
 pub fn hostname() -> Result<String> {

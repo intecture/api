@@ -17,6 +17,7 @@ use command::CommandTarget;
 use error::Error;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
+use service::ServiceTarget;
 use std::{env, process, str};
 use super::{default_base as default, linux_base as linux, redhat_base as redhat, Target};
 use telemetry::TelemetryTarget;
@@ -90,6 +91,21 @@ impl FileTarget for Target {
 impl PackageTarget for Target {
     fn default_provider(host: &mut Host) -> Result<Providers> {
         default::default_provider(host, vec![Providers::Yum])
+    }
+}
+
+//
+// Service
+//
+
+impl ServiceTarget for Target {
+    #[allow(unused_variables)]
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+        if try!(linux::using_systemd()) {
+            linux::service_systemd(name, action)
+        } else {
+            redhat::service_init(name, action)
+        }
     }
 }
 

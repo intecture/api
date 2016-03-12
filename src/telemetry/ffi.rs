@@ -8,10 +8,11 @@
 
 //! FFI interface for Host
 
+use ffi_helpers::Ffi__Array;
 use host::Host;
 use host::ffi::Ffi__Host;
-use libc::{c_char, c_float, size_t, uint32_t, uint64_t};
-use std::{convert, mem, ptr};
+use libc::{c_char, c_float, uint32_t, uint64_t};
+use std::{convert, ptr};
 use std::ffi::{CStr, CString};
 use super::*;
 
@@ -325,31 +326,6 @@ impl convert::From<Ffi__Os> for Os {
     }
 }
 
-#[repr(C)]
-pub struct Ffi__Array<T> {
-    pub ptr: *mut T,
-    pub length: size_t,
-    pub capacity: size_t,
-}
-
-impl <T>convert::From<Vec<T>> for Ffi__Array<T> {
-    fn from(item: Vec<T>) -> Ffi__Array<T> {
-        let mut item = item;
-
-        item.shrink_to_fit();
-
-        let ffi_item = Ffi__Array {
-            ptr: item.as_mut_ptr(),
-            length: item.len() as size_t,
-            capacity: item.capacity() as size_t,
-        };
-
-        mem::forget(item);
-
-        ffi_item
-    }
-}
-
 #[no_mangle]
 pub extern "C" fn telemetry_init(ffi_host_ptr: *mut Ffi__Host) -> Ffi__Telemetry {
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
@@ -370,6 +346,7 @@ pub extern "C" fn telemetry_free(ffi_telemetry_ptr: *mut Ffi__Telemetry) {
 
 #[cfg(test)]
 mod tests {
+    use ffi_helpers::Ffi__Array;
     use libc::{c_float, size_t, uint32_t, uint64_t};
     use std::ffi::CString;
     use std::mem;

@@ -18,9 +18,10 @@ use error::Error;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use regex::Regex;
+use service::ServiceTarget;
 use std::env;
-use std::fs::File;
-use std::io::Read;
+use std::fs::{File, OpenOptions};
+use std::io::{Read, Seek, SeekFrom, Write};
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;
 
@@ -93,6 +94,56 @@ impl FileTarget for Target {
 impl PackageTarget for Target {
     fn default_provider(host: &mut Host) -> Result<Providers> {
         default::default_provider(host, vec![Providers::Pkg, Providers::Ports])
+    }
+}
+
+//
+// Service
+//
+
+impl ServiceTarget for Target {
+    #[allow(unused_variables)]
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+        let mut rc_conf = try!(OpenOptions::new().read(true).write(true).open("/etc/rc.conf"));
+        let mut rc = String::new();
+        try!(rc_conf.read_to_string(&mut rc));
+
+        let match_daemon = Regex::new(&format!("(?m)^\\s*{}_enable\\s*=\\s*[\"']{{0,1}}(?:YES|yes)[\"']{{0,1}}\n?", name)).unwrap();
+
+        match action {
+            "enable" => {
+                if ! match_daemon.is_match(&rc) {
+                    let newline = if rc.ends_with("\n") { "" } else { "\n" };
+                    try!(rc_conf.write_all(&format!("{}{}_enable=\"YES\"\n", newline, name).into_bytes()));
+                    try!(rc_conf.sync_data());
+                }
+
+                Ok(CommandResult{
+                    exit_code: 0,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                })
+            },
+            "disable" => {
+                if match_daemon.is_match(&rc) {
+                    let replace = match_daemon.replace(&rc, "").trim().to_string();
+                    try!(rc_conf.seek(SeekFrom::Start(0)));
+                    try!(rc_conf.set_len(replace.len() as u64));
+                    try!(rc_conf.write_all(replace.as_bytes()));
+                    try!(rc_conf.sync_data());
+                }
+
+                Ok(CommandResult{
+                    exit_code: 0,
+                    stdout: String::new(),
+                    stderr: String::new(),
+                })
+            },
+            "start" | "stop" | "restart" if ! match_daemon.is_match(&rc) => {
+                default::service_action(name, &format!("one{}", action))
+            },
+            _ => default::service_action(name, action),
+        }
     }
 }
 

@@ -36,9 +36,11 @@ extern crate zmq_sys;
 
 pub mod command;
 pub mod error;
+mod ffi_helpers;
 pub mod file;
 pub mod host;
 pub mod package;
+pub mod service;
 mod target;
 pub mod telemetry;
 
@@ -48,6 +50,7 @@ pub use file::{File, FileOpts, FileOwner};
 pub use host::Host;
 pub use package::{Package, PackageResult};
 pub use package::providers::{Provider, ProviderFactory, Providers};
+pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
 
 use std::result;

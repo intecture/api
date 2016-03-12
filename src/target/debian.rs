@@ -16,10 +16,11 @@ use {
 use command::CommandTarget;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
+use service::ServiceTarget;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use super::{default_base as default, linux_base as linux, Target};
+use super::{debian_base as debian, default_base as default, linux_base as linux, Target};
 use telemetry::TelemetryTarget;
 
 //
@@ -91,6 +92,21 @@ impl FileTarget for Target {
 impl PackageTarget for Target {
     fn default_provider(host: &mut Host) -> Result<Providers> {
         default::default_provider(host, vec![Providers::Apt])
+    }
+}
+
+//
+// Service
+//
+
+impl ServiceTarget for Target {
+    #[allow(unused_variables)]
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+        if try!(linux::using_systemd()) {
+            linux::service_systemd(name, action)
+        } else {
+            debian::service_init(name, action)
+        }
     }
 }
 

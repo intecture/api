@@ -6,11 +6,21 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use {CommandResult, Result};
 use error::Error;
 use regex::Regex;
-use Result;
 use std::fs::File;
 use std::io::Read;
+use target::bin_resolver::BinResolver;
+use target::default_base as default;
+
+pub fn service_init(name: &str, action: &str) -> Result<CommandResult> {
+    match action {
+        "enable" => default::command_exec(&format!("{} {} on", &try!(BinResolver::resolve("chkconfig")), name)),
+        "disable" => default::command_exec(&format!("{} {} off", &try!(BinResolver::resolve("chkconfig")), name)),
+        _ => default::service_action(name, action),
+    }
+}
 
 pub fn version() -> Result<String> {
     let mut fh = try!(File::open("/etc/redhat-release"));
