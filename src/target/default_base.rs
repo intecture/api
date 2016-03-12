@@ -35,6 +35,31 @@ pub fn command_exec(cmd: &str) -> Result<CommandResult> {
     })
 }
 
+pub fn directory_is_directory(path: &str) -> Result<bool> {
+    let meta = fs::metadata(path);
+    Ok(meta.is_err() || meta.unwrap().is_dir())
+}
+
+pub fn directory_create(path: &str, recursive: bool) -> Result<()> {
+    if recursive {
+        try!(fs::create_dir_all(path));
+    } else {
+        try!(fs::create_dir(path));
+    }
+
+    Ok(())
+}
+
+pub fn directory_delete(path: &str, recursive: bool) -> Result<()> {
+    if recursive {
+        try!(fs::remove_dir_all(path));
+    } else {
+        try!(fs::remove_dir(path));
+    }
+
+    Ok(())
+}
+
 pub fn file_is_file(path: &str) -> Result<bool> {
     let meta = fs::metadata(path);
     Ok(meta.is_err() || meta.unwrap().is_file())

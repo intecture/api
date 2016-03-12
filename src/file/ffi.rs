@@ -70,10 +70,10 @@ impl convert::From<Ffi__FileOpts> for Vec<FileOpts> {
 
 #[repr(C)]
 pub struct Ffi__FileOwner {
-    user_name: *const c_char,
-    user_uid: uint64_t,
-    group_name: *const c_char,
-    group_gid: uint64_t,
+    pub user_name: *const c_char,
+    pub user_uid: uint64_t,
+    pub group_name: *const c_char,
+    pub group_gid: uint64_t,
 }
 
 impl convert::From<FileOwner> for Ffi__FileOwner {
