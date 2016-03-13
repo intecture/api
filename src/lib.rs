@@ -35,6 +35,7 @@ extern crate zmq;
 extern crate zmq_sys;
 
 pub mod command;
+pub mod directory;
 pub mod error;
 mod ffi_helpers;
 pub mod file;
@@ -45,6 +46,7 @@ mod target;
 pub mod telemetry;
 
 pub use command::{Command, CommandResult};
+pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOpts, FileOwner};
 pub use host::Host;

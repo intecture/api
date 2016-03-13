@@ -14,6 +14,7 @@ use {
     Cpu, Os, Telemetry,
 };
 use command::CommandTarget;
+use directory::DirectoryTarget;
 use error::Error;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
@@ -33,6 +34,57 @@ impl CommandTarget for Target {
     #[allow(unused_variables)]
     fn exec(host: &mut Host, cmd: &str) -> Result<CommandResult> {
         default::command_exec(cmd)
+    }
+}
+
+//
+// Directory
+//
+
+impl DirectoryTarget for Target {
+    #[allow(unused_variables)]
+    fn directory_is_directory(host: &mut Host, path: &str) -> Result<bool> {
+        default::directory_is_directory(path)
+    }
+
+    #[allow(unused_variables)]
+    fn directory_exists(host: &mut Host, path: &str) -> Result<bool> {
+        default::file_exists(path)
+    }
+
+    #[allow(unused_variables)]
+    fn directory_create(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
+        default::directory_create(path, recursive)
+    }
+
+    #[allow(unused_variables)]
+    fn directory_delete(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
+        default::directory_delete(path, recursive)
+    }
+
+    #[allow(unused_variables)]
+    fn directory_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+        default::file_mv(path, new_path)
+    }
+
+    #[allow(unused_variables)]
+    fn directory_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+        linux::file_get_owner(path)
+    }
+
+    #[allow(unused_variables)]
+    fn directory_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+        default::file_set_owner(path, user, group)
+    }
+
+    #[allow(unused_variables)]
+    fn directory_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+        linux::file_get_mode(path)
+    }
+
+    #[allow(unused_variables)]
+    fn directory_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+        default::file_set_mode(path, mode)
     }
 }
 
