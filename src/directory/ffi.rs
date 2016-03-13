@@ -39,18 +39,18 @@ impl convert::From<Ffi__Directory> for Directory {
 
 #[repr(C)]
 pub struct Ffi__DirectoryOpts {
-    do_recursive: Option<uint8_t>,
+    do_recursive: uint8_t,
 }
 
 impl convert::From<Vec<DirectoryOpts>> for Ffi__DirectoryOpts {
     fn from(opts: Vec<DirectoryOpts>) -> Ffi__DirectoryOpts {
         let mut ffi_opts = Ffi__DirectoryOpts {
-            do_recursive: None,
+            do_recursive: 0,
         };
 
         for opt in opts {
             match opt {
-                DirectoryOpts::DoRecursive => ffi_opts.do_recursive = Some(1),
+                DirectoryOpts::DoRecursive => ffi_opts.do_recursive = 1,
             }
         }
 
@@ -61,7 +61,7 @@ impl convert::From<Vec<DirectoryOpts>> for Ffi__DirectoryOpts {
 impl convert::From<Ffi__DirectoryOpts> for Vec<DirectoryOpts> {
     fn from(ffi_opts: Ffi__DirectoryOpts) -> Vec<DirectoryOpts> {
         let mut opts = vec![];
-        if ffi_opts.do_recursive.is_some() && ffi_opts.do_recursive.unwrap() == 1 {
+        if ffi_opts.do_recursive == 1 {
             opts.push(DirectoryOpts::DoRecursive);
         }
         opts
@@ -266,13 +266,13 @@ mod tests {
         let directoryopts = vec![DirectoryOpts::DoRecursive];
         let ffi_directoryopts = Ffi__DirectoryOpts::from(directoryopts);
 
-        assert_eq!(ffi_directoryopts.do_recursive.unwrap(), 1);
+        assert_eq!(ffi_directoryopts.do_recursive, 1);
     }
 
     #[test]
     fn test_convert_ffi_directoryopts() {
         let ffi_directoryopts = Ffi__DirectoryOpts {
-            do_recursive: Some(1),
+            do_recursive: 1,
         };
         let directoryopts = Vec::<DirectoryOpts>::from(ffi_directoryopts);
 
@@ -454,7 +454,7 @@ mod tests {
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
         let opts = Ffi__DirectoryOpts {
-            do_recursive: Some(0)
+            do_recursive: 0
         };
         directory_create(&directory as *const Ffi__Directory, &host as *const Ffi__Host, &opts as *const Ffi__DirectoryOpts);
 
