@@ -9,12 +9,14 @@
 //! FFI interface for Host
 
 #[cfg(feature = "remote-run")]
-use libc::{c_char, c_void, uint32_t};
+use libc::{c_char, uint32_t};
 use std::convert;
 #[cfg(feature = "remote-run")]
 use std::{ptr, str};
 #[cfg(feature = "remote-run")]
 use std::ffi::{CStr, CString};
+#[cfg(feature = "remote-run")]
+use std::os::raw::c_void;
 use super::*;
 #[cfg(feature = "remote-run")]
 use zmq;
@@ -152,7 +154,7 @@ mod tests {
     #[test]
     fn test_convert_host_connected() {
         let mut host = Host::new();
-        assert!(host.connect("127.0.0.1", 7101, 7102, 7103).is_ok());
+        assert!(host.connect("localhost", 7101, 7102, 7103).is_ok());
         Ffi__Host::from(host);
     }
 
@@ -160,7 +162,7 @@ mod tests {
     #[test]
     fn test_convert_ffi_host() {
         let mut ctx = zmq::Context::new();
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
+        let sock = ctx.socket(zmq::REQ).unwrap();
 
         let ffi_host = Ffi__Host {
             hostname: CString::new("localhost").unwrap().into_raw(),

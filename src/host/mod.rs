@@ -46,7 +46,7 @@ use zmq;
 pub struct Host;
 #[cfg(feature = "remote-run")]
 pub struct Host {
-    // Hostname or IP of managed host
+    /// Hostname or IP of managed host
     hostname: Option<String>,
     /// API socket
     api_sock: Option<zmq::Socket>,

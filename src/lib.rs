@@ -24,15 +24,17 @@
 //! Intecture API primitives, or the program will hang while it
 //! attempts to connect to a non-existent socket.
 
+#[cfg(feature = "remote-run")]
+extern crate czmq;
 #[macro_use]
 extern crate lazy_static;
 extern crate libc;
 extern crate regex;
 extern crate rustc_serialize;
+#[cfg(test)]
+extern crate tempdir;
 #[cfg(feature = "remote-run")]
 extern crate zmq;
-#[cfg(all(test, feature = "remote-run"))]
-extern crate zmq_sys;
 
 pub mod command;
 pub mod directory;
@@ -41,6 +43,8 @@ mod ffi_helpers;
 pub mod file;
 pub mod host;
 pub mod package;
+#[cfg(feature = "remote-run")]
+mod runtime_helpers;
 pub mod service;
 mod target;
 pub mod telemetry;
@@ -52,6 +56,8 @@ pub use file::{File, FileOpts, FileOwner};
 pub use host::Host;
 pub use package::{Package, PackageResult};
 pub use package::providers::{Provider, ProviderFactory, Providers};
+#[cfg(feature = "remote-run")]
+pub use runtime_helpers::RuntimeArgs;
 pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
 

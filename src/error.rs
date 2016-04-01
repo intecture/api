@@ -6,6 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use czmq;
 use rustc_serialize::json;
 use std::{convert, error, fmt, io, num, str, string};
 #[cfg(feature = "remote-run")]
@@ -15,6 +16,8 @@ use zmq;
 pub enum Error {
     /// An error string returned from the host's Intecture Agent
     Agent(String),
+    /// CZMQ error
+    Czmq(czmq::Error),
     /// JSON decoder error
     JsonDecoder(json::DecoderError),
     /// Message frames missing in the response from host's Intecture Agent
@@ -41,6 +44,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Agent(ref e) => write!(f, "Agent error: {}", e),
+            Error::Czmq(ref e) => write!(f, "CZMQ error: {}", e),
             Error::JsonDecoder(ref e) => write!(f, "JSON decoder error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Frame(ref e) => write!(f, "Missing frame {} in message: {}", e.order, e.name),
@@ -60,6 +64,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Agent(ref e) => e,
+            Error::Czmq(ref e) => e.description(),
             Error::JsonDecoder(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
             Error::Frame(_) => "The Agent's reply was missing a part ('frame') of the expected message",
@@ -72,6 +77,12 @@ impl error::Error for Error {
             #[cfg(feature = "remote-run")]
             Error::Zmq(ref e) => e.description(),
         }
+    }
+}
+
+impl convert::From<czmq::Error> for Error {
+    fn from(err: czmq::Error) -> Error {
+        Error::Czmq(err)
     }
 }
 
