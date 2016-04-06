@@ -135,6 +135,8 @@ pub extern "C" fn host_close(ffi_host_ptr: *mut Ffi__Host) {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "remote-run")]
+    use create_project_fs;
     use Host;
     #[cfg(feature = "remote-run")]
     use std::ffi::CString;
@@ -153,6 +155,8 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_convert_host_connected() {
+        create_project_fs();
+
         let mut host = Host::new();
         assert!(host.connect("localhost", 7101, 7102, 7103).is_ok());
         Ffi__Host::from(host);
@@ -177,6 +181,8 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_host_fns() {
+        create_project_fs();
+
         let mut host = host_new();
         host_connect(&mut host as *mut Ffi__Host,
                      CString::new("localhost").unwrap().as_ptr(),

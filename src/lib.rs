@@ -59,3 +59,37 @@ pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, 
 
 use std::result;
 pub type Result<T> = result::Result<T, Error>;
+
+#[cfg(all(test, feature = "remote-run"))]
+use czmq::ZCert;
+#[cfg(all(test, feature = "remote-run"))]
+use std::env::set_current_dir;
+#[cfg(all(test, feature = "remote-run"))]
+use std::fs::create_dir;
+#[cfg(all(test, feature = "remote-run"))]
+use tempdir::TempDir;
+#[cfg(all(test, feature = "remote-run"))]
+use std::sync::{Once, ONCE_INIT};
+
+#[cfg(all(test, feature = "remote-run"))]
+static INIT_FS: Once = ONCE_INIT;
+
+#[cfg(all(test, feature = "remote-run"))]
+lazy_static! {
+    static ref INIT_FS_DIR: TempDir = TempDir::new("remote_host_connect").unwrap();
+}
+
+#[cfg(all(test, feature = "remote-run"))]
+fn create_project_fs() {
+    INIT_FS.call_once(|| {
+        set_current_dir(INIT_FS_DIR.path()).unwrap();
+
+        let cert = ZCert::new().unwrap();
+        cert.save_secret("user.crt").unwrap();
+
+        create_dir(".hosts").unwrap();
+
+        let cert = ZCert::new().unwrap();
+        cert.save_secret(".hosts/localhost.crt").unwrap();
+    });
+}

@@ -6,6 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+#[cfg(feature = "remote-run")]
 use czmq;
 use rustc_serialize::json;
 use std::{convert, error, fmt, io, num, str, string};
@@ -16,6 +17,7 @@ use zmq;
 pub enum Error {
     /// An error string returned from the host's Intecture Agent
     Agent(String),
+    #[cfg(feature = "remote-run")]
     /// CZMQ error
     Czmq(czmq::Error),
     /// JSON decoder error
@@ -35,8 +37,8 @@ pub enum Error {
     StrFromUtf8(str::Utf8Error),
     /// Cast String
     StringFromUtf8(string::FromUtf8Error),
-    /// ZMQ error
     #[cfg(feature = "remote-run")]
+    /// ZMQ error
     Zmq(zmq::Error),
 }
 
@@ -44,6 +46,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Agent(ref e) => write!(f, "Agent error: {}", e),
+            #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => write!(f, "CZMQ error: {}", e),
             Error::JsonDecoder(ref e) => write!(f, "JSON decoder error: {}", e),
             #[cfg(feature = "remote-run")]
@@ -64,6 +67,7 @@ impl error::Error for Error {
     fn description(&self) -> &str {
         match *self {
             Error::Agent(ref e) => e,
+            #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => e.description(),
             Error::JsonDecoder(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
@@ -80,6 +84,7 @@ impl error::Error for Error {
     }
 }
 
+#[cfg(feature = "remote-run")]
 impl convert::From<czmq::Error> for Error {
     fn from(err: czmq::Error) -> Error {
         Error::Czmq(err)

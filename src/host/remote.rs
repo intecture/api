@@ -182,11 +182,13 @@ impl Host {
 
 #[cfg(test)]
 mod tests {
-    use {Host, zmq};
+    use {create_project_fs, Host, zmq};
     use file::FileOpts;
 
     #[test]
     fn test_host_connect() {
+        create_project_fs();
+
         let mut host = Host::new();
         assert!(host.connect("localhost", 7101, 7102, 7103).is_ok());
     }
@@ -212,6 +214,8 @@ mod tests {
 
     #[test]
     fn test_send_file_noopts() {
+        create_project_fs();
+
         let mut ctx = zmq::Context::new();
 
         let mut server = ctx.socket(zmq::REP).unwrap();
@@ -237,6 +241,8 @@ mod tests {
 
     #[test]
     fn test_send_file_opts() {
+        create_project_fs();
+
         let mut ctx = zmq::Context::new();
 
         let mut server = ctx.socket(zmq::REP).unwrap();
