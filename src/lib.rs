@@ -43,8 +43,6 @@ mod ffi_helpers;
 pub mod file;
 pub mod host;
 pub mod package;
-#[cfg(feature = "remote-run")]
-mod runtime_helpers;
 pub mod service;
 mod target;
 pub mod telemetry;
@@ -56,8 +54,6 @@ pub use file::{File, FileOpts, FileOwner};
 pub use host::Host;
 pub use package::{Package, PackageResult};
 pub use package::providers::{Provider, ProviderFactory, Providers};
-#[cfg(feature = "remote-run")]
-pub use runtime_helpers::RuntimeArgs;
 pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
 

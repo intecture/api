@@ -12,7 +12,6 @@ use czmq::ZCert;
 use error::{Error, MissingFrame};
 use file::FileOpts;
 use Result;
-use runtime_helpers::RUNTIME_ARGS;
 use std::sync::Mutex;
 use std::thread::sleep;
 use std::time::Duration;
@@ -49,16 +48,17 @@ impl Host {
     pub fn connect(&mut self, hostname: &str, api_port: u32, upload_port: u32, download_port: u32) -> Result<()> {
         self.hostname = Some(hostname.to_string());
 
-        let server_cert = try!(ZCert::load(&format!("{}/{}.crt", RUNTIME_ARGS.server_cert_path, hostname)));
+        let user_cert = try!(ZCert::load("user.crt"));
+        let server_cert = try!(ZCert::load(&format!(".hosts/{}.crt", hostname)));
 
         self.api_sock = Some(ZMQCTX.lock().unwrap().socket(zmq::REQ).unwrap());
-        RUNTIME_ARGS.user_cert.apply(self.api_sock.as_mut().unwrap());
+        user_cert.apply(self.api_sock.as_mut().unwrap());
         try!(self.api_sock.as_mut().unwrap().set_curve_serverkey(server_cert.public_txt()));
         try!(self.api_sock.as_mut().unwrap().set_linger(5000));
         try!(self.api_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, api_port)));
 
         self.upload_sock = Some(ZMQCTX.lock().unwrap().socket(zmq::PUB).unwrap());
-        RUNTIME_ARGS.user_cert.apply(self.api_sock.as_mut().unwrap());
+        user_cert.apply(self.api_sock.as_mut().unwrap());
         try!(self.upload_sock.as_mut().unwrap().set_curve_serverkey(server_cert.public_txt()));
         try!(self.upload_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, upload_port)));
 
@@ -94,8 +94,11 @@ impl Host {
     #[doc(hidden)]
     pub fn send_file(&mut self, endpoint: &str, path: &str, hash: u64, size: u64, total_chunks: u64, options: Option<&[FileOpts]>) -> Result<zmq::Socket> {
         let mut download_sock = ZMQCTX.lock().unwrap().socket(zmq::SUB).unwrap();
-        RUNTIME_ARGS.user_cert.apply(&mut download_sock);
-        let server_cert = try!(ZCert::load(&format!("{}/{}.crt", RUNTIME_ARGS.server_cert_path, self.hostname.as_mut().unwrap())));
+
+        let user_cert = try!(ZCert::load("user.crt"));
+        user_cert.apply(&mut download_sock);
+
+        let server_cert = try!(ZCert::load(&format!(".hosts/{}.crt", self.hostname.as_mut().unwrap())));
         try!(download_sock.set_curve_serverkey(server_cert.public_txt()));
         try!(download_sock.connect(&format!("tcp://{}:{}", self.hostname.as_mut().unwrap(), self.download_port.unwrap())));
         try!(download_sock.set_subscribe(path.as_bytes()));
