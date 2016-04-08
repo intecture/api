@@ -58,8 +58,9 @@ impl Host {
         try!(self.api_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, api_port)));
 
         self.upload_sock = Some(ZMQCTX.lock().unwrap().socket(zmq::PUB).unwrap());
-        user_cert.apply(self.api_sock.as_mut().unwrap());
+        user_cert.apply(self.upload_sock.as_mut().unwrap());
         try!(self.upload_sock.as_mut().unwrap().set_curve_serverkey(server_cert.public_txt()));
+        try!(self.upload_sock.as_mut().unwrap().set_linger(5000));
         try!(self.upload_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, upload_port)));
 
         self.download_port = Some(download_port);
