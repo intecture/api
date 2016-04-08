@@ -63,6 +63,9 @@ impl Host {
         try!(self.upload_sock.as_mut().unwrap().set_linger(5000));
         try!(self.upload_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, upload_port)));
 
+        // Give PUB sock time to connect
+        sleep(Duration::from_millis(100));
+
         self.download_port = Some(download_port);
 
         Ok(())
