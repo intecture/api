@@ -79,6 +79,8 @@ mod tests {
     use {Command, CommandResult};
     #[cfg(feature = "remote-run")]
     use Host;
+    #[cfg(feature = "remote-run")]
+    use czmq::{ZMsg, ZSys};
     use host::ffi::Ffi__Host;
     #[cfg(feature = "remote-run")]
     use std::{str, thread};
@@ -86,8 +88,6 @@ mod tests {
     use std::ffi::CStr;
     use std::ffi::CString;
     use super::*;
-    #[cfg(feature = "remote-run")]
-    use zmq;
 
     #[test]
     fn test_convert_command() {
@@ -134,27 +134,24 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_command_exec() {
-        let mut ctx = zmq::Context::new();
+        ZSys::init();
 
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test_exec").unwrap();
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert!(agent_sock.get_rcvmore().unwrap());
-            assert_eq!("moo", agent_sock.recv_string(0).unwrap().unwrap());
+            let req = ZMsg::recv(&server).unwrap();
+            assert_eq!("command::exec", req.popstr().unwrap().unwrap());
+            assert_eq!("moo", req.popstr().unwrap().unwrap());
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("cow", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("err", 0).unwrap();
-            agent_sock.close().unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("cow").unwrap();
+            rep.addstr("err").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.connect("inproc://test_exec").unwrap();
-
-        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let ffi_command = Ffi__Command {
             cmd: CString::new("moo").unwrap().as_ptr(),

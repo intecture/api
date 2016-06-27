@@ -160,6 +160,8 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use command::ffi::Ffi__CommandResult;
     #[cfg(feature = "remote-run")]
+    use czmq::{ZMsg, ZSys};
+    #[cfg(feature = "remote-run")]
     use Host;
     use host::ffi::Ffi__Host;
     use Package;
@@ -169,8 +171,6 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use std::thread;
     use super::*;
-    #[cfg(feature = "remote-run")]
-    use zmq;
 
     #[test]
     fn test_convert_package() {
@@ -206,48 +206,41 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_package_new_default() {
-        let mut ctx = zmq::Context::new();
+        ZSys::init();
 
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test_package_new_default").unwrap();
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("package::default_provider", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("Homebrew", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("Homebrew").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("which brew", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("/usr/local/bin/brew", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("/usr/local/bin/brew").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("brew list | grep nginx", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.addstr("").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.connect("inproc://test_package_new_default").unwrap();
-
-        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let name = CString::new("nginx").unwrap().into_raw();
-
         let ffi_pkg = package_new(&ffi_host as *const Ffi__Host, name, Ffi__Providers::Default);
-
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap() }, "nginx");
 
         Host::from(ffi_host);
@@ -292,42 +285,35 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_package_new_homebrew() {
-        let mut ctx = zmq::Context::new();
+        ZSys::init();
 
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test_package_new_homebrew").unwrap();
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("which brew", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("/usr/local/bin/brew", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("/usr/local/bin/brew").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("brew list | grep nginx", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.addstr("").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.connect("inproc://test_package_new_homebrew").unwrap();
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
-        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
         let name = CString::new("nginx").unwrap().into_raw();
-
         let ffi_pkg = package_new(&ffi_host as *const Ffi__Host, name, Ffi__Providers::Homebrew);
         let pkg = Package::from(ffi_pkg);
-
         assert_eq!(pkg.name, "nginx");
         assert!(!pkg.is_installed());
 
@@ -364,28 +350,22 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_package_install() {
-        let mut ctx = zmq::Context::new();
+        ZSys::init();
 
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test_package_install").unwrap();
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("brew install nginx", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
-            agent_sock.close().unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.connect("inproc://test_package_install").unwrap();
-
-        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,
@@ -427,28 +407,22 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_package_uninstall() {
-        let mut ctx = zmq::Context::new();
+        ZSys::init();
 
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test_package_uninstall").unwrap();
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("brew uninstall nginx", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
-            agent_sock.close().unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.connect("inproc://test_package_uninstall").unwrap();
-
-        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,

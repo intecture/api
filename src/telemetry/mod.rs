@@ -18,7 +18,7 @@
 //! ```no_run
 //! # use inapi::Host;
 //! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101, 7102, 7103).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102, \"auth.example.com:7101\").unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
@@ -218,12 +218,12 @@ impl Os {
 mod tests {
     use Host;
     #[cfg(feature = "remote-run")]
+    use czmq::{ZMsg, ZSys};
+    #[cfg(feature = "remote-run")]
     use rustc_serialize::json;
     #[cfg(feature = "remote-run")]
     use std::thread;
     use super::*;
-    #[cfg(feature = "remote-run")]
-    use zmq;
 
     #[cfg(feature = "local-run")]
     #[test]
@@ -235,13 +235,12 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_telemetry_init() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test_init").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("telemetry", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            assert_eq!("telemetry", server.recv_str().unwrap().unwrap());
 
             let telemetry = Telemetry {
                 cpu: Cpu {
@@ -284,15 +283,13 @@ mod tests {
                 },
             };
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str(&json::encode(&telemetry).unwrap(), 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr(&json::encode(&telemetry).unwrap()).unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test_init").unwrap();
-
-        let mut host = Host::test_new(None, Some(sock), None, None);
+        let mut host = Host::test_new(None, Some(client), None);
 
         let telemetry = Telemetry::init(&mut host).unwrap();
 

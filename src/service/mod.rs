@@ -16,7 +16,7 @@
 //! ```no_run
 //! # use inapi::Host;
 //! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = " host.connect(\"127.0.0.1\", 7101, 7102, 7103).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102, \"auth.example.com:7101\").unwrap();")]
 //! ```
 //!
 //! Create a new Service to manage your daemon:
@@ -253,13 +253,13 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use Host;
     #[cfg(feature = "remote-run")]
+    use czmq::{ZMsg, ZSys};
+    #[cfg(feature = "remote-run")]
     use super::*;
     #[cfg(feature = "remote-run")]
     use std::collections::HashMap;
     #[cfg(feature = "remote-run")]
     use std::thread;
-    #[cfg(feature = "remote-run")]
-    use zmq;
 
     // XXX This requires mocking the shell or Command struct
     // #[cfg(feature = "local-run")]
@@ -270,29 +270,25 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_action_default() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("service::action", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("nginx", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("start", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            let req = ZMsg::recv(&server).unwrap();
+            assert_eq!("service::action", req.popstr().unwrap().unwrap());
+            assert_eq!("nginx", req.popstr().unwrap().unwrap());
+            assert_eq!("start", req.popstr().unwrap().unwrap());
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("Service started...", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("Service started...").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let mut host = Host::test_new(None, Some(sock), None, None);
+        let mut host = Host::test_new(None, Some(client), None);
 
         let service = Service::new_service(ServiceRunnable::Service("nginx"), None);
         let result = service.action(&mut host, "start").unwrap();
@@ -307,29 +303,25 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_action_map() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("service::action", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("nginx", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("start", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            let msg = ZMsg::recv(&server).unwrap();
+            assert_eq!("service::action", msg.popstr().unwrap().unwrap());
+            assert_eq!("nginx", msg.popstr().unwrap().unwrap());
+            assert_eq!("start", msg.popstr().unwrap().unwrap());
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("Service started...", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("Service started...").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let mut host = Host::test_new(None, Some(sock), None, None);
+        let mut host = Host::test_new(None, Some(client), None);
 
         let mut map = HashMap::new();
         map.insert("start", ServiceRunnable::Service("nginx"));
@@ -346,29 +338,25 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_action_mapped() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("service::action", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("nginx", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("load", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            let msg = ZMsg::recv(&server).unwrap();
+            assert_eq!("service::action", msg.popstr().unwrap().unwrap());
+            assert_eq!("nginx", msg.popstr().unwrap().unwrap());
+            assert_eq!("load", msg.popstr().unwrap().unwrap());
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("Service started...", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("Service started...").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let mut host = Host::test_new(None, Some(sock), None, None);
+        let mut host = Host::test_new(None, Some(client), None);
 
         let mut map = HashMap::new();
         map.insert("start", "load");
@@ -385,7 +373,7 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_action_error() {
-        let mut host = Host::test_new(None, None, None, None);
+        let mut host = Host::test_new(None, None, None);
 
         let mut map = HashMap::new();
         map.insert("start", ServiceRunnable::Service("nginx"));
@@ -396,27 +384,24 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_action_command() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/usr/local/bin/nginx", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            let msg = ZMsg::recv(&server).unwrap();
+            assert_eq!("command::exec", msg.popstr().unwrap().unwrap());
+            assert_eq!("/usr/local/bin/nginx", msg.popstr().unwrap().unwrap());
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("Service started...", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("Service started...").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let mut host = Host::test_new(None, Some(sock), None, None);
+        let mut host = Host::test_new(None, Some(client), None);
 
         let mut map = HashMap::new();
         map.insert("start", ServiceRunnable::Command("/usr/local/bin/nginx"));
@@ -433,27 +418,24 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_action_command_mapped() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/usr/local/bin/nginx -s", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            let msg = ZMsg::recv(&server).unwrap();
+            assert_eq!("command::exec", msg.popstr().unwrap().unwrap());
+            assert_eq!("/usr/local/bin/nginx -s", msg.popstr().unwrap().unwrap());
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("Service started...", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("Service started...").unwrap();
+            rep.addstr("").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let mut host = Host::test_new(None, Some(sock), None, None);
+        let mut host = Host::test_new(None, Some(client), None);
 
         let mut map = HashMap::new();
         map.insert("start", "-s");

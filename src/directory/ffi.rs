@@ -193,6 +193,8 @@ pub extern "C" fn directory_set_mode(ffi_directory_ptr: *const Ffi__Directory, f
 mod tests {
     use {Directory, DirectoryOpts, Host};
     use FileOwner;
+    #[cfg(feature = "remote-run")]
+    use czmq::{ZMsg, ZSys};
     use file::ffi::Ffi__FileOwner;
     #[cfg(feature = "remote-run")]
     use host::ffi::Ffi__Host;
@@ -203,8 +205,6 @@ mod tests {
     use super::*;
     #[cfg(feature = "remote-run")]
     use std::thread;
-    #[cfg(feature = "remote-run")]
-    use zmq;
 
     // XXX local-run tests require FS mocking
 
@@ -223,25 +223,22 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_convert_directory() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            let req = ZMsg::recv(&server).unwrap();
+            assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
+            assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let mut host = Host::test_new(None, Some(sock), None, None);
+        let mut host = Host::test_new(None, Some(client), None);
 
         let directory = Directory::new(&mut host, "/path/to/dir").unwrap();
         let ffi_directory = Ffi__Directory::from(directory);
@@ -321,25 +318,20 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_new_ok() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
@@ -353,25 +345,20 @@ mod tests {
     #[test]
     #[should_panic()]
     fn test_new_fail() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         directory_new(&host as *const Ffi__Host, path);
@@ -383,33 +370,27 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_exists() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("directory::exists", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
@@ -422,34 +403,23 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_create() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("directory::create", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("0", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
-
-            agent_sock.send_str("Ok", 0).unwrap();
+            server.recv_str().unwrap().unwrap();
+            server.send_str("Ok").unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
@@ -465,34 +435,23 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_delete() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("directory::delete", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("0", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
-
-            agent_sock.send_str("Ok", 0).unwrap();
+            server.recv_str().unwrap().unwrap();
+            server.send_str("Ok").unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
@@ -505,45 +464,39 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_get_owner() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("directory::get_owner", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("Moo", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("123", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("Cow", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("456", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("user").unwrap();
+            rep.addstr("123").unwrap();
+            rep.addstr("group").unwrap();
+            rep.addstr("123").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
 
         let owner = directory_get_owner(&directory as *const Ffi__Directory, &host as *const Ffi__Host);
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.user_name).to_bytes()).unwrap() }, "Moo");
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.user_name).to_bytes()).unwrap() }, "user");
         assert_eq!(owner.user_uid, 123);
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.group_name).to_bytes()).unwrap() }, "Cow");
-        assert_eq!(owner.group_gid, 456);
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.group_name).to_bytes()).unwrap() }, "group");
+        assert_eq!(owner.group_gid, 123);
 
         Host::from(host);
         agent_mock.join().unwrap();
@@ -552,36 +505,23 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_set_owner() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("directory::set_owner", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("Moo", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("Cow", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
-
-            agent_sock.send_str("Ok", 0).unwrap();
+            server.recv_str().unwrap().unwrap();
+            server.send_str("Ok").unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
@@ -596,33 +536,27 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_get_mode() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("directory::get_mode", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("755", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("755").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
@@ -635,34 +569,23 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_set_mode() {
-        let mut ctx = zmq::Context::new();
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test").unwrap();
+        ZSys::init();
+
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("directory::is_directory", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
+            server.recv_str().unwrap().unwrap();
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("1", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("1").unwrap();
+            rep.send(&server).unwrap();
 
-            assert_eq!("directory::set_mode", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("/path/to/dir", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), true);
-            assert_eq!("644", agent_sock.recv_string(0).unwrap().unwrap());
-            assert_eq!(agent_sock.get_rcvmore().unwrap(), false);
-
-            agent_sock.send_str("Ok", 0).unwrap();
+            server.recv_str().unwrap().unwrap();
+            server.send_str("Ok").unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test").unwrap();
-
-        let host = Ffi__Host::from(Host::test_new(None, Some(sock), None, None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);

@@ -6,13 +6,9 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use {
-    CommandResult,
-    Host,
-    Providers,
-    Result,
-};
+use {CommandResult, Error, Host, Providers, Result};
 use command::CommandTarget;
+use czmq::ZMsg;
 use directory::DirectoryTarget;
 use file::{FileTarget, FileOwner};
 use package::PackageTarget;
@@ -20,7 +16,6 @@ use rustc_serialize::json;
 use service::ServiceTarget;
 use super::Target;
 use telemetry::{Telemetry, TelemetryTarget};
-use zmq;
 
 //
 // Command
@@ -28,13 +23,16 @@ use zmq;
 
 impl CommandTarget for Target {
     fn exec(host: &mut Host, cmd: &str) -> Result<CommandResult> {
-        try!(host.send("command::exec", zmq::SNDMORE));
-        try!(host.send(cmd, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("command::exec"));
+        try!(msg.addstr(cmd));
+        try!(host.send(msg));
 
-        let exit_code = try!(host.expect_recvmsg("exit_code", 1)).as_str().unwrap().parse::<i32>().unwrap();
-        let stdout = try!(host.expect_recv("stdout", 2));
-        let stderr = try!(host.expect_recv("stderr", 3));
+        let msg = try!(host.recv(3, Some(3)));
+
+        let exit_code = try!(msg.popstr().unwrap().or(Err(Error::HostResponse))).parse::<i32>().unwrap();
+        let stdout = try!(msg.popstr().unwrap().or(Err(Error::HostResponse)));
+        let stderr = try!(msg.popstr().unwrap().or(Err(Error::HostResponse)));
 
         Ok(CommandResult {
             exit_code: exit_code,
@@ -50,81 +48,99 @@ impl CommandTarget for Target {
 
 impl DirectoryTarget for Target {
     fn directory_is_directory(host: &mut Host, path: &str) -> Result<bool> {
-        try!(host.send("directory::is_directory", zmq::SNDMORE));
-        try!(host.send(path, 0));
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::is_directory"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
 
-        try!(host.recv_header());
-        let result = try!(host.expect_recv("is_directory", 1));
-        Ok(result == "1")
+        let reply = try!(host.recv(1, Some(1)));
+        Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))) == "1")
     }
 
     fn directory_exists(host: &mut Host, path: &str) -> Result<bool> {
-        try!(host.send("directory::exists", zmq::SNDMORE));
-        try!(host.send(path, 0));
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::exists"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
 
-        try!(host.recv_header());
-        let result = try!(host.expect_recv("exists", 1));
-        Ok(result == "1")
+        let reply = try!(host.recv(1, Some(1)));
+        Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))) == "1")
     }
 
     fn directory_create(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
-        try!(host.send("directory::create", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(if recursive { "1" } else { "0" }, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::create"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(if recursive { "1" } else { "0" }));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 
     fn directory_delete(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
-        try!(host.send("directory::delete", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(if recursive { "1" } else { "0" }, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::delete"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(if recursive { "1" } else { "0" }));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 
     fn directory_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
-        try!(host.send("directory::mv", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(new_path, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::mv"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(new_path));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 
     fn directory_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
-        try!(host.send("directory::get_owner", zmq::SNDMORE));
-        try!(host.send(path, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::get_owner"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
+
+        let reply = try!(host.recv(4, Some(4)));
 
         Ok(FileOwner {
-            user_name: try!(host.expect_recv("user_name", 1)),
-            user_uid: try!(host.expect_recv("user_uid", 2)).parse::<u64>().unwrap(),
-            group_name: try!(host.expect_recv("group_name", 3)),
-            group_gid: try!(host.expect_recv("group_gid", 4)).parse::<u64>().unwrap()
+            user_name: try!(reply.popstr().unwrap().or(Err(Error::HostResponse))),
+            user_uid: try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).parse::<u64>().unwrap(),
+            group_name: try!(reply.popstr().unwrap().or(Err(Error::HostResponse))),
+            group_gid: try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).parse::<u64>().unwrap()
         })
     }
 
     fn directory_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
-        try!(host.send("directory::set_owner", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(user, zmq::SNDMORE));
-        try!(host.send(group, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::set_owner"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(user));
+        try!(msg.addstr(group));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 
     fn directory_get_mode(host: &mut Host, path: &str) -> Result<u16> {
-        try!(host.send("directory::get_mode", zmq::SNDMORE));
-        try!(host.send(path, 0));
-        try!(host.recv_header());
-        Ok(try!(host.expect_recv("mode", 1)).parse::<u16>().unwrap())
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::get_mode"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
+
+        let reply = try!(host.recv(0, None));
+        Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).parse::<u16>().unwrap())
     }
 
     fn directory_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
-        try!(host.send("directory::set_mode", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(&mode.to_string(), 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("directory::set_mode"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(&mode.to_string()));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 }
@@ -135,80 +151,98 @@ impl DirectoryTarget for Target {
 
 impl FileTarget for Target {
     fn file_is_file(host: &mut Host, path: &str) -> Result<bool> {
-        try!(host.send("file::is_file", zmq::SNDMORE));
-        try!(host.send(path, 0));
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::is_file"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
 
-        try!(host.recv_header());
-        let result = try!(host.expect_recv("is_file", 1));
-        Ok(result == "1")
+        let reply = try!(host.recv(0, None));
+        Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))) == "1")
     }
 
     fn file_exists(host: &mut Host, path: &str) -> Result<bool> {
-        try!(host.send("file::exists", zmq::SNDMORE));
-        try!(host.send(path, 0));
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::exists"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
 
-        try!(host.recv_header());
-        let result = try!(host.expect_recv("exists", 1));
-        Ok(result == "1")
+        let reply = try!(host.recv(1, Some(1)));
+        Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))) == "1")
     }
 
     fn file_delete(host: &mut Host, path: &str) -> Result<()> {
-        try!(host.send("file::delete", zmq::SNDMORE));
-        try!(host.send(path, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::delete"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 
     fn file_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
-        try!(host.send("file::mv", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(new_path, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::mv"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(new_path));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 
     fn file_copy(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
-        try!(host.send("file::copy", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(new_path, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::copy"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(new_path));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 
     fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
-        try!(host.send("file::get_owner", zmq::SNDMORE));
-        try!(host.send(path, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::get_owner"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
+
+        let reply = try!(host.recv(4, Some(4)));
 
         Ok(FileOwner {
-            user_name: try!(host.expect_recv("user_name", 1)),
-            user_uid: try!(host.expect_recv("user_uid", 2)).parse::<u64>().unwrap(),
-            group_name: try!(host.expect_recv("group_name", 3)),
-            group_gid: try!(host.expect_recv("group_gid", 4)).parse::<u64>().unwrap()
+            user_name: try!(reply.popstr().unwrap().or(Err(Error::HostResponse))),
+            user_uid: try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).parse::<u64>().unwrap(),
+            group_name: try!(reply.popstr().unwrap().or(Err(Error::HostResponse))),
+            group_gid: try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).parse::<u64>().unwrap()
         })
     }
 
     fn file_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
-        try!(host.send("file::set_owner", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(user, zmq::SNDMORE));
-        try!(host.send(group, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::set_owner"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(user));
+        try!(msg.addstr(group));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 
     fn file_get_mode(host: &mut Host, path: &str) -> Result<u16> {
-        try!(host.send("file::get_mode", zmq::SNDMORE));
-        try!(host.send(path, 0));
-        try!(host.recv_header());
-        Ok(try!(host.expect_recv("mode", 1)).parse::<u16>().unwrap())
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::get_mode"));
+        try!(msg.addstr(path));
+        try!(host.send(msg));
+
+        let reply = try!(host.recv(0, None));
+        Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).parse::<u16>().unwrap())
     }
 
     fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
-        try!(host.send("file::set_mode", zmq::SNDMORE));
-        try!(host.send(path, zmq::SNDMORE));
-        try!(host.send(&mode.to_string(), 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("file::set_mode"));
+        try!(msg.addstr(path));
+        try!(msg.addstr(&mode.to_string()));
+        try!(host.send(msg));
+        try!(host.recv(0, None));
         Ok(())
     }
 }
@@ -219,12 +253,12 @@ impl FileTarget for Target {
 
 impl PackageTarget for Target {
     fn default_provider(host: &mut Host) -> Result<Providers> {
-        try!(host.send("package::default_provider", 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("package::default_provider"));
+        try!(host.send(msg));
 
-        let provider = try!(host.expect_recv("provider", 1));
-
-        Ok(Providers::from(provider))
+        let reply = try!(host.recv(1, Some(1)));
+        Ok(Providers::from(try!(reply.popstr().unwrap().or(Err(Error::HostResponse)))))
     }
 }
 
@@ -234,14 +268,17 @@ impl PackageTarget for Target {
 
 impl ServiceTarget for Target {
     fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
-        try!(host.send("service::action", zmq::SNDMORE));
-        try!(host.send(name, zmq::SNDMORE));
-        try!(host.send(action, 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("service::action"));
+        try!(msg.addstr(name));
+        try!(msg.addstr(action));
+        try!(host.send(msg));
 
-        let exit_code = try!(host.expect_recvmsg("exit_code", 1)).as_str().unwrap().parse::<i32>().unwrap();
-        let stdout = try!(host.expect_recv("stdout", 2));
-        let stderr = try!(host.expect_recv("stderr", 3));
+        let msg = try!(host.recv(3, Some(3)));
+
+        let exit_code = try!(msg.popstr().unwrap().or(Err(Error::HostResponse))).parse::<i32>().unwrap();
+        let stdout = try!(msg.popstr().unwrap().or(Err(Error::HostResponse)));
+        let stderr = try!(msg.popstr().unwrap().or(Err(Error::HostResponse)));
 
         Ok(CommandResult {
             exit_code: exit_code,
@@ -257,10 +294,12 @@ impl ServiceTarget for Target {
 
 impl TelemetryTarget for Target {
     fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
-        try!(host.send("telemetry", 0));
-        try!(host.recv_header());
+        let msg = ZMsg::new();
+        try!(msg.addstr("telemetry"));
+        try!(host.send(msg));
 
-        let telemetry = try!(host.expect_recv("telemetry", 1));
+        let msg = try!(host.recv(1, Some(1)));
+        let telemetry = try!(msg.popstr().unwrap().or(Err(Error::HostResponse)));
         Ok(try!(json::decode(&telemetry)))
     }
 }

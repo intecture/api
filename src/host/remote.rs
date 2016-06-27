@@ -8,19 +8,12 @@
 
 //! The host wrapper for communicating with a remote host.
 
-use czmq::ZCert;
-use error::{Error, MissingFrame};
-use file::FileOpts;
+use czmq::{ZCert, ZMsg, ZSock, ZSockType};
+use error::Error;
 use Result;
-use std::sync::Mutex;
-use std::thread::sleep;
-use std::time::Duration;
+use std::path::Path;
 use super::*;
-use zmq;
-
-lazy_static! {
-    static ref ZMQCTX: Mutex<zmq::Context> = Mutex::new(zmq::Context::new());
-}
+use zfilexfer;
 
 impl Host {
     /// Create a new Host to represent your managed host.
@@ -28,374 +21,216 @@ impl Host {
         Host {
             hostname: None,
             api_sock: None,
-            upload_sock: None,
-            download_port: None,
+            file_sock: None,
         }
     }
 
     #[cfg(test)]
-    pub fn test_new(hostname: Option<String>, api_sock: Option<zmq::Socket>, upload_sock: Option<zmq::Socket>, download_port: Option<u32>) -> Host {
+    pub fn test_new(hostname: Option<String>, api_sock: Option<ZSock>, file_sock: Option<ZSock>) -> Host {
         let host = Host {
             hostname: hostname,
             api_sock: api_sock,
-            upload_sock: upload_sock,
-            download_port: download_port,
+            file_sock: file_sock,
         };
 
         host
     }
 
-    pub fn connect(&mut self, hostname: &str, api_port: u32, upload_port: u32, download_port: u32) -> Result<()> {
+    pub fn connect(&mut self, hostname: &str, api_port: u32, file_port: u32, auth_server: &str) -> Result<()> {
         self.hostname = Some(hostname.to_string());
 
         let user_cert = try!(ZCert::load("user.crt"));
-        let server_cert = try!(ZCert::load(&format!(".hosts/{}.crt", hostname)));
+        let server_cert = try!(self.lookup_server_cert(hostname, auth_server, &user_cert));
 
-        self.api_sock = Some(ZMQCTX.lock().unwrap().socket(zmq::REQ).unwrap());
-        user_cert.apply(self.api_sock.as_mut().unwrap());
-        try!(self.api_sock.as_mut().unwrap().set_curve_serverkey(server_cert.public_txt()));
-        try!(self.api_sock.as_mut().unwrap().set_linger(5000));
-        try!(self.api_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, api_port)));
+        let api_sock = ZSock::new(ZSockType::REQ);
+        user_cert.apply(&api_sock);
+        api_sock.set_curve_serverkey(server_cert.public_txt());
+        api_sock.set_linger(5000);
+        try!(api_sock.connect(&format!("tcp://{}:{}", hostname, api_port)));
+        self.api_sock = Some(api_sock);
 
-        self.upload_sock = Some(ZMQCTX.lock().unwrap().socket(zmq::PUB).unwrap());
-        user_cert.apply(self.upload_sock.as_mut().unwrap());
-        try!(self.upload_sock.as_mut().unwrap().set_curve_serverkey(server_cert.public_txt()));
-        try!(self.upload_sock.as_mut().unwrap().set_linger(5000));
-        try!(self.upload_sock.as_mut().unwrap().connect(&format!("tcp://{}:{}", hostname, upload_port)));
-
-        // Give PUB sock time to connect
-        sleep(Duration::from_millis(100));
-
-        self.download_port = Some(download_port);
+        let file_sock = ZSock::new(ZSockType::DEALER);
+        user_cert.apply(&file_sock);
+        file_sock.set_curve_serverkey(server_cert.public_txt());
+        file_sock.set_linger(5000);
+        try!(file_sock.connect(&format!("tcp://{}:{}", hostname, file_port)));
+        self.file_sock = Some(file_sock);
 
         Ok(())
     }
 
-    pub fn close(&mut self) -> Result<()> {
-        if self.api_sock.is_some() {
-            try!(self.api_sock.as_mut().unwrap().close());
-            self.api_sock = None;
+    fn lookup_server_cert(&self, hostname: &str, auth_server: &str, user_cert: &ZCert) -> Result<ZCert> {
+        let auth_cert = try!(ZCert::load("auth.crt"));
+
+        let auth_sock = ZSock::new(ZSockType::REQ);
+        user_cert.apply(&auth_sock);
+        auth_sock.set_curve_serverkey(auth_cert.public_txt());
+        auth_sock.set_sndtimeo(Some(5000));
+        auth_sock.set_rcvtimeo(Some(5000));
+        try!(auth_sock.connect(&format!("tcp://{}", auth_server)));
+
+        // Get server cert from Auth server
+        let msg = ZMsg::new();
+        try!(msg.addstr("cert::lookup"));
+        try!(msg.addstr(hostname));
+        try!(msg.send(&auth_sock));
+
+        let reply = try!(ZMsg::recv(&auth_sock));
+
+        if reply.size() != 2 {
+            return Err(Error::HostResponse);
         }
 
-        if self.upload_sock.is_some() {
-            try!(self.upload_sock.as_mut().unwrap().close());
-            self.upload_sock = None;
-        }
-
-        Ok(())
-    }
-
-    #[doc(hidden)]
-    pub fn send(&mut self, msg: &str, flags: i32) -> Result<()> {
-        if self.api_sock.is_none() {
-            return Err(Error::Generic("Host is not connected".to_string()));
-        }
-
-        try!(self.api_sock.as_mut().unwrap().send_str(msg, flags));
-        Ok(())
-    }
-
-    #[doc(hidden)]
-    pub fn send_file(&mut self, endpoint: &str, path: &str, hash: u64, size: u64, total_chunks: u64, options: Option<&[FileOpts]>) -> Result<zmq::Socket> {
-        let mut download_sock = ZMQCTX.lock().unwrap().socket(zmq::SUB).unwrap();
-
-        let user_cert = try!(ZCert::load("user.crt"));
-        user_cert.apply(&mut download_sock);
-
-        let server_cert = try!(ZCert::load(&format!(".hosts/{}.crt", self.hostname.as_mut().unwrap())));
-        try!(download_sock.set_curve_serverkey(server_cert.public_txt()));
-        try!(download_sock.connect(&format!("tcp://{}:{}", self.hostname.as_mut().unwrap(), self.download_port.unwrap())));
-        try!(download_sock.set_subscribe(path.as_bytes()));
-
-        // Try to mitigate late joiner syndrome
-        sleep(Duration::from_millis(100));
-
-        try!(self.send(endpoint, zmq::SNDMORE));
-        try!(self.send(path, zmq::SNDMORE));
-        try!(self.send(&hash.to_string(), zmq::SNDMORE));
-        try!(self.send(&size.to_string(), zmq::SNDMORE));
-        try!(self.send(&total_chunks.to_string(), if options.is_some() { zmq::SNDMORE } else { 0 }));
-
-        if let Some(opts) = options {
-            let mut cnt = 1;
-
-            for opt in opts {
-                let send_more = if cnt < opts.len() { zmq::SNDMORE } else { 0 };
-
-                match opt {
-                    &FileOpts::BackupExistingFile(ref suffix) => {
-                        try!(self.send("OPT_BackupExistingFile", zmq::SNDMORE));
-                        try!(self.send(suffix, send_more));
-                    },
-                }
-
-                cnt += 1;
-            }
-        }
-
-        Ok(download_sock)
-    }
-
-    #[doc(hidden)]
-    pub fn send_chunk(&mut self, path: &str, index: u64, chunk: &[u8]) -> Result<()> {
-        try!(self.upload_sock.as_mut().unwrap().send_str(path, zmq::SNDMORE));
-        try!(self.upload_sock.as_mut().unwrap().send_str(&index.to_string(), zmq::SNDMORE));
-        try!(self.upload_sock.as_mut().unwrap().send(chunk, 0));
-        Ok(())
-    }
-
-    #[doc(hidden)]
-    pub fn recv_header(&mut self) -> Result<()> {
-        if self.api_sock.is_none() {
-            return Err(Error::Generic("Host is not connected".to_string()));
-        }
-
-        match try!(self.api_sock.as_mut().unwrap().recv_string(0)).unwrap().as_ref() {
-            "Ok" => Ok(()),
-            "Err" => Err(Error::Agent(try!(self.expect_recv("err_msg", 1)))),
+        match try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).as_ref() {
+            "Ok" => {
+                let pk = try!(reply.popstr().unwrap().or(Err(Error::HostResponse)));
+                Ok(ZCert::from_txt(&pk, "0000000000000000000000000000000000000000"))
+            },
+            "Err" => Err(Error::Agent(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))))),
             _ => unreachable!(),
         }
     }
 
-    #[doc(hidden)]
-    pub fn expect_recv(&mut self, name: &str, order: u8) -> Result<String> {
-        if self.api_sock.is_none() {
-            return Err(Error::Generic("Host is not connected".to_string()));
+    pub fn close(&mut self) -> Result<()> {
+        if self.api_sock.is_some() {
+            self.api_sock.take().unwrap();
         }
 
-        if self.api_sock.as_mut().unwrap().get_rcvmore().unwrap() == false {
-            return Err(Error::Frame(MissingFrame::new(name, order)));
+        if self.file_sock.is_some() {
+            self.file_sock.take().unwrap();
         }
 
-        Ok(try!(self.api_sock.as_mut().unwrap().recv_string(0)).unwrap())
+        Ok(())
     }
 
     #[doc(hidden)]
-    pub fn expect_recvmsg(&mut self, name: &str, order: u8) -> Result<zmq::Message> {
+    pub fn send(&mut self, msg: ZMsg) -> Result<()> {
         if self.api_sock.is_none() {
-            return Err(Error::Generic("Host is not connected".to_string()));
+            return Err(Error::HostDisconnected);
         }
 
-        if self.api_sock.as_mut().unwrap().get_rcvmore().unwrap() == false {
-            return Err(Error::Frame(MissingFrame::new(name, order)));
+        try!(msg.send(self.api_sock.as_mut().unwrap()));
+        Ok(())
+    }
+
+    #[doc(hidden)]
+    pub fn send_file<P: AsRef<Path>>(&mut self, file: &zfilexfer::File, local_path: P) -> Result<()> {
+        if self.file_sock.is_none() {
+            return Err(Error::HostDisconnected);
         }
 
-        Ok(try!(self.api_sock.as_mut().unwrap().recv_msg(0)))
+        try!(file.send(self.file_sock.as_ref().unwrap(), local_path));
+        Ok(())
+    }
+
+    #[doc(hidden)]
+    pub fn recv(&self, min: usize, max: Option<usize>) -> Result<ZMsg> {
+        let msg = try!(ZMsg::recv(self.api_sock.as_ref().unwrap()));
+        try!(Self::extract_header(&msg));
+
+        // Check msg size
+        if msg.size() < min || (max.is_some() && msg.size() > max.unwrap()) {
+            Err(Error::HostResponse)
+        } else {
+            Ok(msg)
+        }
+    }
+
+    fn extract_header(msg: &ZMsg) -> Result<()> {
+        if msg.size() == 0 {
+            return Err(Error::HostResponse);
+        }
+
+        match try!(msg.popstr().unwrap().or(Err(Error::HostResponse))).as_ref() {
+            "Ok" => Ok(()),
+            "Err" => {
+                if msg.size() == 0 {
+                    Err(Error::HostResponse)
+                } else {
+                    Err(Error::Agent(try!(msg.popstr().unwrap().or(Err(Error::HostResponse)))))
+                }
+            },
+            _ => Err(Error::HostResponse),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use {create_project_fs, Host, zmq};
-    use file::FileOpts;
+    use {create_project_fs, Host, mock_auth_server};
+    use czmq::{ZMsg, ZSys};
+    use std::fs;
+    use std::thread::spawn;
+    use tempdir::TempDir;
+    use zfilexfer::File;
 
     #[test]
-    fn test_host_connect() {
+    fn test_connect_close() {
         create_project_fs();
+        let (handle, auth_server) = mock_auth_server();
 
         let mut host = Host::new();
-        assert!(host.connect("localhost", 7101, 7102, 7103).is_ok());
+        assert!(host.connect("localhost", 7101, 7102, &auth_server).is_ok());
+        assert!(host.close().is_ok());
+
+        handle.join().unwrap();
     }
 
     #[test]
-    fn test_host_send() {
-        let mut ctx = zmq::Context::new();
+    fn test_send_recv() {
+        ZSys::init();
 
-        let mut server = ctx.socket(zmq::REP).unwrap();
-        server.bind("inproc://test_host_send").unwrap();
+        let (client, server) = ZSys::create_pipe().unwrap();
 
-        let mut client = ctx.socket(zmq::REQ).unwrap();
-        client.connect("inproc://test_host_send").unwrap();
+        let mut host1 = Host::test_new(None, Some(client), None);
+        let mut host2 = Host::test_new(None, Some(server), None);
 
-        let mut host = Host::test_new(None, Some(client), None, None);
-        host.send("moo", zmq::SNDMORE).unwrap();
-        host.send("cow", 0).unwrap();
+        let msg = ZMsg::new();
+        msg.addstr("Ok").unwrap();
+        msg.addstr("moo").unwrap();
+        msg.addstr("cow").unwrap();
+        host1.send(msg).unwrap();
 
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "moo");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "cow");
+        let reply = host2.recv(2, Some(2)).unwrap();
+        assert_eq!(reply.popstr().unwrap().unwrap(), "moo");
+        assert_eq!(reply.popstr().unwrap().unwrap(), "cow");
+
+        let msg = ZMsg::new();
+        msg.addstr("No header").unwrap();
+        host2.send(msg).unwrap();
+
+        assert!(host1.recv(0, None).is_err());
+        let msg = ZMsg::new();
+        msg.addstr("Err").unwrap();
+        host1.send(msg).unwrap();
+
+        assert!(host2.recv(0, None).is_err());
     }
 
     #[test]
-    fn test_send_file_noopts() {
-        create_project_fs();
+    fn test_send_file() {
+        ZSys::init();
 
-        let mut ctx = zmq::Context::new();
+        let tempdir = TempDir::new("host_test_send_file").unwrap();
+        let path = format!("{}/file.txt", tempdir.path().to_str().unwrap());
+        fs::File::create(&path).unwrap();
+        let file = File::open(&path, None).unwrap();
 
-        let mut server = ctx.socket(zmq::REP).unwrap();
-        server.bind("inproc://test_host_send_file_noopts").unwrap();
+        let (client, server) = ZSys::create_pipe().unwrap();
+        client.set_rcvtimeo(Some(500));
+        server.set_rcvtimeo(Some(500));
 
-        let mut client = ctx.socket(zmq::REQ).unwrap();
-        client.connect("inproc://test_host_send_file_noopts").unwrap();
+        let handle = spawn(move|| {
+            let msg = ZMsg::recv(&server).unwrap();
+            assert_eq!(msg.popstr().unwrap().unwrap(), "NEW");
 
-        let mut host = Host::test_new(Some("localhost".to_string()), Some(client), None, Some(7103));
-        host.send_file("file::upload", "/tmp/moo", 123, 0, 0, None).unwrap();
+            server.flush();
+            server.send_str("Ok").unwrap();
+        });
 
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "file::upload");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "/tmp/moo");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "123");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
-        assert!(!server.get_rcvmore().unwrap());
-    }
+        let mut host = Host::test_new(None, None, Some(client));
+        assert!(host.send_file(&file, &path).is_ok());
 
-    #[test]
-    fn test_send_file_opts() {
-        create_project_fs();
-
-        let mut ctx = zmq::Context::new();
-
-        let mut server = ctx.socket(zmq::REP).unwrap();
-        server.bind("inproc://test_host_send_file_opts").unwrap();
-
-        let mut client = ctx.socket(zmq::REQ).unwrap();
-        client.connect("inproc://test_host_send_file_opts").unwrap();
-
-        let mut host = Host::test_new(Some("localhost".to_string()), Some(client), None, Some(7103));
-
-        let opts = vec![FileOpts::BackupExistingFile("_moo".to_string())];
-
-        host.send_file("file::upload", "/tmp/moo", 123, 0, 0, Some(&opts)).unwrap();
-
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "file::upload");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "/tmp/moo");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "123");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "OPT_BackupExistingFile");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "_moo");
-    }
-
-    #[test]
-    fn test_host_send_chunk() {
-        let mut ctx = zmq::Context::new();
-
-        let mut server = ctx.socket(zmq::REP).unwrap();
-        server.bind("inproc://test_host_send_chunk").unwrap();
-
-        let mut client = ctx.socket(zmq::REQ).unwrap();
-        client.connect("inproc://test_host_send_chunk").unwrap();
-
-        let mut host = Host::test_new(None, None, Some(client), None);
-
-        let bytes = [1, 2, 3];
-
-        host.send_chunk("/tmp/moo", 0, &bytes).unwrap();
-
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "/tmp/moo");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_string(0).unwrap().unwrap(), "0");
-        assert!(server.get_rcvmore().unwrap());
-        assert_eq!(server.recv_bytes(0).unwrap(), &bytes);
-    }
-
-    #[test]
-    fn test_host_recv_header_ok() {
-        let mut ctx = zmq::Context::new();
-
-        let mut req = ctx.socket(zmq::REQ).unwrap();
-        req.connect("inproc://test_host_recv_header_ok").unwrap();
-        req.send_str("Ok", 0).unwrap();
-
-        let mut rep = ctx.socket(zmq::REP).unwrap();
-        rep.bind("inproc://test_host_recv_header_ok").unwrap();
-
-        let mut host = Host::test_new(None, Some(rep), None, None);
-        assert!(host.recv_header().is_ok());
-    }
-
-    #[test]
-    fn test_host_recv_header_err() {
-        let mut ctx = zmq::Context::new();
-
-        let mut req = ctx.socket(zmq::REQ).unwrap();
-        req.connect("inproc://test_host_recv_header_err").unwrap();
-        req.send_str("Err", 0).unwrap();
-
-        let mut rep = ctx.socket(zmq::REP).unwrap();
-        rep.bind("inproc://test_host_recv_header_err").unwrap();
-
-        let mut host = Host::test_new(None, Some(rep), None, None);
-        assert!(host.recv_header().is_err());
-    }
-
-    #[test]
-    fn test_host_expect_recv_ok() {
-        let mut ctx = zmq::Context::new();
-
-        let mut req = ctx.socket(zmq::REQ).unwrap();
-        req.connect("inproc://test_host_expect_recv_ok").unwrap();
-        req.send_str("Ok", zmq::SNDMORE).unwrap();
-        req.send_str("Frame 0", zmq::SNDMORE).unwrap();
-        req.send_str("Frame 1", 0).unwrap();
-
-        let mut rep = ctx.socket(zmq::REP).unwrap();
-        rep.bind("inproc://test_host_expect_recv_ok").unwrap();
-        rep.recv_string(0).unwrap().unwrap();
-
-        let mut host = Host::test_new(None, Some(rep), None, None);
-        assert_eq!(host.expect_recv("Frame 0", 0).unwrap(), "Frame 0");
-        assert_eq!(host.expect_recv("Frame 1", 1).unwrap(), "Frame 1");
-    }
-
-    #[test]
-    fn test_host_expect_recv_err() {
-        let mut ctx = zmq::Context::new();
-
-        let mut req = ctx.socket(zmq::REQ).unwrap();
-        req.connect("inproc://test_host_expect_recv_ok").unwrap();
-        req.send_str("Ok", 0).unwrap();
-
-        let mut rep = ctx.socket(zmq::REP).unwrap();
-        rep.bind("inproc://test_host_expect_recv_ok").unwrap();
-        rep.recv_string(0).unwrap().unwrap();
-
-        let mut host = Host::test_new(None, Some(rep), None, None);
-        assert!(host.expect_recv("Frame 0", 0).is_err());
-    }
-
-    #[test]
-    fn test_host_expect_recvmsg_ok() {
-        let mut ctx = zmq::Context::new();
-
-        let mut req = ctx.socket(zmq::REQ).unwrap();
-        req.connect("inproc://test_host_expect_recvmsg_ok").unwrap();
-        req.send_str("Ok", zmq::SNDMORE).unwrap();
-        req.send_str("Frame 0", zmq::SNDMORE).unwrap();
-        req.send_str("Frame 1", 0).unwrap();
-
-        let mut rep = ctx.socket(zmq::REP).unwrap();
-        rep.bind("inproc://test_host_expect_recvmsg_ok").unwrap();
-        rep.recv_string(0).unwrap().unwrap();
-
-        let mut host = Host::test_new(None, Some(rep), None, None);
-        assert_eq!(host.expect_recvmsg("Frame 0", 0).unwrap().as_str().unwrap(), "Frame 0");
-        assert_eq!(host.expect_recvmsg("Frame 1", 1).unwrap().as_str().unwrap(), "Frame 1");
-    }
-
-    #[test]
-    fn test_host_expect_recvmsg_err() {
-        let mut ctx = zmq::Context::new();
-
-        let mut req = ctx.socket(zmq::REQ).unwrap();
-        req.connect("inproc://test_host_expect_recvmsg_ok").unwrap();
-        req.send_str("Ok", 0).unwrap();
-
-        let mut rep = ctx.socket(zmq::REP).unwrap();
-        rep.bind("inproc://test_host_expect_recvmsg_ok").unwrap();
-        rep.recv_string(0).unwrap().unwrap();
-
-        let mut host = Host::test_new(None, Some(rep), None, None);
-        assert!(host.expect_recvmsg("Frame 0", 0).is_err());
+        handle.join().unwrap();
     }
 }

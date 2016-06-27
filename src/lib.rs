@@ -26,6 +26,7 @@
 
 #[cfg(feature = "remote-run")]
 extern crate czmq;
+#[cfg(test)]
 #[macro_use]
 extern crate lazy_static;
 extern crate libc;
@@ -34,7 +35,7 @@ extern crate rustc_serialize;
 #[cfg(test)]
 extern crate tempdir;
 #[cfg(feature = "remote-run")]
-extern crate zmq;
+extern crate zfilexfer;
 
 pub mod command;
 pub mod directory;
@@ -50,12 +51,13 @@ pub mod telemetry;
 pub use command::{Command, CommandResult};
 pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
-pub use file::{File, FileOpts, FileOwner};
+pub use file::{File, FileOwner};
 pub use host::Host;
 pub use package::{Package, PackageResult};
 pub use package::providers::{Provider, ProviderFactory, Providers};
 pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
+pub use zfilexfer::FileOptions;
 
 use std::result;
 pub type Result<T> = result::Result<T, Error>;
@@ -87,9 +89,34 @@ fn create_project_fs() {
         let cert = ZCert::new().unwrap();
         cert.save_secret("user.crt").unwrap();
 
+        let cert = ZCert::new().unwrap();
+        cert.save_public("auth.crt").unwrap();
+        cert.save_secret(".auth_secret.crt").unwrap();
+
         create_dir(".hosts").unwrap();
 
         let cert = ZCert::new().unwrap();
         cert.save_secret(".hosts/localhost.crt").unwrap();
     });
+}
+
+#[cfg(all(test, feature = "remote-run"))]
+fn mock_auth_server() -> (::std::thread::JoinHandle<()>, String) {
+    let sock = ::czmq::ZSock::new(::czmq::ZSockType::REP);
+    let cert = ZCert::load(".auth_secret.crt").unwrap();
+    cert.apply(&sock);
+    sock.set_curve_server(true);
+    sock.set_zap_domain("mock_auth_server");
+    let port = sock.bind("tcp://127.0.0.1:*[60000-]").unwrap();
+
+    let handle = ::std::thread::spawn(move|| {
+        sock.recv_str().unwrap().unwrap();
+
+        let reply = ::czmq::ZMsg::new();
+        reply.addstr("Ok").unwrap();
+        reply.addstr("0000000000000000000000000000000000000000").unwrap();
+        reply.send(&sock).unwrap();
+    });
+
+    (handle, format!("127.0.0.1:{}", port))
 }

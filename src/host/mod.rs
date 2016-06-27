@@ -22,7 +22,7 @@
 //! # use inapi::{Command, Host};
 //! let mut host = Host::new();
 #![cfg_attr(feature = "local-run", doc = "// host.connect(...) <-- we don't need this")]
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101, 7102, 7103).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102, \"auth.example.com:7101\").unwrap();")]
 //!
 //! let cmd = Command::new("whoami");
 //! let result = cmd.exec(&mut host).unwrap();
@@ -34,12 +34,12 @@ pub mod local;
 #[cfg(feature = "remote-run")]
 pub mod remote;
 
+#[cfg(feature = "remote-run")]
+use czmq::ZSock;
 #[cfg(feature = "local-run")]
 pub use self::local::*;
 #[cfg(feature = "remote-run")]
 pub use self::remote::*;
-#[cfg(feature = "remote-run")]
-use zmq;
 
 /// Representation of a managed host.
 #[cfg(feature = "local-run")]
@@ -49,9 +49,7 @@ pub struct Host {
     /// Hostname or IP of managed host
     hostname: Option<String>,
     /// API socket
-    api_sock: Option<zmq::Socket>,
-    /// File upload socket
-    upload_sock: Option<zmq::Socket>,
-    /// File download port
-    download_port: Option<u32>,
+    api_sock: Option<ZSock>,
+    /// File transfer socket
+    file_sock: Option<ZSock>,
 }

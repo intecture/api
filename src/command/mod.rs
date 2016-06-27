@@ -17,7 +17,7 @@
 //! ```no_run
 //! # use inapi::Host;
 //! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"127.0.0.1\", 7101, 7102, 7103).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102, \"auth.example.com:7101\").unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
@@ -85,11 +85,11 @@ impl Command {
     /// let cmd = Command::new("whoami");
     ///
     /// let mut web1 = Host::new();
-    #[cfg_attr(feature = "remote-run", doc = "web1.connect(\"web1.example.com\", 7101, 7102, 7103).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "web1.connect(\"web1.example.com\", 7101, 7102, \"auth.example.com:7101\").unwrap();")]
     /// let w1_result = cmd.exec(&mut web1).unwrap();
     ///
     /// let mut web2 = Host::new();
-    #[cfg_attr(feature = "remote-run", doc = "web2.connect(\"web2.example.com\", 7101, 7102, 7103).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "web2.connect(\"web2.example.com\", 7101, 7102, \"auth.example.com:7101\").unwrap();")]
     /// let w2_result = cmd.exec(&mut web2).unwrap();
     /// ```
     #[allow(unused_variables)]
@@ -105,13 +105,13 @@ pub trait CommandTarget {
 #[cfg(test)]
 mod tests {
     use Host;
+    #[cfg(feature = "remote-run")]
+    use czmq::{ZMsg, ZSys};
     #[cfg(feature = "local-run")]
     use std::{process, str};
     #[cfg(feature = "remote-run")]
     use std::thread;
     use super::*;
-    #[cfg(feature = "remote-run")]
-    use zmq;
 
     #[cfg(feature = "local-run")]
     #[test]
@@ -130,27 +130,24 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_exec() {
-        let mut ctx = zmq::Context::new();
+        ZSys::init();
 
-        let mut agent_sock = ctx.socket(zmq::REP).unwrap();
-        agent_sock.bind("inproc://test_exec").unwrap();
+        let (client, server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            assert_eq!("command::exec", agent_sock.recv_string(0).unwrap().unwrap());
-            assert!(agent_sock.get_rcvmore().unwrap());
-            assert_eq!("moo", agent_sock.recv_string(0).unwrap().unwrap());
+            let req = ZMsg::recv(&server).unwrap();
+            assert_eq!("command::exec", req.popstr().unwrap().unwrap());
+            assert_eq!("moo", req.popstr().unwrap().unwrap());
 
-            agent_sock.send_str("Ok", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("0", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("cow", zmq::SNDMORE).unwrap();
-            agent_sock.send_str("err", 0).unwrap();
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("cow").unwrap();
+            rep.addstr("err").unwrap();
+            rep.send(&server).unwrap();
         });
 
-        let mut sock = ctx.socket(zmq::REQ).unwrap();
-        sock.set_linger(0).unwrap();
-        sock.connect("inproc://test_exec").unwrap();
-
-        let mut host = Host::test_new(None, Some(sock), None, None);
+        let mut host = Host::test_new(None, Some(client), None);
 
         let cmd = Command::new("moo");
         let result = cmd.exec(&mut host).unwrap();

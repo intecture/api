@@ -11,7 +11,7 @@ use czmq;
 use rustc_serialize::json;
 use std::{convert, error, fmt, io, num, str, string};
 #[cfg(feature = "remote-run")]
-use zmq;
+use zfilexfer;
 
 #[derive(Debug)]
 pub enum Error {
@@ -22,11 +22,17 @@ pub enum Error {
     Czmq(czmq::Error),
     /// JSON decoder error
     JsonDecoder(json::DecoderError),
-    /// Message frames missing in the response from host's Intecture Agent
     #[cfg(feature = "remote-run")]
+    /// Message frames missing in the response from host's Intecture Agent
     Frame(MissingFrame),
     /// Generic error string
     Generic(String),
+    #[cfg(feature = "remote-run")]
+    /// Cannot run command on disconnected host
+    HostDisconnected,
+    #[cfg(feature = "remote-run")]
+    /// Invalid response from host
+    HostResponse,
     /// IO error
     Io(io::Error),
     /// Cast str as float
@@ -38,8 +44,8 @@ pub enum Error {
     /// Cast String
     StringFromUtf8(string::FromUtf8Error),
     #[cfg(feature = "remote-run")]
-    /// ZMQ error
-    Zmq(zmq::Error),
+    /// ZFileXfer error
+    ZFileXfer(zfilexfer::Error),
 }
 
 impl fmt::Display for Error {
@@ -52,13 +58,17 @@ impl fmt::Display for Error {
             #[cfg(feature = "remote-run")]
             Error::Frame(ref e) => write!(f, "Missing frame {} in message: {}", e.order, e.name),
             Error::Generic(ref e) => write!(f, "Error: {}", e),
+            #[cfg(feature = "remote-run")]
+            Error::HostDisconnected => write!(f, "Cannot run command while host is disconnected"),
+            #[cfg(feature = "remote-run")]
+            Error::HostResponse => write!(f, "Invalid response from host"),
             Error::Io(ref e) => write!(f, "IO error: {}", e),
             Error::ParseFloat(ref e) => write!(f, "Parse error: {}", e),
             Error::ParseInt(ref e) => write!(f, "Parse error: {}", e),
             Error::StrFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to str error: {}", e),
             Error::StringFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to String error: {}", e),
             #[cfg(feature = "remote-run")]
-            Error::Zmq(ref e) => write!(f, "ZeroMQ error: {}", e),
+            Error::ZFileXfer(ref e) => write!(f, "ZFileXfer error: {}", e),
         }
     }
 }
@@ -73,13 +83,17 @@ impl error::Error for Error {
             #[cfg(feature = "remote-run")]
             Error::Frame(_) => "The Agent's reply was missing a part ('frame') of the expected message",
             Error::Generic(ref e) => e,
+            #[cfg(feature = "remote-run")]
+            Error::HostDisconnected => "Cannot run command on disconnected host",
+            #[cfg(feature = "remote-run")]
+            Error::HostResponse => "Invalid response from host",
             Error::Io(ref e) => e.description(),
             Error::ParseFloat(ref e) => e.description(),
             Error::ParseInt(ref e) => e.description(),
             Error::StrFromUtf8(ref e) => e.description(),
             Error::StringFromUtf8(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
-            Error::Zmq(ref e) => e.description(),
+            Error::ZFileXfer(ref e) => e.description(),
         }
     }
 }
@@ -135,9 +149,9 @@ impl convert::From<num::ParseIntError> for Error {
 }
 
 #[cfg(feature = "remote-run")]
-impl convert::From<zmq::Error> for Error {
-    fn from(err: zmq::Error) -> Error {
-        Error::Zmq(err)
+impl convert::From<zfilexfer::Error> for Error {
+    fn from(err: zfilexfer::Error) -> Error {
+        Error::ZFileXfer(err)
     }
 }
 

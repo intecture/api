@@ -9,17 +9,17 @@
 //! FFI interface for Host
 
 #[cfg(feature = "remote-run")]
+use czmq::{RawInterface, ZSock};
+#[cfg(feature = "remote-run")]
 use libc::{c_char, uint32_t};
 use std::convert;
 #[cfg(feature = "remote-run")]
-use std::{ptr, str};
+use std::ptr;
 #[cfg(feature = "remote-run")]
 use std::ffi::{CStr, CString};
 #[cfg(feature = "remote-run")]
 use std::os::raw::c_void;
 use super::*;
-#[cfg(feature = "remote-run")]
-use zmq;
 
 #[cfg(feature = "local-run")]
 #[repr(C)]
@@ -29,10 +29,9 @@ pub struct Ffi__Host;
 #[repr(C)]
 #[derive(Debug)]
 pub struct Ffi__Host {
-    hostname: *mut c_char,
-    api_sock: *mut c_void,
-    upload_sock: *mut c_void,
-    download_port: uint32_t,
+    hostname: Option<*mut c_char>,
+    api_sock: Option<*mut c_void>,
+    file_sock: Option<*mut c_void>,
 }
 
 impl convert::From<Host> for Ffi__Host {
@@ -45,25 +44,17 @@ impl convert::From<Host> for Ffi__Host {
     #[cfg(feature = "remote-run")]
     fn from(host: Host) -> Ffi__Host {
         Ffi__Host {
-            hostname: if host.hostname.is_some() {
-                CString::new(host.hostname.unwrap()).unwrap().into_raw()
-            } else {
-                CString::new("").unwrap().into_raw()
+            hostname: match host.hostname {
+                Some(hostname) => Some(CString::new(hostname).unwrap().into_raw()),
+                None => None,
             },
-            api_sock: if host.api_sock.is_some() {
-                host.api_sock.unwrap().to_raw()
-            } else {
-                ptr::null_mut()
+            api_sock: match host.api_sock {
+                Some(sock) => Some(sock.into_raw()),
+                None => None,
             },
-            upload_sock: if host.upload_sock.is_some() {
-                host.upload_sock.unwrap().to_raw()
-            } else {
-                ptr::null_mut()
-            },
-            download_port: if host.download_port.is_some() {
-                host.download_port.unwrap()
-            } else {
-                0
+            file_sock: match host.file_sock {
+                Some(sock) => Some(sock.into_raw()),
+                None => None,
             },
         }
     }
@@ -71,35 +62,24 @@ impl convert::From<Host> for Ffi__Host {
 
 impl convert::From<Ffi__Host> for Host {
     #[cfg(feature = "local-run")]
-    #[allow(unused_variables)]
-    fn from(ffi_host: Ffi__Host) -> Host {
+    fn from(_: Ffi__Host) -> Host {
         Host
     }
 
     #[cfg(feature = "remote-run")]
     fn from(ffi_host: Ffi__Host) -> Host {
-        let hostname = unsafe { str::from_utf8(CStr::from_ptr(ffi_host.hostname).to_bytes()).unwrap().to_string() };
-
         Host {
-            hostname: if hostname == "" {
-                Some(String::new())
-            } else {
-                Some(hostname)
+            hostname: match ffi_host.hostname {
+                Some(ptr) => Some(unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().into()),
+                None => None,
             },
-            api_sock: if ffi_host.api_sock == ptr::null_mut() {
-                None
-            } else {
-                Some(zmq::Socket::from_raw(ffi_host.api_sock))
+            api_sock: match ffi_host.api_sock {
+                Some(sock) => Some(ZSock::from_raw(sock, true)),
+                None => None,
             },
-            upload_sock: if ffi_host.upload_sock == ptr::null_mut() {
-                None
-            } else {
-                Some(zmq::Socket::from_raw(ffi_host.upload_sock))
-            },
-            download_port: if ffi_host.download_port == 0 {
-                None
-            } else {
-                Some(ffi_host.download_port)
+            file_sock: match ffi_host.file_sock {
+                Some(sock) => Some(ZSock::from_raw(sock, true)),
+                None => None,
             }
         }
     }
@@ -113,15 +93,16 @@ pub extern "C" fn host_new() -> Ffi__Host {
 #[cfg(feature = "remote-run")]
 #[no_mangle]
 pub extern "C" fn host_connect(ffi_host_ptr: *mut Ffi__Host,
-                               ip: *const c_char,
+                               hostname_ptr: *const c_char,
                                api_port: uint32_t,
                                upload_port: uint32_t,
-                               download_port: uint32_t) {
-    let slice = unsafe { CStr::from_ptr(ip) };
-    let ip_str = str::from_utf8(slice.to_bytes()).unwrap();
+                               auth_server_ptr: *const c_char) {
+
+    let hostname = unsafe { CStr::from_ptr(hostname_ptr) }.to_str().unwrap();
+    let auth_server = unsafe { CStr::from_ptr(auth_server_ptr) }.to_str().unwrap();
 
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    host.connect(ip_str, api_port, upload_port, download_port).unwrap();
+    host.connect(hostname, api_port, upload_port, auth_server).unwrap();
 
     unsafe { ptr::write(&mut *ffi_host_ptr, Ffi__Host::from(host)); }
 }
@@ -136,59 +117,52 @@ pub extern "C" fn host_close(ffi_host_ptr: *mut Ffi__Host) {
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "remote-run")]
-    use create_project_fs;
+    use {create_project_fs, mock_auth_server};
+    #[cfg(feature = "remote-run")]
+    use czmq::ZSys;
     use Host;
     #[cfg(feature = "remote-run")]
     use std::ffi::CString;
-    #[cfg(feature = "remote-run")]
-    use std::ptr;
     use super::*;
-    #[cfg(feature = "remote-run")]
-    use zmq;
 
     #[test]
     fn test_convert_host() {
         let host = Host::new();
-        Ffi__Host::from(host);
+        let ffi = Ffi__Host::from(host);
+        Host::from(ffi);
     }
 
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_convert_host_connected() {
+        ZSys::init();
+
         create_project_fs();
+        let (handle, auth_server) = mock_auth_server();
 
         let mut host = Host::new();
-        assert!(host.connect("localhost", 7101, 7102, 7103).is_ok());
-        Ffi__Host::from(host);
-    }
+        assert!(host.connect("localhost", 7101, 7102, &auth_server).is_ok());
+        let ffi = Ffi__Host::from(host);
+        Host::from(ffi);
 
-    #[cfg(feature = "remote-run")]
-    #[test]
-    fn test_convert_ffi_host() {
-        let mut ctx = zmq::Context::new();
-        let sock = ctx.socket(zmq::REQ).unwrap();
-
-        let ffi_host = Ffi__Host {
-            hostname: CString::new("localhost").unwrap().into_raw(),
-            api_sock: sock.to_raw(),
-            upload_sock: ptr::null_mut(),
-            download_port: 0,
-        };
-
-        Host::from(ffi_host);
+        handle.join().unwrap();
     }
 
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_host_fns() {
+        ZSys::init();
+
         create_project_fs();
+        let (handle, auth_server) = mock_auth_server();
+
+        let hostname = CString::new("localhost").unwrap().as_ptr();
+        let auth_server = CString::new(auth_server.as_bytes()).unwrap().as_ptr();
 
         let mut host = host_new();
-        host_connect(&mut host as *mut Ffi__Host,
-                     CString::new("localhost").unwrap().as_ptr(),
-                     7101,
-                     7102,
-                     7103);
+        host_connect(&mut host as *mut Ffi__Host, hostname, 7101, 7102, auth_server);
         host_close(&mut host as *mut Ffi__Host);
+
+        handle.join().unwrap();
     }
 }
