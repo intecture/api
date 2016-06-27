@@ -65,8 +65,6 @@ use czmq::ZCert;
 #[cfg(all(test, feature = "remote-run"))]
 use std::env::set_current_dir;
 #[cfg(all(test, feature = "remote-run"))]
-use std::fs::create_dir;
-#[cfg(all(test, feature = "remote-run"))]
 use tempdir::TempDir;
 #[cfg(all(test, feature = "remote-run"))]
 use std::sync::{Once, ONCE_INIT};
@@ -90,11 +88,6 @@ fn create_project_fs() {
         let cert = ZCert::new().unwrap();
         cert.save_public("auth.crt").unwrap();
         cert.save_secret(".auth_secret.crt").unwrap();
-
-        create_dir(".hosts").unwrap();
-
-        let cert = ZCert::new().unwrap();
-        cert.save_secret(".hosts/localhost.crt").unwrap();
     });
 }
 
