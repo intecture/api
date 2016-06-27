@@ -18,7 +18,7 @@ default = ["remote-run"]
 local-run = []
 
 # Run API endpoints against a remote agent
-remote-run = ["czmq", "zfilexfer"]
+remote-run = ["czmq"]
 
 [build-dependencies]
 
@@ -26,19 +26,19 @@ regex = "0.1.*"
 
 [dev-dependencies]
 
-lazy_static = "0.1.*"
 tempdir = "0.3"
 
 [dependencies]
 
+lazy_static = "0.1.*"
 libc = "0.2.*"
 rustc-serialize = "0.3.*"
 regex = "0.1.*"
+zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", branch = "dev" }
 
 # Feature `remote-run`
 # czmq = { git = "https://github.com/petehayes102/rust-czmq.git", tag = "0.0.4", optional = true }
 czmq = { git = "https://github.com/petehayes102/rust-czmq.git", branch = "dev", optional = true }
-zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", branch = "dev", optional = true }
 
 [lib]
 

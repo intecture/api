@@ -41,6 +41,7 @@ pub mod ffi;
 use {Host, Result};
 use error::Error;
 use target::Target;
+#[cfg(feature = "remote-run")]
 use zfilexfer;
 
 /// Owner's user and group for a file.

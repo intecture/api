@@ -26,7 +26,6 @@
 
 #[cfg(feature = "remote-run")]
 extern crate czmq;
-#[cfg(test)]
 #[macro_use]
 extern crate lazy_static;
 extern crate libc;
@@ -34,7 +33,6 @@ extern crate regex;
 extern crate rustc_serialize;
 #[cfg(test)]
 extern crate tempdir;
-#[cfg(feature = "remote-run")]
 extern crate zfilexfer;
 
 pub mod command;
