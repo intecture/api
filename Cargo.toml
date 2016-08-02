@@ -1,13 +1,13 @@
 [package]
 
-name = "intecture-api"
+name = "api"
 version = "0.1.1"
 authors = [ "Peter Hayes <peter.hayes@betweenlines.co.uk>" ]
 license = "MPL-2.0"
 description = "API component for Intecture infrastructure. Intecture is the developer friendly, multi-lingual configuration management tool."
 keywords = ["intecture", "api"]
 homepage = "https://intecture.io"
-repository = "https://github.com/betweenlines/intecture-api"
+repository = "https://github.com/intecture/api"
 build = "build.rs"
 
 [features]
