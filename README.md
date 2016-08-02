@@ -1,4 +1,4 @@
-# Intecture [![Build Status](https://travis-ci.org/betweenlines/intecture-api.svg?branch=master)](https://travis-ci.org/betweenlines/intecture-api)
+# Intecture [![Build Status](https://travis-ci.org/intecture/api.svg?branch=master)](https://travis-ci.org/intecture/api)
 
 Intecture is a developer friendly, language agnostic configuration management tool for server systems.
 
@@ -29,8 +29,8 @@ First, as this project is written in Rust, you'll need...well, [Rust!](https://w
 Next, clone this repository to your local machine and use the Makefile to build it:
 
 ```
-$ git clone https://github.com/betweenlines/intecture-api.git
-$ cd intecture-api/
+$ git clone https://github.com/intecture/api.git
+$ cd api/
 $ make
 $ make test && sudo make install
 ```
@@ -44,7 +44,7 @@ Once this has finished, you should have a shiny new library called *libinapi.so*
 Run the uninstall target on the Makefile:
 
 ```
-$ cd intecture-api/
+$ cd api/
 $ sudo make uninstall
 ```
 
