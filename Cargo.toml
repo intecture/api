@@ -1,6 +1,6 @@
 [package]
 
-name = "api"
+name = "intecture-api"
 version = "0.1.1"
 authors = [ "Peter Hayes <peter.hayes@betweenlines.co.uk>" ]
 license = "MPL-2.0"
