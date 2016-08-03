@@ -29,9 +29,9 @@ pub struct Ffi__Host;
 #[repr(C)]
 #[derive(Debug)]
 pub struct Ffi__Host {
-    hostname: Option<*mut c_char>,
-    api_sock: Option<*mut c_void>,
-    file_sock: Option<*mut c_void>,
+    hostname: *mut c_char,
+    api_sock: *mut c_void,
+    file_sock: *mut c_void,
 }
 
 impl convert::From<Host> for Ffi__Host {
@@ -45,16 +45,16 @@ impl convert::From<Host> for Ffi__Host {
     fn from(host: Host) -> Ffi__Host {
         Ffi__Host {
             hostname: match host.hostname {
-                Some(hostname) => Some(CString::new(hostname).unwrap().into_raw()),
-                None => None,
+                Some(hostname) => CString::new(hostname).unwrap().into_raw(),
+                None => ptr::null_mut::<c_char>(),
             },
             api_sock: match host.api_sock {
-                Some(sock) => Some(sock.into_raw()),
-                None => None,
+                Some(sock) => sock.into_raw(),
+                None => ptr::null_mut::<c_void>(),
             },
             file_sock: match host.file_sock {
-                Some(sock) => Some(sock.into_raw()),
-                None => None,
+                Some(sock) => sock.into_raw(),
+                None => ptr::null_mut::<c_void>(),
             },
         }
     }
@@ -69,18 +69,9 @@ impl convert::From<Ffi__Host> for Host {
     #[cfg(feature = "remote-run")]
     fn from(ffi_host: Ffi__Host) -> Host {
         Host {
-            hostname: match ffi_host.hostname {
-                Some(ptr) => Some(unsafe { CStr::from_ptr(ptr) }.to_str().unwrap().into()),
-                None => None,
-            },
-            api_sock: match ffi_host.api_sock {
-                Some(sock) => Some(ZSock::from_raw(sock, true)),
-                None => None,
-            },
-            file_sock: match ffi_host.file_sock {
-                Some(sock) => Some(ZSock::from_raw(sock, true)),
-                None => None,
-            }
+            hostname: if ffi_host.hostname.is_null() { None } else { Some(unsafe { CStr::from_ptr(ffi_host.hostname) }.to_str().unwrap().into()) },
+            api_sock: if ffi_host.api_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.api_sock, true)) },
+            file_sock: if ffi_host.file_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.file_sock, true)) },
         }
     }
 }

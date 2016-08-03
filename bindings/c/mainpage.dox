@@ -1,0 +1,13 @@
+/**
+@mainpage Intecture API - C Binding Documentation
+
+The Intecture API C binding consists of a set of headers. See inapi.h
+for more information.
+
+To build an Intecture C project, you should include the C header
+(inapi.h) in your code and link against the Rust dynamic library at
+compile time (-l inapi).
+
+An example C project can be found on GitHub:
+https://github.com/intecture/examples
+*/
