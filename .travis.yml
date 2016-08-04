@@ -51,8 +51,8 @@ script:
   - travis-cargo test
   - travis-cargo bench
   - |
-      ln -s bindings/c target/include
       cd bindings/php
+      ln -s ../c include
       phpize
       ./configure --with-inapi=../../target/debug
       make
