@@ -18,32 +18,32 @@ rust:
 
 before_script:
   - |
-      pip install 'travis-cargo<0.2' --user &&
-      export PATH=$HOME/.local/bin:$PATH &&
-      export LIBRARY_PATH=$HOME/lib &&
-      export LD_LIBRARY_PATH=$HOME/lib &&
-      export PKG_CONFIG_PATH=$HOME/lib/pkgconfig &&
+      pip install 'travis-cargo<0.2' --user
+      export PATH=$HOME/.local/bin:$PATH
+      export LIBRARY_PATH=$HOME/lib
+      export LD_LIBRARY_PATH=$HOME/lib
+      export PKG_CONFIG_PATH=$HOME/lib/pkgconfig
 
       cd /tmp
-      curl -sSOL https://download.libsodium.org/libsodium/releases/libsodium-1.0.8.tar.gz &&
-      curl -sSOL https://download.libsodium.org/libsodium/releases/libsodium-1.0.8.tar.gz.sig &&
-      curl -sSOL https://download.libsodium.org/jedi.gpg.asc &&
-      gpg --import jedi.gpg.asc &&
-      gpg --verify libsodium-1.0.8.tar.gz.sig libsodium-1.0.8.tar.gz &&
-      tar zxf libsodium-1.0.8.tar.gz &&
-      cd libsodium-1.0.8 &&
-      ./configure --prefix=$HOME && make && make install &&
-      cd .. &&
+      curl -sSOL https://download.libsodium.org/libsodium/releases/libsodium-1.0.8.tar.gz
+      curl -sSOL https://download.libsodium.org/libsodium/releases/libsodium-1.0.8.tar.gz.sig
+      curl -sSOL https://download.libsodium.org/jedi.gpg.asc
+      gpg --import jedi.gpg.asc
+      gpg --verify libsodium-1.0.8.tar.gz.sig libsodium-1.0.8.tar.gz
+      tar zxf libsodium-1.0.8.tar.gz
+      cd libsodium-1.0.8
+      ./configure --prefix=$HOME && make && make install
+      cd ..
 
-      curl -sSOL https://github.com/zeromq/zeromq4-1/archive/v4.1.4.tar.gz &&
-      tar zxf v4.1.4.tar.gz &&
-      cd zeromq4-1-4.1.4 &&
-      ./autogen.sh && ./configure --prefix=$HOME --with-libsodium && make && make install &&
-      cd .. &&
+      curl -sSOL https://github.com/zeromq/zeromq4-1/archive/v4.1.4.tar.gz
+      tar zxf v4.1.4.tar.gz
+      cd zeromq4-1-4.1.4
+      ./autogen.sh && ./configure --prefix=$HOME --with-libsodium && make && make install
+      cd ..
 
-      git clone https://github.com/zeromq/czmq &&
-      cd czmq &&
-      ./autogen.sh && ./configure --prefix=$HOME && make && make install &&
+      git clone https://github.com/zeromq/czmq
+      cd czmq
+      ./autogen.sh && ./configure --prefix=$HOME && make && make install
       cd $TRAVIS_BUILD_DIR
 
 script:
@@ -51,10 +51,11 @@ script:
   - travis-cargo test
   - travis-cargo bench
   - |
+      ln -s bindings/c target/include
       cd bindings/php
       phpize
-      ./configure
-      LDFLAGS="-L../../target/debug" CFLAGS="-I../c" make
+      ./configure --with-inapi=../../target/debug
+      make
       TEST_PHP_ARGS="-q" make test
 
 after_success:
