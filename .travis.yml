@@ -10,6 +10,7 @@ addons:
       - libdw-dev
       - binutils-dev
       - php5-dev
+      - php5-cli
 
 rust:
   - stable
