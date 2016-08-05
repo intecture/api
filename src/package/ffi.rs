@@ -15,7 +15,7 @@ use libc::{c_char, uint8_t};
 use std::{convert, ptr, str};
 use std::ffi::{CStr, CString};
 use super::*;
-use super::providers::{Provider, ProviderFactory};
+use super::providers::ProviderFactory;
 
 #[repr(C)]
 pub struct Ffi__Package {
