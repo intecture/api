@@ -116,12 +116,12 @@ impl Host {
     }
 
     #[doc(hidden)]
-    pub fn send_file<P: AsRef<Path>>(&mut self, file: &zfilexfer::File, local_path: P) -> Result<()> {
+    pub fn send_file<P: AsRef<Path>>(&mut self, file: &zfilexfer::File, remote_path: P) -> Result<()> {
         if self.file_sock.is_none() {
             return Err(Error::HostDisconnected);
         }
 
-        try!(file.send(self.file_sock.as_ref().unwrap(), local_path));
+        try!(file.send(self.file_sock.as_ref().unwrap(), remote_path));
         Ok(())
     }
 

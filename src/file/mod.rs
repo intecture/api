@@ -91,7 +91,7 @@ impl File {
     #[cfg(feature = "remote-run")]
     /// Upload a file to the managed host.
     pub fn upload(&self, host: &mut Host, local_path: &str, options: Option<&[zfilexfer::FileOptions]>) -> Result<()> {
-        let file = zfilexfer::File::open(&local_path, options).unwrap();
+        let file = try!(zfilexfer::File::open(&local_path, options));
         host.send_file(&file, &self.path)
     }
 
