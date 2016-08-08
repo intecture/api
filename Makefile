@@ -1,20 +1,7 @@
-UNAME_S := $(shell uname -s)
 CARGO := $(shell which cargo)
 TARGET = release
 USRPATH = /usr/local
 LIBEXT = so
-
-ifeq ($(UNAME_S), Linux)
-	FEDORA := $(grep -qs Fedora /etc/redhat-release)
-	ifeq ($$?, 0)
-		USRPATH = /usr/local
-		export PATH := $(USRPATH)/bin:$(PATH)
-	else
-		USRPATH = /usr
-	endif
-else ifeq ($(UNAME_S), Darwin)
-	LIBEXT = dylib
-endif
 
 all: remote
 
