@@ -45,14 +45,16 @@ impl Host {
         let api_sock = ZSock::new(ZSockType::REQ);
         user_cert.apply(&api_sock);
         api_sock.set_curve_serverkey(server_cert.public_txt());
-        api_sock.set_linger(5000);
+        api_sock.set_sndtimeo(Some(5000));
+        api_sock.set_rcvtimeo(Some(5000));
         try!(api_sock.connect(&format!("tcp://{}:{}", hostname, api_port)));
         self.api_sock = Some(api_sock);
 
         let file_sock = ZSock::new(ZSockType::DEALER);
         user_cert.apply(&file_sock);
         file_sock.set_curve_serverkey(server_cert.public_txt());
-        file_sock.set_linger(5000);
+        file_sock.set_sndtimeo(Some(5000));
+        file_sock.set_rcvtimeo(Some(5000));
         try!(file_sock.connect(&format!("tcp://{}:{}", hostname, file_port)));
         self.file_sock = Some(file_sock);
 
