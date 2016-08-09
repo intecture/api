@@ -27,7 +27,7 @@ impl Provider for Pkg {
     }
 
     fn is_installed(&self, host: &mut Host, name: &str) -> Result<bool> {
-        let cmd = Command::new(&format!("pkg info | grep {}", name));
+        let cmd = Command::new(&format!("pkg query \"%n\" {}", name));
         let result = try!(cmd.exec(host));
 
         Ok(result.exit_code == 0)

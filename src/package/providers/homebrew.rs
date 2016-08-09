@@ -9,7 +9,8 @@
 //! Homebrew package provider
 
 use {Command, CommandResult, Host};
-use Result;
+use {Error, Result};
+use regex::Regex;
 use super::*;
 
 pub struct Homebrew;
@@ -27,10 +28,14 @@ impl Provider for Homebrew {
     }
 
     fn is_installed(&self, host: &mut Host, name: &str) -> Result<bool> {
-        let cmd = Command::new(&format!("brew list | grep {}", name));
+        let cmd = Command::new("brew list");
         let result = try!(cmd.exec(host));
+        if result.exit_code != 0 {
+            return Err(Error::Agent(result.stderr));
+        }
 
-        Ok(result.exit_code == 0)
+        let re = try!(Regex::new(&format!("(?m)(^|\\s+){}\\s+", name)));
+        Ok(re.is_match(&result.stdout))
     }
 
     fn install(&self, host: &mut Host, name: &str) -> Result<CommandResult> {

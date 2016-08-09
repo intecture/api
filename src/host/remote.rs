@@ -88,7 +88,7 @@ impl Host {
                 let pk = try!(reply.popstr().unwrap().or(Err(Error::HostResponse)));
                 Ok(ZCert::from_txt(&pk, "0000000000000000000000000000000000000000"))
             },
-            "Err" => Err(Error::Agent(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))))),
+            "Err" => Err(Error::Auth(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))))),
             _ => unreachable!(),
         }
     }

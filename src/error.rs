@@ -8,6 +8,7 @@
 
 #[cfg(feature = "remote-run")]
 use czmq;
+use regex;
 use rustc_serialize::json;
 use std::{convert, error, fmt, io, num, str, string};
 #[cfg(feature = "remote-run")]
@@ -17,6 +18,9 @@ use zfilexfer;
 pub enum Error {
     /// An error string returned from the host's Intecture Agent
     Agent(String),
+    #[cfg(feature = "remote-run")]
+    /// An error string returned from the host's Intecture Auth
+    Auth(String),
     #[cfg(feature = "remote-run")]
     /// CZMQ error
     Czmq(czmq::Error),
@@ -39,6 +43,8 @@ pub enum Error {
     ParseFloat(num::ParseFloatError),
     /// Cast str as int
     ParseInt(num::ParseIntError),
+    /// Regex error
+    Regex(regex::Error),
     /// Cast str
     StrFromUtf8(str::Utf8Error),
     /// Cast String
@@ -53,6 +59,8 @@ impl fmt::Display for Error {
         match *self {
             Error::Agent(ref e) => write!(f, "Agent error: {}", e),
             #[cfg(feature = "remote-run")]
+            Error::Auth(ref e) => write!(f, "Auth error: {}", e),
+            #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => write!(f, "CZMQ error: {}", e),
             Error::JsonDecoder(ref e) => write!(f, "JSON decoder error: {}", e),
             #[cfg(feature = "remote-run")]
@@ -65,6 +73,7 @@ impl fmt::Display for Error {
             Error::Io(ref e) => write!(f, "IO error: {}", e),
             Error::ParseFloat(ref e) => write!(f, "Parse error: {}", e),
             Error::ParseInt(ref e) => write!(f, "Parse error: {}", e),
+            Error::Regex(ref e) => write!(f, "Regex error: {}", e),
             Error::StrFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to str error: {}", e),
             Error::StringFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to String error: {}", e),
             #[cfg(feature = "remote-run")]
@@ -78,6 +87,8 @@ impl error::Error for Error {
         match *self {
             Error::Agent(ref e) => e,
             #[cfg(feature = "remote-run")]
+            Error::Auth(ref e) => e,
+            #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => e.description(),
             Error::JsonDecoder(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
@@ -90,6 +101,7 @@ impl error::Error for Error {
             Error::Io(ref e) => e.description(),
             Error::ParseFloat(ref e) => e.description(),
             Error::ParseInt(ref e) => e.description(),
+            Error::Regex(ref e) => e.description(),
             Error::StrFromUtf8(ref e) => e.description(),
             Error::StringFromUtf8(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
@@ -121,6 +133,12 @@ impl convert::From<MissingFrame> for Error {
 impl convert::From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::Io(err)
+    }
+}
+
+impl convert::From<regex::Error> for Error {
+    fn from(err: regex::Error) -> Error {
+        Error::Regex(err)
     }
 }
 

@@ -8,8 +8,9 @@
 
 //! Dnf package provider
 
-use {Command, CommandResult, Host};
-use Result;
+use {Command, CommandResult, Host, Telemetry};
+use {Error, Result};
+use regex::Regex;
 use super::*;
 
 pub struct Dnf;
@@ -27,10 +28,16 @@ impl Provider for Dnf {
     }
 
     fn is_installed(&self, host: &mut Host, name: &str) -> Result<bool> {
-        let cmd = Command::new(&format!("dnf list installed | grep {}", name));
+        let cmd = Command::new("dnf list installed");
         let result = try!(cmd.exec(host));
+        if result.exit_code != 0 {
+            return Err(Error::Agent(result.stderr));
+        }
 
-        Ok(result.exit_code == 0)
+        let telemetry = try!(Telemetry::init(host));
+
+        let re = try!(Regex::new(&format!("(?m)^{}\\.({}|noarch)\\s+", name, telemetry.os.arch)));
+        Ok(re.is_match(&result.stdout))
     }
 
     fn install(&self, host: &mut Host, name: &str) -> Result<CommandResult> {
