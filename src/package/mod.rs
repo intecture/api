@@ -165,12 +165,12 @@ mod tests {
 
             let req = ZMsg::recv(&server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
-            assert_eq!("brew list | grep nginx", req.popstr().unwrap().unwrap());
+            assert_eq!("brew list", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
-            rep.addstr("1").unwrap();
-            rep.addstr("").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("nginx-filesystem").unwrap();
             rep.addstr("").unwrap();
             rep.send(&server).unwrap();
         });
@@ -222,12 +222,12 @@ mod tests {
 
             let req = ZMsg::recv(&server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
-            assert_eq!("brew list | grep nginx", req.popstr().unwrap().unwrap());
+            assert_eq!("brew list", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
-            rep.addstr("1").unwrap();
-            rep.addstr("").unwrap();
+            rep.addstr("0").unwrap();
+            rep.addstr("abc def nginx pkg").unwrap();
             rep.addstr("").unwrap();
             rep.send(&server).unwrap();
         });

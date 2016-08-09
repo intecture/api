@@ -231,7 +231,7 @@ mod tests {
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
-            rep.addstr("1").unwrap();
+            rep.addstr("0").unwrap();
             rep.addstr("").unwrap();
             rep.addstr("").unwrap();
             rep.send(&server).unwrap();
@@ -303,7 +303,7 @@ mod tests {
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
-            rep.addstr("1").unwrap();
+            rep.addstr("0").unwrap();
             rep.addstr("").unwrap();
             rep.addstr("").unwrap();
             rep.send(&server).unwrap();
