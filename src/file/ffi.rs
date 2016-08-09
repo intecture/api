@@ -38,20 +38,21 @@ impl convert::From<Ffi__File> for File {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct Ffi__FileOptions {
-    backup_existing: Option<*const c_char>,
-    chunk_size: Option<uint64_t>,
+    backup_existing: *const c_char,
+    chunk_size: *const uint64_t,
 }
 
 impl convert::From<Ffi__FileOptions> for Vec<FileOptions> {
     fn from(ffi_opts: Ffi__FileOptions) -> Vec<FileOptions> {
         let mut opts = vec![];
-        if let Some(c_suffix) = ffi_opts.backup_existing {
-            let suffix = unsafe { str::from_utf8(CStr::from_ptr(c_suffix).to_bytes()).unwrap().to_string() };
+        if ffi_opts.backup_existing != ptr::null() {
+            let suffix = unsafe { str::from_utf8(CStr::from_ptr(ffi_opts.backup_existing).to_bytes()).unwrap().to_string() };
             opts.push(FileOptions::BackupExisting(suffix));
         }
-        if let Some(size) = ffi_opts.chunk_size {
-            opts.push(FileOptions::ChunkSize(size));
+        if ffi_opts.chunk_size != ptr::null() {
+            opts.push(FileOptions::ChunkSize(unsafe { ptr::read(ffi_opts.chunk_size) }));
         }
         opts
     }
@@ -284,8 +285,8 @@ mod tests {
     #[test]
     fn test_convert_ffi_file_options() {
         let ffi_file_options = Ffi__FileOptions {
-            backup_existing: Some(CString::new("_bak").unwrap().into_raw()),
-            chunk_size: Some(123),
+            backup_existing: CString::new("_bak").unwrap().into_raw(),
+            chunk_size: &123,
         };
         let file_options = Vec::<FileOptions>::from(ffi_file_options);
 
