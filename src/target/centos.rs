@@ -19,14 +19,16 @@ use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use service::ServiceTarget;
 use std::env;
-use super::{default_base as default, linux_base as linux, redhat_base as redhat, Target};
+use super::{default_base as default, linux_base as linux, redhat_base as redhat};
 use telemetry::TelemetryTarget;
+
+pub struct CentosTarget;
 
 //
 // Command
 //
 
-impl CommandTarget for Target {
+impl CommandTarget for CentosTarget {
     #[allow(unused_variables)]
     fn exec(host: &mut Host, cmd: &str) -> Result<CommandResult> {
         default::command_exec(cmd)
@@ -37,7 +39,7 @@ impl CommandTarget for Target {
 // Directory
 //
 
-impl DirectoryTarget for Target {
+impl DirectoryTarget for CentosTarget {
     #[allow(unused_variables)]
     fn directory_is_directory(host: &mut Host, path: &str) -> Result<bool> {
         default::directory_is_directory(path)
@@ -88,7 +90,7 @@ impl DirectoryTarget for Target {
 // File
 //
 
-impl FileTarget for Target {
+impl FileTarget for CentosTarget {
     #[allow(unused_variables)]
     fn file_is_file(host: &mut Host, path: &str) -> Result<bool> {
         default::file_is_file(path)
@@ -139,7 +141,7 @@ impl FileTarget for Target {
 // Package
 //
 
-impl PackageTarget for Target {
+impl PackageTarget for CentosTarget {
     fn default_provider(host: &mut Host) -> Result<Providers> {
         default::default_provider(host, vec![Providers::Yum])
     }
@@ -149,7 +151,7 @@ impl PackageTarget for Target {
 // Service
 //
 
-impl ServiceTarget for Target {
+impl ServiceTarget for CentosTarget {
     #[allow(unused_variables)]
     fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
         if try!(linux::using_systemd()) {
@@ -164,7 +166,7 @@ impl ServiceTarget for Target {
 // Telemetry
 //
 
-impl TelemetryTarget for Target {
+impl TelemetryTarget for CentosTarget {
     #[allow(unused_variables)]
     fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
         let cpu_vendor = try!(linux::cpu_vendor());
@@ -184,27 +186,5 @@ impl TelemetryTarget for Target {
             try!(linux::net()),
             Os::new(env::consts::ARCH, "redhat", "centos", &os_version),
         ))
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use Host;
-    use package::PackageTarget;
-    use target::Target;
-    use telemetry::TelemetryTarget;
-
-    #[test]
-    fn test_package_default_provider() {
-        let mut host = Host::new();
-        let result = Target::default_provider(&mut host);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_telemetry_init() {
-        let mut host = Host::new();
-        let result = Target::telemetry_init(&mut host);
-        assert!(result.is_ok());
     }
 }

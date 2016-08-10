@@ -34,14 +34,3 @@ pub fn version() -> Result<String> {
         Err(Error::Generic("Could not match OS version".to_string()))
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_version() {
-        // XXX Not a proper test. Requires mocking.
-        assert!(version().is_ok());
-    }
-}

@@ -21,14 +21,16 @@ use service::ServiceTarget;
 use std::env;
 use std::fs::File;
 use std::io::Read;
-use super::{debian_base as debian, default_base as default, linux_base as linux, Target};
+use super::{debian_base as debian, default_base as default, linux_base as linux};
 use telemetry::TelemetryTarget;
+
+pub struct DebianTarget;
 
 //
 // Command
 //
 
-impl CommandTarget for Target {
+impl CommandTarget for DebianTarget {
     #[allow(unused_variables)]
     fn exec(host: &mut Host, cmd: &str) -> Result<CommandResult> {
         default::command_exec(cmd)
@@ -39,7 +41,7 @@ impl CommandTarget for Target {
 // Directory
 //
 
-impl DirectoryTarget for Target {
+impl DirectoryTarget for DebianTarget {
     #[allow(unused_variables)]
     fn directory_is_directory(host: &mut Host, path: &str) -> Result<bool> {
         default::directory_is_directory(path)
@@ -90,7 +92,7 @@ impl DirectoryTarget for Target {
 // File
 //
 
-impl FileTarget for Target {
+impl FileTarget for DebianTarget {
     #[allow(unused_variables)]
     fn file_is_file(host: &mut Host, path: &str) -> Result<bool> {
         default::file_is_file(path)
@@ -141,7 +143,7 @@ impl FileTarget for Target {
 // Package
 //
 
-impl PackageTarget for Target {
+impl PackageTarget for DebianTarget {
     fn default_provider(host: &mut Host) -> Result<Providers> {
         default::default_provider(host, vec![Providers::Apt])
     }
@@ -151,7 +153,7 @@ impl PackageTarget for Target {
 // Service
 //
 
-impl ServiceTarget for Target {
+impl ServiceTarget for DebianTarget {
     #[allow(unused_variables)]
     fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
         if try!(linux::using_systemd()) {
@@ -166,7 +168,7 @@ impl ServiceTarget for Target {
 // Telemetry
 //
 
-impl TelemetryTarget for Target {
+impl TelemetryTarget for DebianTarget {
     #[allow(unused_variables)]
     fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
         let cpu_vendor = try!(linux::cpu_vendor());
@@ -194,26 +196,4 @@ fn telemetry_version() -> Result<String> {
     let mut fc = String::new();
     fh.read_to_string(&mut fc).unwrap();
     Ok(fc)
-}
-
-#[cfg(test)]
-mod tests {
-    use Host;
-    use package::PackageTarget;
-    use target::Target;
-    use telemetry::TelemetryTarget;
-
-    #[test]
-    fn test_package_default_provider() {
-        let mut host = Host::new();
-        let result = Target::default_provider(&mut host);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_telemetry_init() {
-        let mut host = Host::new();
-        let result = Target::telemetry_init(&mut host);
-        assert!(result.is_ok());
-    }
 }

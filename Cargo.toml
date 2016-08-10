@@ -20,10 +20,6 @@ local-run = []
 # Run API endpoints against a remote agent
 remote-run = ["czmq"]
 
-[build-dependencies]
-
-regex = "0.1.*"
-
 [dev-dependencies]
 
 tempdir = "0.3"
