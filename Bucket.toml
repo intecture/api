@@ -1,0 +1,26 @@
+targets = ["x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-freebsd"]
+
+[[files]]
+local = "bindings/c/inapi.h"
+remote = "INC/inapi.h"
+with = ["c", "php"]
+
+[[files]]
+local = "bindings/php/.libs/inapi.so"
+remote = "inapi.so"
+with = ["php"]
+
+[[files]]
+local = "bucket_install.sh"
+remote = "/var/rust-bucket/install_api.sh"
+with = ["php"]
+
+[[files]]
+local = "bucket_uninstall.sh"
+remote = "/var/rust-bucket/uninstall_api.sh"
+with = ["php"]
+
+[scripts]
+build = "cd bindings/php; phpize && ./configure --prefix=/usr/local && make; cd ../.."
+install = "if [ -f /var/rust-bucket/install_api.sh ]; then /var/rust-bucket/install_api.sh; fi"
+uninstall = "if [ -f /var/rust-bucket/uninstall_api.sh ]; then /var/rust-bucket/uninstall_api.sh; fi"
