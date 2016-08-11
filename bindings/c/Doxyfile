@@ -1,9 +1,9 @@
 DOXYFILE_ENCODING      = UTF-8
 PROJECT_NAME           = "intecture-api-c"
-PROJECT_NUMBER         = 0.1.0
+PROJECT_NUMBER         = 0.2.1
 PROJECT_BRIEF          = "Intecture API C headers"
 PROJECT_LOGO           =
-OUTPUT_DIRECTORY       = ../../_site_reference/
+OUTPUT_DIRECTORY       = ../../../../_site_reference/
 CREATE_SUBDIRS         = NO
 ALLOW_UNICODE_NAMES    = NO
 OUTPUT_LANGUAGE        = English
