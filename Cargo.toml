@@ -1,7 +1,7 @@
 [package]
 
 name = "intecture-api"
-version = "0.2.0"
+version = "0.2.1"
 authors = [ "Peter Hayes <peter.hayes@betweenlines.co.uk>" ]
 license = "MPL-2.0"
 description = "API component for Intecture infrastructure. Intecture is the developer friendly, multi-lingual configuration management tool."

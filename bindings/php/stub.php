@@ -3,7 +3,7 @@
  * Intecture API - PHP binding stubs
  *
  * @author Between Lines <info@betweenlines.co.uk>
- * @version 0.1.0
+ * @version 0.2.1
  */
 
 namespace Intecture;
