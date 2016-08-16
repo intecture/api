@@ -623,7 +623,7 @@ typedef struct _ServiceMappedActionArray {
  */
 typedef struct _Service {
     ServiceActionArray actions; /**< Action Runnables */
-    ServiceMappedActionArray mapped_actions; /**< Action aliases */
+    ServiceMappedActionArray *mapped_actions; /**< Action aliases */
 } Service;
 
 /**

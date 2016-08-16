@@ -134,10 +134,10 @@ void free_php_service_runnable(void *object TSRMLS_DC) {
     php_service_runnable *runnable = (php_service_runnable*)object;
 
     if (runnable->service_runnable.command != NULL) {
-        free(runnable->service_runnable.command);
+        efree(runnable->service_runnable.command);
     }
     if (runnable->service_runnable.service != NULL) {
-        free(runnable->service_runnable.service);
+        efree(runnable->service_runnable.service);
     }
 
     efree(runnable);
@@ -281,12 +281,12 @@ PHP_METHOD(Service, action) {
 
     switch (type) {
         case RUNNABLE_COMMAND: ;
-            intern->service_runnable.command = (char *) malloc(runnable_len);
+            intern->service_runnable.command = (char *) emalloc(runnable_len+1);
             memset(intern->service_runnable.command, 0, runnable_len+1);
             strncpy(intern->service_runnable.command, runnable, runnable_len);
             break;
         case RUNNABLE_SERVICE: ;
-            intern->service_runnable.service = (char *) malloc(runnable_len);
+            intern->service_runnable.service = (char *) emalloc(runnable_len+1);
             memset(intern->service_runnable.service, 0, runnable_len+1);
             strncpy(intern->service_runnable.service, runnable, runnable_len);
             break;

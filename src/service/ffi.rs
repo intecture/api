@@ -41,7 +41,7 @@ impl <'a>convert::From<ServiceRunnable<'a>> for Ffi__ServiceRunnable {
 
 impl <'a>convert::From<Ffi__ServiceRunnable> for ServiceRunnable<'a> {
     fn from(ffi_runnable: Ffi__ServiceRunnable) -> ServiceRunnable<'a> {
-        if ffi_runnable.command != ptr::null_mut() {
+        if !ffi_runnable.command.is_null() {
             ServiceRunnable::Command(str::from_utf8(unsafe { CStr::from_ptr(ffi_runnable.command) }.to_bytes()).unwrap())
         } else {
             ServiceRunnable::Service(str::from_utf8(unsafe { CStr::from_ptr(ffi_runnable.service) }.to_bytes()).unwrap())
@@ -126,7 +126,7 @@ fn convert_from_mapped_actions<'a>(ffi_actions: Ffi__Array<Ffi__ServiceMappedAct
 #[repr(C)]
 pub struct Ffi__Service {
     actions: Ffi__Array<Ffi__ServiceAction>,
-    mapped_actions: Option<Ffi__Array<Ffi__ServiceMappedAction>>,
+    mapped_actions: *const Ffi__Array<Ffi__ServiceMappedAction>,
 }
 
 impl <'a>convert::From<Service<'a>> for Ffi__Service {
@@ -134,9 +134,9 @@ impl <'a>convert::From<Service<'a>> for Ffi__Service {
         Ffi__Service {
             actions: Ffi__Array::from(service.actions),
             mapped_actions: if let Some(mapped) = service.mapped_actions {
-                Some(Ffi__Array::from(mapped))
+                Box::into_raw(Box::new(Ffi__Array::from(mapped)))
             } else {
-                None
+                ptr::null()
             },
         }
     }
@@ -146,10 +146,10 @@ impl <'a>convert::From<Ffi__Service> for Service<'a> {
     fn from(ffi_service: Ffi__Service) -> Service<'a> {
         Service {
             actions: convert_from_actions(ffi_service.actions),
-            mapped_actions: if let Some(mapped) = ffi_service.mapped_actions {
-                Some(convert_from_mapped_actions(mapped))
-            } else {
+            mapped_actions: if ffi_service.mapped_actions.is_null() {
                 None
+            } else {
+                Some(convert_from_mapped_actions(unsafe { ptr::read(ffi_service.mapped_actions) }))
             }
         }
     }
@@ -158,7 +158,7 @@ impl <'a>convert::From<Ffi__Service> for Service<'a> {
 #[no_mangle]
 pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable, ffi_mapped_actions: *mut Ffi__ServiceMappedAction, mapped_actions_len: size_t) -> Ffi__Service {
     let runnable = ServiceRunnable::from(ffi_runnable);
-    let mapped_actions = if ffi_mapped_actions != ptr::null_mut() {
+    let mapped_actions = if !ffi_mapped_actions.is_null() {
         Some(convert_from_mapped_actions(Ffi__Array {
             ptr: ffi_mapped_actions,
             length: mapped_actions_len,
@@ -178,7 +178,7 @@ pub extern "C" fn service_new_map(ffi_actions: *mut Ffi__ServiceAction, actions_
         length: actions_len,
         capacity: actions_len,
     });
-    let mapped_actions = if ffi_mapped_actions != ptr::null_mut() {
+    let mapped_actions = if !ffi_mapped_actions.is_null() {
         Some(convert_from_mapped_actions(Ffi__Array {
             ptr: ffi_mapped_actions,
             length: mapped_actions_len,

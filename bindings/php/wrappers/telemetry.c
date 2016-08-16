@@ -94,7 +94,6 @@ zval* telemetry_to_array(Telemetry *telemetry) {
 
     // FS
     array_init(fs);
-
     int f = 0;
     for (f = 0; f < telemetry->fs.length; f++) {
         add_next_index_zval(fs, fsmount_to_array(&telemetry->fs.ptr[f]));
