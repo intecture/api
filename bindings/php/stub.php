@@ -442,7 +442,7 @@ class Service
      *     Service.
      *
      * @return array Result attributes returned from the managed
-     *     host.
+     *     host, or null if no action was required.
      */
     public function action($host, $action) {}
 }
