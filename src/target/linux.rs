@@ -268,7 +268,7 @@ impl PackageTarget for Target {
 //
 
 impl ServiceTarget for Target {
-    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<Option<CommandResult>> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::service_action(host, name, action),
             &LinuxPlatform::Debian => DebianTarget::service_action(host, name, action),

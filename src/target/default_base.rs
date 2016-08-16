@@ -118,8 +118,17 @@ pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
     Ok(())
 }
 
-pub fn service_action(name: &str, action: &str) -> Result<CommandResult> {
-    command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("service")), name, action))
+pub fn service_action(name: &str, action: &str) -> Result<Option<CommandResult>> {
+    if action == "start" || action == "stop" {
+        let status = try!(command_exec(&format!("{} {} status", &try!(BinResolver::resolve("service")), name)));
+        // XXX Non-zero exit code may not necessarily indicate that the
+        // service is stopped?
+        if (status.exit_code == 0 && action == "start") || (status.exit_code != 0 && action == "stop") {
+            return Ok(None);
+        }
+    }
+
+    Ok(Some(try!(command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("service")), name, action)))))
 }
 
 pub fn hostname() -> Result<String> {

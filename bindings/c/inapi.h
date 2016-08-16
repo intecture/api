@@ -681,8 +681,8 @@ extern Service service_new_map(ServiceAction *actions, size_t actions_len, Servi
  * @param service The Service you wish to run the action on.
  * @param host The Host you wish to manage the service on.
  * @param action The action you wish to run.
- * @return A struct containing the execution results.
+ * @return A struct containing the execution results, or null if no action was required.
  */
-extern CommandResult service_action(Service *service, Host *host, char *action);
+extern CommandResult *service_action(Service *service, Host *host, char *action);
 
 #endif

@@ -14,11 +14,17 @@ use std::io::Read;
 use target::bin_resolver::BinResolver;
 use target::default_base as default;
 
-pub fn service_init(name: &str, action: &str) -> Result<CommandResult> {
-    match action {
-        "enable" => default::command_exec(&format!("{} {} on", &try!(BinResolver::resolve("chkconfig")), name)),
-        "disable" => default::command_exec(&format!("{} {} off", &try!(BinResolver::resolve("chkconfig")), name)),
-        _ => default::service_action(name, action),
+pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
+    if action == "enable" || action == "disable" {
+        let result = try!(default::command_exec(&format!("{} {}", &try!(BinResolver::resolve("chkconfig")), name)));
+
+        match action {
+            "enable" if result.exit_code != 0 => Ok(Some(try!(default::command_exec(&format!("{} {} on", &try!(BinResolver::resolve("chkconfig")), name))))),
+            "disable" if result.exit_code == 0 => Ok(Some(try!(default::command_exec(&format!("{} {} off", &try!(BinResolver::resolve("chkconfig")), name))))),
+            _ => Ok(None)
+        }
+    } else {
+        default::service_action(name, action)
     }
 }
 

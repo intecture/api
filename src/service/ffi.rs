@@ -192,12 +192,15 @@ pub extern "C" fn service_new_map(ffi_actions: *mut Ffi__ServiceAction, actions_
 }
 
 #[no_mangle]
-pub extern "C" fn service_action(ffi_service_ptr: *mut Ffi__Service, ffi_host_ptr: *const Ffi__Host, action_ptr: *const c_char) -> Ffi__CommandResult {
+pub extern "C" fn service_action(ffi_service_ptr: *mut Ffi__Service, ffi_host_ptr: *const Ffi__Host, action_ptr: *const c_char) -> *const Ffi__CommandResult {
     let service = Service::from(unsafe { ptr::read(ffi_service_ptr) });
     let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
     let action = unsafe { str::from_utf8(CStr::from_ptr(action_ptr).to_bytes()).unwrap() };
 
-    let result = Ffi__CommandResult::from(service.action(&mut host, action).unwrap());
+    let result = match service.action(&mut host, action).unwrap() {
+        Some(result) => Box::into_raw(Box::new(Ffi__CommandResult::from(result))),
+        None => ptr::null(),
+    };
 
     // When we convert the FFI service pointer into a Service, we
     // convert the C string pointers into &str's, which have the same
@@ -377,19 +380,27 @@ mod tests {
             rep.addstr("Service started...").unwrap();
             rep.addstr("").unwrap();
             rep.send(&server).unwrap();
+
+            server.recv_str().unwrap().unwrap();
+
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.send(&server).unwrap();
         });
 
         let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
         let mut ffi_service = service_new_service(Ffi__ServiceRunnable::from(ServiceRunnable::Service("nginx")), ptr::null_mut(), 0);
-        let result = service_action(&mut ffi_service as *mut Ffi__Service, &ffi_host as *const Ffi__Host, CString::new("start").unwrap().into_raw());
+        let action_ptr = CString::new("start").unwrap().into_raw();
 
+        let result_ptr = service_action(&mut ffi_service as *mut Ffi__Service, &ffi_host as *const Ffi__Host, action_ptr);
+        assert!(!result_ptr.is_null());
+        let result = unsafe { ptr::read(result_ptr) };
         assert_eq!(result.exit_code, 0);
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(result.stdout).to_bytes()).unwrap() }, "Service started...");
+        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(result.stderr).to_bytes()).unwrap() }, "");
 
-        let stdout = unsafe { str::from_utf8(CStr::from_ptr(result.stdout).to_bytes()).unwrap() };
-        assert_eq!(stdout, "Service started...");
-
-        let stderr = unsafe { str::from_utf8(CStr::from_ptr(result.stderr).to_bytes()).unwrap() };
-        assert_eq!(stderr, "");
+        let result_ptr = service_action(&mut ffi_service as *mut Ffi__Service, &ffi_host as *const Ffi__Host, action_ptr);
+        assert!(result_ptr.is_null());
 
         Host::from(ffi_host);
 

@@ -255,12 +255,16 @@ PHP_METHOD(Service, action) {
         return;
     }
 
-    CommandResult result = service_action(&intern->service, &host->host, action);
+    CommandResult *result = service_action(&intern->service, &host->host, action);
 
-    array_init(return_value);
-    add_assoc_long(return_value, "exit_code", result.exit_code);
-    add_assoc_string(return_value, "stdout", result.stdout, 1);
-    add_assoc_string(return_value, "stderr", result.stderr, 1);
+    if (result != NULL) {
+        array_init(return_value);
+        add_assoc_long(return_value, "exit_code", result->exit_code);
+        add_assoc_string(return_value, "stdout", result->stdout, 1);
+        add_assoc_string(return_value, "stderr", result->stderr, 1);
+    } else {
+        RETURN_NULL();
+    }
 }
 
 /*

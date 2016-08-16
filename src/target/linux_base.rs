@@ -11,8 +11,8 @@ use error::Error;
 use file::FileOwner;
 use regex::Regex;
 use std::{process, str};
-use std::io::prelude::*;
 use std::fs::File;
+use std::io::prelude::*;
 use target::bin_resolver::BinResolver;
 use target::default_base as default;
 use telemetry::Netif;
@@ -35,8 +35,24 @@ pub fn using_systemd() -> Result<bool> {
     Ok(output.status.success())
 }
 
-pub fn service_systemd(name: &str, action: &str) -> Result<CommandResult> {
-    default::command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("systemctl")), action, name))
+pub fn service_systemd(name: &str, action: &str) -> Result<Option<CommandResult>> {
+    match action {
+        "enable" | "disable" => {
+            let output = try!(process::Command::new(&try!(BinResolver::resolve("systemctl"))).arg("is-enabled").arg(name).output());
+            if (action == "enable" && output.status.success()) || (action == "disable" && !output.status.success()) {
+                return Ok(None);
+            }
+        },
+        "start" | "stop" => {
+            let output = try!(process::Command::new(&try!(BinResolver::resolve("systemctl"))).arg("is-active").arg(name).output());
+            if (action == "start" && output.status.success()) || (action == "stop" && !output.status.success()) {
+                return Ok(None);
+            }
+        },
+        _ => (),
+    }
+
+    Ok(Some(try!(default::command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("systemctl")), action, name)))))
 }
 
 pub fn memory() -> Result<u64> {

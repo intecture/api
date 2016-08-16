@@ -155,7 +155,7 @@ impl PackageTarget for Target {
 
 impl ServiceTarget for Target {
     #[allow(unused_variables)]
-    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<Option<CommandResult>> {
         let mut rc_conf = try!(OpenOptions::new().read(true).write(true).open("/etc/rc.conf"));
         let mut rc = String::new();
         try!(rc_conf.read_to_string(&mut rc));
@@ -168,13 +168,15 @@ impl ServiceTarget for Target {
                     let newline = if rc.ends_with("\n") { "" } else { "\n" };
                     try!(rc_conf.write_all(&format!("{}{}_enable=\"YES\"\n", newline, name).into_bytes()));
                     try!(rc_conf.sync_data());
-                }
 
-                Ok(CommandResult{
-                    exit_code: 0,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                })
+                    Ok(Some(CommandResult {
+                        exit_code: 0,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    }))
+                } else {
+                    Ok(None)
+                }
             },
             "disable" => {
                 if match_daemon.is_match(&rc) {
@@ -183,13 +185,15 @@ impl ServiceTarget for Target {
                     try!(rc_conf.set_len(replace.len() as u64));
                     try!(rc_conf.write_all(replace.as_bytes()));
                     try!(rc_conf.sync_data());
-                }
 
-                Ok(CommandResult{
-                    exit_code: 0,
-                    stdout: String::new(),
-                    stderr: String::new(),
-                })
+                    Ok(Some(CommandResult {
+                        exit_code: 0,
+                        stdout: String::new(),
+                        stderr: String::new(),
+                    }))
+                } else {
+                    Ok(None)
+                }
             },
             "start" | "stop" | "restart" if ! match_daemon.is_match(&rc) => {
                 default::service_action(name, &format!("one{}", action))

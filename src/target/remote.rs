@@ -267,24 +267,27 @@ impl PackageTarget for Target {
 //
 
 impl ServiceTarget for Target {
-    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<Option<CommandResult>> {
         let msg = ZMsg::new();
         try!(msg.addstr("service::action"));
         try!(msg.addstr(name));
         try!(msg.addstr(action));
         try!(host.send(msg));
 
-        let msg = try!(host.recv(3, Some(3)));
+        let msg = try!(host.recv(0, Some(3)));
 
-        let exit_code = try!(msg.popstr().unwrap().or(Err(Error::HostResponse))).parse::<i32>().unwrap();
-        let stdout = try!(msg.popstr().unwrap().or(Err(Error::HostResponse)));
-        let stderr = try!(msg.popstr().unwrap().or(Err(Error::HostResponse)));
-
-        Ok(CommandResult {
-            exit_code: exit_code,
-            stdout: stdout,
-            stderr: stderr,
-        })
+        if msg.size() == 0 {
+            Ok(None)
+        }
+        else if msg.size() == 3 {
+            Ok(Some(CommandResult {
+                exit_code: try!(msg.popstr().unwrap().or(Err(Error::HostResponse))).parse::<i32>().unwrap(),
+                stdout: try!(msg.popstr().unwrap().or(Err(Error::HostResponse))),
+                stderr: try!(msg.popstr().unwrap().or(Err(Error::HostResponse))),
+            }))
+        } else {
+            Err(Error::HostResponse)
+        }
     }
 }
 

@@ -161,7 +161,7 @@ impl PackageTarget for Target {
 
 impl ServiceTarget for Target {
     #[allow(unused_variables)]
-    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<Option<CommandResult>> {
         // This implementation is legacy. More work is required to
         // support modern launchd implementations.
         //

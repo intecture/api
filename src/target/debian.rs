@@ -155,7 +155,7 @@ impl PackageTarget for DebianTarget {
 
 impl ServiceTarget for DebianTarget {
     #[allow(unused_variables)]
-    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult> {
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<Option<CommandResult>> {
         if try!(linux::using_systemd()) {
             linux::service_systemd(name, action)
         } else {

@@ -36,14 +36,18 @@
 //! let service = Service::new_service(ServiceRunnable::Command("/usr/bin/apachectl"), None);
 //! ```
 //!
-//! Now you can run an action against the Service:
+//! Now you can run an action against the Service. This will
+//! optionally return a CommandResult if the action was run, or None
+//! if the service was already in the desired state.
 //!
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
 //! # let mut host = Host::new();
 //! # let service = Service::new_service(ServiceRunnable::Service(""), None);
 //! let result = service.action(&mut host, "start").unwrap();
-//! assert_eq!(result.exit_code, 0);
+//! if let Some(r) = result {
+//!     assert_eq!(r.exit_code, 0);
+//! }
 //! ```
 //!
 //! # Runnables
@@ -205,6 +209,11 @@ impl <'a>Service<'a> {
 
     /// Run a service action, e.g. "start" or "stop".
     ///
+    /// If the function returns Some(), the action was required to
+    /// run in order to get the host into the required state. If the
+    /// function returns None, the host is already in the required
+    /// state.
+    ///
     /// # Examples
     ///
     /// ```no_run
@@ -213,7 +222,7 @@ impl <'a>Service<'a> {
     /// let service = Service::new_service(ServiceRunnable::Command("/usr/bin/nginx"), None);
     /// service.action(&mut host, "start").unwrap();
     /// ```
-    pub fn action(&self, host: &mut Host, action: &str) -> Result<CommandResult> {
+    pub fn action(&self, host: &mut Host, action: &str) -> Result<Option<CommandResult>> {
         let mut action = action;
 
         // Exchange this action with a mapped action if possible
@@ -232,20 +241,20 @@ impl <'a>Service<'a> {
         }
     }
 
-    fn run(&self, host: &mut Host, action: &str, runnable: &ServiceRunnable<'a>, default: bool) -> Result<CommandResult> {
+    fn run(&self, host: &mut Host, action: &str, runnable: &ServiceRunnable<'a>, default: bool) -> Result<Option<CommandResult>> {
         match runnable {
             &ServiceRunnable::Service(name) => Target::service_action(host, name, action),
             &ServiceRunnable::Command(cmd) => if default {
-                Target::exec(host, &format!("{} {}", cmd, action))
+                Ok(Some(try!(Target::exec(host, &format!("{} {}", cmd, action)))))
             } else {
-                Target::exec(host, cmd)
+                Ok(Some(try!(Target::exec(host, cmd))))
             },
         }
     }
 }
 
 pub trait ServiceTarget {
-    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<CommandResult>;
+    fn service_action(host: &mut Host, name: &str, action: &str) -> Result<Option<CommandResult>>;
 }
 
 #[cfg(test)]
@@ -286,16 +295,28 @@ mod tests {
             rep.addstr("Service started...").unwrap();
             rep.addstr("").unwrap();
             rep.send(&server).unwrap();
+
+            let req = ZMsg::recv(&server).unwrap();
+            assert_eq!("service::action", req.popstr().unwrap().unwrap());
+            assert_eq!("nginx", req.popstr().unwrap().unwrap());
+            assert_eq!("start", req.popstr().unwrap().unwrap());
+
+            let rep = ZMsg::new();
+            rep.addstr("Ok").unwrap();
+            rep.send(&server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
 
         let service = Service::new_service(ServiceRunnable::Service("nginx"), None);
-        let result = service.action(&mut host, "start").unwrap();
 
+        let result = service.action(&mut host, "start").unwrap().unwrap();
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stdout, "Service started...");
         assert_eq!(result.stderr, "");
+
+        let result = service.action(&mut host, "start").unwrap();
+        assert!(result.is_none());
 
         agent_mock.join().unwrap();
     }
@@ -326,7 +347,7 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("start", ServiceRunnable::Service("nginx"));
         let service = Service::new_map(map, None);
-        let result = service.action(&mut host, "start").unwrap();
+        let result = service.action(&mut host, "start").unwrap().unwrap();
 
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stdout, "Service started...");
@@ -361,7 +382,7 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("start", "load");
         let service = Service::new_service(ServiceRunnable::Service("nginx"), Some(map));
-        let result = service.action(&mut host, "start").unwrap();
+        let result = service.action(&mut host, "start").unwrap().unwrap();
 
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stdout, "Service started...");
@@ -406,7 +427,7 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("start", ServiceRunnable::Command("/usr/local/bin/nginx"));
         let service = Service::new_map(map, None);
-        let result = service.action(&mut host, "start").unwrap();
+        let result = service.action(&mut host, "start").unwrap().unwrap();
 
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stdout, "Service started...");
@@ -440,7 +461,7 @@ mod tests {
         let mut map = HashMap::new();
         map.insert("start", "-s");
         let service = Service::new_service(ServiceRunnable::Command("/usr/local/bin/nginx"), Some(map));
-        let result = service.action(&mut host, "start").unwrap();
+        let result = service.action(&mut host, "start").unwrap().unwrap();
 
         assert_eq!(result.exit_code, 0);
         assert_eq!(result.stdout, "Service started...");
