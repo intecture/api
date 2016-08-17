@@ -30,7 +30,8 @@ lazy_static = "0.1.*"
 libc = "0.2.*"
 rustc-serialize = "0.3.*"
 regex = "0.1.*"
-zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", tag = "0.0.1" }
+# zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", tag = "0.0.1" }
+zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", branch = "dev" }
 
 # Feature `remote-run`
 # czmq = { git = "https://github.com/petehayes102/rust-czmq.git", tag = "0.0.5", optional = true }
