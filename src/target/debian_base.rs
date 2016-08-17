@@ -10,6 +10,7 @@ use {CommandResult, Error, Result};
 use regex::Regex;
 use std::fs::read_dir;
 use std::process::Command;
+use std::str;
 use target::bin_resolver::BinResolver;
 use target::default_base as default;
 
@@ -19,14 +20,16 @@ pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
         if !output.status.success() {
             return Err(Error::Generic("Could not get runlevel".into()));
         }
-        let runlevel = match output.stdout.last().unwrap() {
-            &61 => 1,
-            &62 => 2,
-            &63 => 3,
-            &64 => 4,
-            &65 => 5,
-            _ => unreachable!(),
+
+        let regex = try!(Regex::new(r"^[A-Z] ([0-9])\s?$"));
+        let runlevel = match regex.captures(str::from_utf8(&output.stdout).unwrap_or("")) {
+            Some(caps) => caps.at(1).unwrap_or(""),
+            None => "",
         };
+
+        if runlevel == "" {
+            return Err(Error::Generic("Could not interpret runlevel".into()));
+        }
 
         let regex = try!(Regex::new(&format!("/S[0-9]{{2}}{}$", name)));
         let mut enabled = false;
