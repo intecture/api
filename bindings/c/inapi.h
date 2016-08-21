@@ -25,6 +25,13 @@
 #include <stdbool.h>
 
 /**
+ * @brief Retrieve the last error message generated and reset the
+ * error global to null. It will return null if no error message was
+ * recorded.
+ */
+extern const char *geterr();
+
+/**
  * @brief The host primitive for connecting to a managed host and
  * storing telemetry data about that host.
  */
@@ -100,19 +107,20 @@ typedef struct _CommandResult {
  * First, create a new Host struct to connect to your managed host:
  *
  * @code
- * Host host = host_new("<my_hostname_or_ip>", <agent_port_number>);
+ * Host host = host_new();
+ * host.connect("example.com", 7101, 7102, "auth.example.com:7101");
  * @endcode
  *
  * Then, create a new Command and send it to the managed host:
  *
  * @code
- * Command command = command_new("whoami");
- * CommandResult result = command_exec(&command, &host);
+ * Command *command = command_new("whoami");
+ * CommandResult *result = command_exec(command, &host);
  *
- * printf("exit: %d, stdout: %s, stderr: %s", result.exit_code, result.stdout, result.stderr);
+ * printf("exit: %d, stdout: %s, stderr: %s", result->exit_code, result->stdout, result->stderr);
  * @endcode
  */
-extern Command command_new(const char *cmd_str);
+extern Command *command_new(const char *cmd_str);
 
 /**
  * @brief Send request to the Agent to run your shell command.
@@ -120,7 +128,7 @@ extern Command command_new(const char *cmd_str);
  * @param host The host object you wish to run the command on.
  * @return A struct containing the execution results.
  */
-extern CommandResult command_exec(Command *cmd, Host *host);
+extern CommandResult *command_exec(Command *cmd, Host *host);
 
 /**
  * @brief CPU information for the telemetry primitive.
