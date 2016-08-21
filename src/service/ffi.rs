@@ -13,9 +13,9 @@ use ffi_helpers::Ffi__Array;
 use Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, size_t};
-use std::{convert, ptr, str};
+use std::{convert, ptr};
 use std::collections::HashMap;
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use super::*;
 
 #[repr(C)]
@@ -42,9 +42,9 @@ impl <'a>convert::From<ServiceRunnable<'a>> for Ffi__ServiceRunnable {
 impl <'a>convert::From<Ffi__ServiceRunnable> for ServiceRunnable<'a> {
     fn from(ffi_runnable: Ffi__ServiceRunnable) -> ServiceRunnable<'a> {
         if !ffi_runnable.command.is_null() {
-            ServiceRunnable::Command(str::from_utf8(unsafe { CStr::from_ptr(ffi_runnable.command) }.to_bytes()).unwrap())
+            ServiceRunnable::Command(ptrtostr!(ffi_runnable.command, "command string").unwrap())
         } else {
-            ServiceRunnable::Service(str::from_utf8(unsafe { CStr::from_ptr(ffi_runnable.service) }.to_bytes()).unwrap())
+            ServiceRunnable::Service(ptrtostr!(ffi_runnable.service, "service string").unwrap())
         }
     }
 }
@@ -74,11 +74,13 @@ impl <'a>convert::From<HashMap<&'a str, ServiceRunnable<'a>>> for Ffi__Array<Ffi
 // Because we can't implement an un-owned trait on an un-owned
 // struct, we have to roll our own fn.
 fn convert_from_actions<'a>(ffi_actions: Ffi__Array<Ffi__ServiceAction>) -> HashMap<&'a str, ServiceRunnable<'a>> {
+    assert!(!ffi_actions.ptr.is_null());
+
     let actions_vec = unsafe { Vec::from_raw_parts(ffi_actions.ptr, ffi_actions.length, ffi_actions.capacity) };
     let mut actions = HashMap::new();
     for action in actions_vec {
         actions.insert(
-            str::from_utf8(unsafe { CStr::from_ptr(action.action) }.to_bytes()).unwrap(),
+            ptrtostr!(action.action, "action string").unwrap(),
             ServiceRunnable::from(action.runnable)
         );
     }
@@ -111,12 +113,14 @@ impl <'a>convert::From<HashMap<&'a str, &'a str>> for Ffi__Array<Ffi__ServiceMap
 // Because we can't implement an un-owned trait on an un-owned
 // struct, we have to roll our own fn.
 fn convert_from_mapped_actions<'a>(ffi_actions: Ffi__Array<Ffi__ServiceMappedAction>) -> HashMap<&'a str, &'a str> {
+    assert!(!ffi_actions.ptr.is_null());
+
     let actions_vec = unsafe { Vec::from_raw_parts(ffi_actions.ptr, ffi_actions.length, ffi_actions.capacity) };
     let mut actions = HashMap::new();
     for action in actions_vec {
         actions.insert(
-            str::from_utf8(unsafe { CStr::from_ptr(action.action) }.to_bytes()).unwrap(),
-            str::from_utf8(unsafe { CStr::from_ptr(action.mapped_action) }.to_bytes()).unwrap(),
+            ptrtostr!(action.action, "action string").unwrap(),
+            ptrtostr!(action.mapped_action, "mapped action string").unwrap(),
         );
     }
 
@@ -156,11 +160,11 @@ impl <'a>convert::From<Ffi__Service> for Service<'a> {
 }
 
 #[no_mangle]
-pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable, ffi_mapped_actions: *mut Ffi__ServiceMappedAction, mapped_actions_len: size_t) -> Ffi__Service {
+pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable, mapped_actions: *mut Ffi__ServiceMappedAction, mapped_actions_len: size_t) -> Ffi__Service {
     let runnable = ServiceRunnable::from(ffi_runnable);
-    let mapped_actions = if !ffi_mapped_actions.is_null() {
+    let mapped_actions = if !mapped_actions.is_null() {
         Some(convert_from_mapped_actions(Ffi__Array {
-            ptr: ffi_mapped_actions,
+            ptr: mapped_actions,
             length: mapped_actions_len,
             capacity: mapped_actions_len,
         }))
@@ -172,15 +176,18 @@ pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable, ffi_ma
 }
 
 #[no_mangle]
-pub extern "C" fn service_new_map(ffi_actions: *mut Ffi__ServiceAction, actions_len: size_t, ffi_mapped_actions: *mut Ffi__ServiceMappedAction, mapped_actions_len: size_t) -> Ffi__Service {
+pub extern "C" fn service_new_map(actions_ptr: *mut Ffi__ServiceAction,
+                                  actions_len: size_t,
+                                  mapped_actions_ptr: *mut Ffi__ServiceMappedAction,
+                                  mapped_actions_len: size_t) -> Ffi__Service {
     let actions = convert_from_actions(Ffi__Array {
-        ptr: ffi_actions,
+        ptr: actions_ptr,
         length: actions_len,
         capacity: actions_len,
     });
-    let mapped_actions = if !ffi_mapped_actions.is_null() {
+    let mapped_actions = if !mapped_actions_ptr.is_null() {
         Some(convert_from_mapped_actions(Ffi__Array {
-            ptr: ffi_mapped_actions,
+            ptr: mapped_actions_ptr,
             length: mapped_actions_len,
             capacity: mapped_actions_len,
         }))
@@ -192,12 +199,12 @@ pub extern "C" fn service_new_map(ffi_actions: *mut Ffi__ServiceAction, actions_
 }
 
 #[no_mangle]
-pub extern "C" fn service_action(ffi_service_ptr: *mut Ffi__Service, ffi_host_ptr: *const Ffi__Host, action_ptr: *const c_char) -> *const Ffi__CommandResult {
-    let service = Service::from(unsafe { ptr::read(ffi_service_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let action = unsafe { str::from_utf8(CStr::from_ptr(action_ptr).to_bytes()).unwrap() };
+pub extern "C" fn service_action(service_ptr: *mut Ffi__Service, host_ptr: *const Ffi__Host, action_ptr: *const c_char) -> *const Ffi__CommandResult {
+    let service: Service = trynull!(readptr!(service_ptr, "Service struct"));
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+    let action = trynull!(ptrtostr!(action_ptr, "action string"));
 
-    let result = match service.action(&mut host, action).unwrap() {
+    let result = match trynull!(service.action(&mut host, action)) {
         Some(result) => Box::into_raw(Box::new(Ffi__CommandResult::from(result))),
         None => ptr::null(),
     };
@@ -207,7 +214,7 @@ pub extern "C" fn service_action(ffi_service_ptr: *mut Ffi__Service, ffi_host_pt
     // lifetime as the service binding. To avoid freeing this memory
     // when the binding goes out of scope, we convert the Service
     // back to an FFI Service and write it to the pointer.
-    unsafe { ptr::write(&mut *ffi_service_ptr, Ffi__Service::from(service)); }
+    unsafe { ptr::write(&mut *service_ptr, Ffi__Service::from(service)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);

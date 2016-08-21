@@ -11,7 +11,7 @@
 #[cfg(feature = "remote-run")]
 use czmq::{RawInterface, ZSock};
 #[cfg(feature = "remote-run")]
-use libc::{c_char, uint32_t};
+use libc::{c_char, uint8_t, uint32_t};
 use std::convert;
 #[cfg(feature = "remote-run")]
 use std::ptr;
@@ -46,15 +46,15 @@ impl convert::From<Host> for Ffi__Host {
         Ffi__Host {
             hostname: match host.hostname {
                 Some(hostname) => CString::new(hostname).unwrap().into_raw(),
-                None => ptr::null_mut::<c_char>(),
+                None => ptr::null_mut(),
             },
             api_sock: match host.api_sock {
                 Some(sock) => sock.into_raw(),
-                None => ptr::null_mut::<c_void>(),
+                None => ptr::null_mut(),
             },
             file_sock: match host.file_sock {
                 Some(sock) => sock.into_raw(),
-                None => ptr::null_mut::<c_void>(),
+                None => ptr::null_mut(),
             },
         }
     }
@@ -83,26 +83,28 @@ pub extern "C" fn host_new() -> Ffi__Host {
 
 #[cfg(feature = "remote-run")]
 #[no_mangle]
-pub extern "C" fn host_connect(ffi_host_ptr: *mut Ffi__Host,
+pub extern "C" fn host_connect(host_ptr: *mut Ffi__Host,
                                hostname_ptr: *const c_char,
                                api_port: uint32_t,
                                upload_port: uint32_t,
-                               auth_server_ptr: *const c_char) {
+                               auth_server_ptr: *const c_char) -> uint8_t {
 
-    let hostname = unsafe { CStr::from_ptr(hostname_ptr) }.to_str().unwrap();
-    let auth_server = unsafe { CStr::from_ptr(auth_server_ptr) }.to_str().unwrap();
+    let hostname = tryrc!(ptrtostr!(hostname_ptr, "hostname string"));
+    let auth_server = tryrc!(ptrtostr!(auth_server_ptr, "auth server string"));
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    tryrc!(host.connect(hostname, api_port, upload_port, auth_server));
 
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    host.connect(hostname, api_port, upload_port, auth_server).unwrap();
+    unsafe { ptr::write(&mut *host_ptr, Ffi__Host::from(host)); }
 
-    unsafe { ptr::write(&mut *ffi_host_ptr, Ffi__Host::from(host)); }
+    0
 }
 
 #[cfg(feature = "remote-run")]
 #[no_mangle]
-pub extern "C" fn host_close(ffi_host_ptr: *mut Ffi__Host) {
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
+pub extern "C" fn host_close(host_ptr: *mut Ffi__Host) -> uint8_t {
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
     host.close().unwrap();
+    0
 }
 
 #[cfg(test)]

@@ -10,6 +10,7 @@ use {CommandResult, Host, ProviderFactory, Providers, Result};
 use error::Error;
 use regex::Regex;
 use std::{fs, process, str};
+use std::path::Path;
 use target::bin_resolver::BinResolver;
 use telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
 
@@ -35,12 +36,12 @@ pub fn command_exec(cmd: &str) -> Result<CommandResult> {
     })
 }
 
-pub fn directory_is_directory(path: &str) -> Result<bool> {
+pub fn directory_is_directory<P: AsRef<Path>>(path: P) -> Result<bool> {
     let meta = fs::metadata(path);
     Ok(meta.is_err() || meta.unwrap().is_dir())
 }
 
-pub fn directory_create(path: &str, recursive: bool) -> Result<()> {
+pub fn directory_create<P: AsRef<Path>>(path: P, recursive: bool) -> Result<()> {
     if recursive {
         try!(fs::create_dir_all(path));
     } else {
@@ -50,7 +51,7 @@ pub fn directory_create(path: &str, recursive: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn directory_delete(path: &str, recursive: bool) -> Result<()> {
+pub fn directory_delete<P: AsRef<Path>>(path: P, recursive: bool) -> Result<()> {
     if recursive {
         try!(fs::remove_dir_all(path));
     } else {
@@ -60,32 +61,32 @@ pub fn directory_delete(path: &str, recursive: bool) -> Result<()> {
     Ok(())
 }
 
-pub fn file_is_file(path: &str) -> Result<bool> {
+pub fn file_is_file<P: AsRef<Path>>(path: P) -> Result<bool> {
     let meta = fs::metadata(path);
     Ok(meta.is_err() || meta.unwrap().is_file())
 }
 
-pub fn file_exists(path: &str) -> Result<bool> {
+pub fn file_exists<P: AsRef<Path>>(path: P) -> Result<bool> {
     Ok(fs::metadata(path).is_ok())
 }
 
-pub fn file_delete(path: &str) -> Result<()> {
+pub fn file_delete<P: AsRef<Path>>(path: P) -> Result<()> {
     try!(fs::remove_file(path));
     Ok(())
 }
 
-pub fn file_mv(path: &str, new_path: &str) -> Result<()> {
+pub fn file_mv<P: AsRef<Path>>(path: P, new_path: P) -> Result<()> {
     Ok(try!(fs::rename(path, new_path)))
 }
 
-pub fn file_copy(path: &str, new_path: &str) -> Result<()> {
+pub fn file_copy<P: AsRef<Path>>(path: P, new_path: P) -> Result<()> {
     try!(fs::copy(path, new_path));
     Ok(())
 }
 
-pub fn file_set_owner(path: &str, user: &str, group: &str) -> Result<()> {
+pub fn file_set_owner<P: AsRef<Path>>(path: P, user: &str, group: &str) -> Result<()> {
     let user_group = format!("{}:{}", user, group);
-    let args: Vec<&str> = vec![&user_group, path];
+    let args: Vec<&str> = vec![&user_group, path.as_ref().to_str().unwrap()];
     let output = process::Command::new(&try!(BinResolver::resolve("chown"))).args(&args).output().unwrap();
 
     if !output.status.success() {
@@ -95,9 +96,9 @@ pub fn file_set_owner(path: &str, user: &str, group: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn file_stat<'a>(path: &'a str, args: Vec<&'a str>) -> Result<String> {
+pub fn file_stat<'a, P: AsRef<Path>>(path: P, args: Vec<&'a str>) -> Result<String> {
     let mut args = args;
-    args.push(path);
+    args.push(path.as_ref().to_str().unwrap());
     let output = process::Command::new(&try!(BinResolver::resolve("stat"))).args(&args).output().unwrap();
 
     if !output.status.success() {
@@ -107,9 +108,9 @@ pub fn file_stat<'a>(path: &'a str, args: Vec<&'a str>) -> Result<String> {
     Ok(try!(str::from_utf8(&output.stdout)).trim().to_string())
 }
 
-pub fn file_set_mode(path: &str, mode: u16) -> Result<()> {
+pub fn file_set_mode<P: AsRef<Path>>(path: P, mode: u16) -> Result<()> {
     let mode_s: &str = &mode.to_string();
-    let output = process::Command::new(&try!(BinResolver::resolve("chmod"))).args(&vec![mode_s, path]).output().unwrap();
+    let output = process::Command::new(&try!(BinResolver::resolve("chmod"))).args(&vec![mode_s, path.as_ref().to_str().unwrap()]).output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic(format!("Could not chmod file with error: {}", str::from_utf8(&output.stderr).unwrap())));

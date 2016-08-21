@@ -17,7 +17,7 @@ use target::bin_resolver::BinResolver;
 use target::default_base as default;
 use telemetry::Netif;
 
-pub fn file_get_owner(path: &str) -> Result<FileOwner> {
+pub fn file_get_owner<P: AsRef<Path>>(path: P) -> Result<FileOwner> {
     Ok(FileOwner {
         user_name: try!(default::file_stat(path, vec!["-c", "%U"])),
         user_uid: try!(default::file_stat(path, vec!["-c", "%u"])).parse::<u64>().unwrap(),
@@ -26,7 +26,7 @@ pub fn file_get_owner(path: &str) -> Result<FileOwner> {
     })
 }
 
-pub fn file_get_mode(path: &str) -> Result<u16> {
+pub fn file_get_mode<P: AsRef<Path>>(path: P) -> Result<u16> {
     Ok(try!(default::file_stat(path, vec!["-c", "%a"])).parse::<u16>().unwrap())
 }
 

@@ -8,11 +8,29 @@
 
 #[cfg(feature = "remote-run")]
 use czmq;
+use libc::c_char;
 use regex;
 use rustc_serialize::json;
-use std::{convert, error, fmt, io, num, str, string};
+use std::{convert, error, fmt, io, num, ptr, str, string};
+use std::ffi::CString;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
+
+/// Error message constant for communicating errors from the FFI to C consumers
+pub static mut ERRMSG: *const c_char = 0 as *const i8;
+
+pub fn seterr<E: Into<Error> + fmt::Display>(err: E) {
+    unsafe { ERRMSG = CString::new(err.to_string()).unwrap().into_raw(); }
+}
+
+#[no_mangle]
+pub extern "C" fn geterr() -> *const c_char {
+    unsafe {
+        let e = ERRMSG;
+        ERRMSG = ptr::null();
+        e
+    }
+}
 
 #[derive(Debug)]
 pub enum Error {
@@ -39,6 +57,8 @@ pub enum Error {
     HostResponse,
     /// IO error
     Io(io::Error),
+    /// FFI received null pointer
+    NullPtr(String),
     /// Cast str as float
     ParseFloat(num::ParseFloatError),
     /// Cast str as int
@@ -71,6 +91,7 @@ impl fmt::Display for Error {
             #[cfg(feature = "remote-run")]
             Error::HostResponse => write!(f, "Invalid response from host"),
             Error::Io(ref e) => write!(f, "IO error: {}", e),
+            Error::NullPtr(ref e) => write!(f, "Received null when we expected a {} pointer", e),
             Error::ParseFloat(ref e) => write!(f, "Parse error: {}", e),
             Error::ParseInt(ref e) => write!(f, "Parse error: {}", e),
             Error::Regex(ref e) => write!(f, "Regex error: {}", e),
@@ -99,6 +120,7 @@ impl error::Error for Error {
             #[cfg(feature = "remote-run")]
             Error::HostResponse => "Invalid response from host",
             Error::Io(ref e) => e.description(),
+            Error::NullPtr(ref e) => e,
             Error::ParseFloat(ref e) => e.description(),
             Error::ParseInt(ref e) => e.description(),
             Error::Regex(ref e) => e.description(),

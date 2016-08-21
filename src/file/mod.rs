@@ -40,6 +40,7 @@ pub mod ffi;
 
 use {Host, Result};
 use error::Error;
+use std::path::{Path, PathBuf};
 use target::Target;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
@@ -60,7 +61,7 @@ pub struct FileOwner {
 /// Container for operating on a file.
 pub struct File {
     /// Absolute path to file on managed host
-    path: String,
+    path: PathBuf,
 }
 
 impl File {
@@ -73,13 +74,13 @@ impl File {
     /// let mut host = Host::new();
     /// let file = File::new(&mut host, "/path/to/file");
     /// ```
-    pub fn new(host: &mut Host, path: &str) -> Result<File> {
-        if ! try!(Target::file_is_file(host, path)) {
+    pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<File> {
+        if ! try!(Target::file_is_file(host, path.as_ref())) {
             return Err(Error::Generic("Path is a directory".to_string()));
         }
 
         Ok(File {
-            path: path.to_string(),
+            path: path.as_ref().into(),
         })
     }
 
@@ -90,7 +91,7 @@ impl File {
 
     #[cfg(feature = "remote-run")]
     /// Upload a file to the managed host.
-    pub fn upload(&self, host: &mut Host, local_path: &str, options: Option<&[zfilexfer::FileOptions]>) -> Result<()> {
+    pub fn upload<P: AsRef<Path>>(&self, host: &mut Host, local_path: P, options: Option<&[zfilexfer::FileOptions]>) -> Result<()> {
         let file = try!(zfilexfer::File::open(&local_path, options));
         host.send_file(&file, &self.path)
     }
@@ -101,15 +102,17 @@ impl File {
     }
 
     /// Move the file to a new path.
-    pub fn mv(&mut self, host: &mut Host, new_path: &str) -> Result<()> {
-        try!(Target::file_mv(host, &self.path, new_path));
-        self.path = new_path.to_string();
+    pub fn mv<P: AsRef<Path>>(&mut self, host: &mut Host, new_path: P) -> Result<()> {
+        let new_path = new_path.as_ref().to_owned();
+        try!(Target::file_mv(host, &self.path, &new_path));
+        self.path = new_path;
         Ok(())
     }
 
     /// Copy the file to a new path.
-    pub fn copy(&self, host: &mut Host, new_path: &str) -> Result<()> {
-        Target::file_copy(host, &self.path, new_path)
+    pub fn copy<P: AsRef<Path>>(&self, host: &mut Host, new_path: P) -> Result<()> {
+        let new_path = new_path.as_ref().to_owned();
+        Target::file_copy(host, &self.path, &new_path)
     }
 
     /// Get the file's owner.
@@ -133,16 +136,16 @@ impl File {
     }
 }
 
-pub trait FileTarget {
-    fn file_is_file(host: &mut Host, path: &str) -> Result<bool>;
-    fn file_exists(host: &mut Host, path: &str) -> Result<bool>;
-    fn file_delete(host: &mut Host, path: &str) -> Result<()>;
-    fn file_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()>;
-    fn file_copy(host: &mut Host, path: &str, new_path: &str) -> Result<()>;
-    fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner>;
-    fn file_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()>;
-    fn file_get_mode(host: &mut Host, path: &str) -> Result<u16>;
-    fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()>;
+pub trait FileTarget<P: AsRef<Path>> {
+    fn file_is_file(host: &mut Host, path: P) -> Result<bool>;
+    fn file_exists(host: &mut Host, path: P) -> Result<bool>;
+    fn file_delete(host: &mut Host, path: P) -> Result<()>;
+    fn file_mv(host: &mut Host, path: P, new_path: P) -> Result<()>;
+    fn file_copy(host: &mut Host, path: P, new_path: P) -> Result<()>;
+    fn file_get_owner(host: &mut Host, path: P) -> Result<FileOwner>;
+    fn file_set_owner(host: &mut Host, path: P, user: &str, group: &str) -> Result<()>;
+    fn file_get_mode(host: &mut Host, path: P) -> Result<u16>;
+    fn file_set_mode(host: &mut Host, path: P, mode: u16) -> Result<()>;
 }
 
 #[cfg(test)]

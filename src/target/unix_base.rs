@@ -11,19 +11,20 @@ use file::FileOwner;
 use regex::Regex;
 use Result;
 use std::{process, str};
+use std::path::Path;
 use super::default_base as default;
 use telemetry::Netif;
 
-pub fn file_get_owner(path: &str) -> Result<FileOwner> {
+pub fn file_get_owner<P: AsRef<Path>>(path: P) -> Result<FileOwner> {
     Ok(FileOwner {
-        user_name: try!(default::file_stat(path, vec!["-f", "%Su"])),
-        user_uid: try!(default::file_stat(path, vec!["-f", "%u"])).parse::<u64>().unwrap(),
-        group_name: try!(default::file_stat(path, vec!["-f", "%Sg"])),
-        group_gid: try!(default::file_stat(path, vec!["-f", "%g"])).parse::<u64>().unwrap()
+        user_name: try!(default::file_stat(path.as_ref(), vec!["-f", "%Su"])),
+        user_uid: try!(default::file_stat(path.as_ref(), vec!["-f", "%u"])).parse::<u64>().unwrap(),
+        group_name: try!(default::file_stat(path.as_ref(), vec!["-f", "%Sg"])),
+        group_gid: try!(default::file_stat(path.as_ref(), vec!["-f", "%g"])).parse::<u64>().unwrap()
     })
 }
 
-pub fn file_get_mode(path: &str) -> Result<u16> {
+pub fn file_get_mode<P: AsRef<Path>>(path: P) -> Result<u16> {
     Ok(try!(default::file_stat(path, vec!["-f", "%Lp"])).parse::<u16>().unwrap())
 }
 

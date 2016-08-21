@@ -34,6 +34,7 @@ pub mod ffi;
 
 use {FileOwner, Host, Result};
 use error::Error;
+use std::path::{Path, PathBuf};
 use target::Target;
 
 /// Options for controlling directory operations.
@@ -45,7 +46,7 @@ pub enum DirectoryOpts {
 /// Container for operating on a directory.
 pub struct Directory {
     /// Absolute path to directory on managed host
-    path: String,
+    path: PathBuf,
 }
 
 impl Directory {
@@ -58,13 +59,13 @@ impl Directory {
     /// let mut host = Host::new();
     /// let directory = Directory::new(&mut host, "/path/to/dir");
     /// ```
-    pub fn new(host: &mut Host, path: &str) -> Result<Directory> {
-        if ! try!(Target::directory_is_directory(host, path)) {
+    pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<Directory> {
+        if ! try!(Target::directory_is_directory(host, path.as_ref())) {
             return Err(Error::Generic("Path is a file".to_string()));
         }
 
         Ok(Directory {
-            path: path.to_string(),
+            path: path.as_ref().into(),
         })
     }
 
@@ -104,9 +105,10 @@ impl Directory {
     }
 
     /// Move the directory to a new path.
-    pub fn mv(&mut self, host: &mut Host, new_path: &str) -> Result<()> {
-        try!(Target::directory_mv(host, &self.path, new_path));
-        self.path = new_path.to_string();
+    pub fn mv<P: AsRef<Path>>(&mut self, host: &mut Host, new_path: P) -> Result<()> {
+        let new_path = new_path.as_ref().to_owned();
+        try!(Target::directory_mv(host, &self.path, &new_path));
+        self.path = new_path;
         Ok(())
     }
 
@@ -131,16 +133,16 @@ impl Directory {
     }
 }
 
-pub trait DirectoryTarget {
-    fn directory_is_directory(host: &mut Host, path: &str) -> Result<bool>;
-    fn directory_exists(host: &mut Host, path: &str) -> Result<bool>;
-    fn directory_create(host: &mut Host, path: &str, recursive: bool) -> Result<()>;
-    fn directory_delete(host: &mut Host, path: &str, recursive: bool) -> Result<()>;
-    fn directory_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()>;
-    fn directory_get_owner(host: &mut Host, path: &str) -> Result<FileOwner>;
-    fn directory_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()>;
-    fn directory_get_mode(host: &mut Host, path: &str) -> Result<u16>;
-    fn directory_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()>;
+pub trait DirectoryTarget<P: AsRef<Path>> {
+    fn directory_is_directory(host: &mut Host, path: P) -> Result<bool>;
+    fn directory_exists(host: &mut Host, path: P) -> Result<bool>;
+    fn directory_create(host: &mut Host, path: P, recursive: bool) -> Result<()>;
+    fn directory_delete(host: &mut Host, path: P, recursive: bool) -> Result<()>;
+    fn directory_mv(host: &mut Host, path: P, new_path: P) -> Result<()>;
+    fn directory_get_owner(host: &mut Host, path: P) -> Result<FileOwner>;
+    fn directory_set_owner(host: &mut Host, path: P, user: &str, group: &str) -> Result<()>;
+    fn directory_get_mode(host: &mut Host, path: P) -> Result<u16>;
+    fn directory_set_mode(host: &mut Host, path: P, mode: u16) -> Result<()>;
 }
 
 #[cfg(test)]

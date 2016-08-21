@@ -20,7 +20,7 @@ use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use service::ServiceTarget;
 use std::{env, process, str};
-//use std::path::{Path, PathBuf};
+use std::path::Path;
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;
 
@@ -47,49 +47,49 @@ impl CommandTarget for Target {
 // Directory
 //
 
-impl DirectoryTarget for Target {
+impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
     #[allow(unused_variables)]
-    fn directory_is_directory(host: &mut Host, path: &str) -> Result<bool> {
+    fn directory_is_directory(host: &mut Host, path: P) -> Result<bool> {
         default::directory_is_directory(path)
     }
 
     #[allow(unused_variables)]
-    fn directory_exists(host: &mut Host, path: &str) -> Result<bool> {
+    fn directory_exists(host: &mut Host, path: P) -> Result<bool> {
         default::file_exists(path)
     }
 
     #[allow(unused_variables)]
-    fn directory_create(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
+    fn directory_create(host: &mut Host, path: P, recursive: bool) -> Result<()> {
         default::directory_create(path, recursive)
     }
 
     #[allow(unused_variables)]
-    fn directory_delete(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
+    fn directory_delete(host: &mut Host, path: P, recursive: bool) -> Result<()> {
         default::directory_delete(path, recursive)
     }
 
     #[allow(unused_variables)]
-    fn directory_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn directory_mv(host: &mut Host, path: P, new_path: P) -> Result<()> {
         default::file_mv(path, new_path)
     }
 
     #[allow(unused_variables)]
-    fn directory_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+    fn directory_get_owner(host: &mut Host, path: P) -> Result<FileOwner> {
         unix::file_get_owner(path)
     }
 
     #[allow(unused_variables)]
-    fn directory_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+    fn directory_set_owner(host: &mut Host, path: P, user: &str, group: &str) -> Result<()> {
         default::file_set_owner(path, user, group)
     }
 
     #[allow(unused_variables)]
-    fn directory_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+    fn directory_get_mode(host: &mut Host, path: P) -> Result<u16> {
         unix::file_get_mode(path)
     }
 
     #[allow(unused_variables)]
-    fn directory_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+    fn directory_set_mode(host: &mut Host, path: P, mode: u16) -> Result<()> {
         default::file_set_mode(path, mode)
     }
 }
@@ -98,49 +98,49 @@ impl DirectoryTarget for Target {
 // File
 //
 
-impl FileTarget for Target {
+impl<P: AsRef<Path>> FileTarget<P> for Target {
     #[allow(unused_variables)]
-    fn file_is_file(host: &mut Host, path: &str) -> Result<bool> {
+    fn file_is_file(host: &mut Host, path: P) -> Result<bool> {
         default::file_is_file(path)
     }
 
     #[allow(unused_variables)]
-    fn file_exists(host: &mut Host, path: &str) -> Result<bool> {
+    fn file_exists(host: &mut Host, path: P) -> Result<bool> {
         default::file_exists(path)
     }
 
     #[allow(unused_variables)]
-    fn file_delete(host: &mut Host, path: &str) -> Result<()> {
+    fn file_delete(host: &mut Host, path: P) -> Result<()> {
         default::file_delete(path)
     }
 
     #[allow(unused_variables)]
-    fn file_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn file_mv(host: &mut Host, path: P, new_path: P) -> Result<()> {
         default::file_mv(path, new_path)
     }
 
     #[allow(unused_variables)]
-    fn file_copy(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn file_copy(host: &mut Host, path: P, new_path: P) -> Result<()> {
         default::file_copy(path, new_path)
     }
 
     #[allow(unused_variables)]
-    fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+    fn file_get_owner(host: &mut Host, path: P) -> Result<FileOwner> {
         unix::file_get_owner(path)
     }
 
     #[allow(unused_variables)]
-    fn file_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+    fn file_set_owner(host: &mut Host, path: P, user: &str, group: &str) -> Result<()> {
         default::file_set_owner(path, user, group)
     }
 
     #[allow(unused_variables)]
-    fn file_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+    fn file_get_mode(host: &mut Host, path: P) -> Result<u16> {
         unix::file_get_mode(path)
     }
 
     #[allow(unused_variables)]
-    fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+    fn file_set_mode(host: &mut Host, path: P, mode: u16) -> Result<()> {
         default::file_set_mode(path, mode)
     }
 }

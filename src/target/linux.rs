@@ -59,8 +59,8 @@ impl CommandTarget for Target {
 // Directory
 //
 
-impl DirectoryTarget for Target {
-    fn directory_is_directory(host: &mut Host, path: &str) -> Result<bool> {
+impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
+    fn directory_is_directory(host: &mut Host, path: P) -> Result<bool> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_is_directory(host, path),
             &LinuxPlatform::Debian => DebianTarget::directory_is_directory(host, path),
@@ -70,7 +70,7 @@ impl DirectoryTarget for Target {
         }
     }
 
-    fn directory_exists(host: &mut Host, path: &str) -> Result<bool> {
+    fn directory_exists(host: &mut Host, path: P) -> Result<bool> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_exists(host, path),
             &LinuxPlatform::Debian => DebianTarget::directory_exists(host, path),
@@ -80,7 +80,7 @@ impl DirectoryTarget for Target {
         }
     }
 
-    fn directory_create(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
+    fn directory_create(host: &mut Host, path: P, recursive: bool) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_create(host, path, recursive),
             &LinuxPlatform::Debian => DebianTarget::directory_create(host, path, recursive),
@@ -90,7 +90,7 @@ impl DirectoryTarget for Target {
         }
     }
 
-    fn directory_delete(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
+    fn directory_delete(host: &mut Host, path: P, recursive: bool) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_delete(host, path, recursive),
             &LinuxPlatform::Debian => DebianTarget::directory_delete(host, path, recursive),
@@ -100,7 +100,7 @@ impl DirectoryTarget for Target {
         }
     }
 
-    fn directory_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn directory_mv(host: &mut Host, path: P, new_path: P) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_mv(host, path, new_path),
             &LinuxPlatform::Debian => DebianTarget::directory_mv(host, path, new_path),
@@ -110,7 +110,7 @@ impl DirectoryTarget for Target {
         }
     }
 
-    fn directory_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+    fn directory_get_owner(host: &mut Host, path: P) -> Result<FileOwner> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_get_owner(host, path),
             &LinuxPlatform::Debian => DebianTarget::directory_get_owner(host, path),
@@ -120,7 +120,7 @@ impl DirectoryTarget for Target {
         }
     }
 
-    fn directory_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+    fn directory_set_owner(host: &mut Host, path: P, user: &str, group: &str) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_set_owner(host, path, user, group),
             &LinuxPlatform::Debian => DebianTarget::directory_set_owner(host, path, user, group),
@@ -130,7 +130,7 @@ impl DirectoryTarget for Target {
         }
     }
 
-    fn directory_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+    fn directory_get_mode(host: &mut Host, path: P) -> Result<u16> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_get_mode(host, path),
             &LinuxPlatform::Debian => DebianTarget::directory_get_mode(host, path),
@@ -140,7 +140,7 @@ impl DirectoryTarget for Target {
         }
     }
 
-    fn directory_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+    fn directory_set_mode(host: &mut Host, path: P, mode: u16) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::directory_set_mode(host, path, mode),
             &LinuxPlatform::Debian => DebianTarget::directory_set_mode(host, path, mode),
@@ -155,8 +155,8 @@ impl DirectoryTarget for Target {
 // File
 //
 
-impl FileTarget for Target {
-    fn file_is_file(host: &mut Host, path: &str) -> Result<bool> {
+impl<P: AsRef<Path>> FileTarget<P> for Target {
+    fn file_is_file(host: &mut Host, path: P) -> Result<bool> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_is_file(host, path),
             &LinuxPlatform::Debian => DebianTarget::file_is_file(host, path),
@@ -166,7 +166,7 @@ impl FileTarget for Target {
         }
     }
 
-    fn file_exists(host: &mut Host, path: &str) -> Result<bool> {
+    fn file_exists(host: &mut Host, path: P) -> Result<bool> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_exists(host, path),
             &LinuxPlatform::Debian => DebianTarget::file_exists(host, path),
@@ -176,7 +176,7 @@ impl FileTarget for Target {
         }
     }
 
-    fn file_delete(host: &mut Host, path: &str) -> Result<()> {
+    fn file_delete(host: &mut Host, path: P) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_delete(host, path),
             &LinuxPlatform::Debian => DebianTarget::file_delete(host, path),
@@ -186,7 +186,7 @@ impl FileTarget for Target {
         }
     }
 
-    fn file_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn file_mv(host: &mut Host, path: P, new_path: P) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_mv(host, path, new_path),
             &LinuxPlatform::Debian => DebianTarget::file_mv(host, path, new_path),
@@ -196,7 +196,7 @@ impl FileTarget for Target {
         }
     }
 
-    fn file_copy(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn file_copy(host: &mut Host, path: P, new_path: P) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_copy(host, path, new_path),
             &LinuxPlatform::Debian => DebianTarget::file_copy(host, path, new_path),
@@ -206,7 +206,7 @@ impl FileTarget for Target {
         }
     }
 
-    fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+    fn file_get_owner(host: &mut Host, path: P) -> Result<FileOwner> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_get_owner(host, path),
             &LinuxPlatform::Debian => DebianTarget::file_get_owner(host, path),
@@ -216,7 +216,7 @@ impl FileTarget for Target {
         }
     }
 
-    fn file_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+    fn file_set_owner(host: &mut Host, path: P, user: &str, group: &str) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_set_owner(host, path, user, group),
             &LinuxPlatform::Debian => DebianTarget::file_set_owner(host, path, user, group),
@@ -226,7 +226,7 @@ impl FileTarget for Target {
         }
     }
 
-    fn file_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+    fn file_get_mode(host: &mut Host, path: P) -> Result<u16> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_get_mode(host, path),
             &LinuxPlatform::Debian => DebianTarget::file_get_mode(host, path),
@@ -236,7 +236,7 @@ impl FileTarget for Target {
         }
     }
 
-    fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+    fn file_set_mode(host: &mut Host, path: P, mode: u16) -> Result<()> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::file_set_mode(host, path, mode),
             &LinuxPlatform::Debian => DebianTarget::file_set_mode(host, path, mode),

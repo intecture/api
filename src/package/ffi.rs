@@ -12,14 +12,14 @@ use {Host, Providers};
 use command::ffi::Ffi__CommandResult;
 use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t};
-use std::{convert, ptr, str};
-use std::ffi::{CStr, CString};
+use std::{convert, ptr};
+use std::ffi::CString;
 use super::*;
 use super::providers::ProviderFactory;
 
 #[repr(C)]
 pub struct Ffi__Package {
-    name: *mut c_char,
+    name: *const c_char,
     provider: Ffi__Providers,
     installed: uint8_t,
 }
@@ -37,7 +37,7 @@ impl convert::From<Package> for Ffi__Package {
 impl convert::From<Ffi__Package> for Package {
     fn from(ffi_pkg: Ffi__Package) -> Package {
         Package {
-            name: unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap().to_string() },
+            name: ptrtostr!(ffi_pkg.name, "name string").unwrap().into(),
             provider: ProviderFactory::resolve(Option::<Providers>::from(ffi_pkg.provider).unwrap()),
             installed: ffi_pkg.installed == 1,
         }
@@ -92,67 +92,67 @@ impl convert::From<Ffi__Providers> for Option<Providers> {
 }
 
 #[no_mangle]
-pub extern "C" fn package_new(ffi_host_ptr: *const Ffi__Host, name_ptr: *const c_char, ffi_providers: Ffi__Providers) -> Ffi__Package {
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let name = unsafe { str::from_utf8(CStr::from_ptr(name_ptr).to_bytes()).unwrap() };
+pub extern "C" fn package_new(host_ptr: *const Ffi__Host, name_ptr: *const c_char, ffi_providers: Ffi__Providers) -> *mut Ffi__Package {
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+    let name = trynull!(ptrtostr!(name_ptr, "name string"));
     let providers = Option::<Providers>::from(ffi_providers);
 
-    let result = Ffi__Package::from(Package::new(&mut host, name, providers).unwrap());
+    let result = Ffi__Package::from(trynull!(Package::new(&mut host, name, providers)));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    result
+    Box::into_raw(Box::new(result))
 }
 
 #[no_mangle]
-pub extern "C" fn package_is_installed(ffi_pkg_ptr: *const Ffi__Package) -> uint8_t {
-    let pkg = unsafe { ptr::read(ffi_pkg_ptr) };
-    pkg.installed
+pub extern "C" fn package_is_installed(pkg_ptr: *const Ffi__Package) -> *mut uint8_t {
+    let pkg: Package = trynull!(readptr!(pkg_ptr, "Package struct"));
+    Box::into_raw(Box::new(if pkg.installed { 1 } else { 0 }))
 }
 
 #[no_mangle]
-pub extern "C" fn package_install(ffi_pkg_ptr: *mut Ffi__Package, ffi_host_ptr: *const Ffi__Host, ffi_result_ptr: *mut Ffi__CommandResult) -> Ffi__PackageResult {
-    let mut pkg = Package::from(unsafe { ptr::read(ffi_pkg_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
+pub extern "C" fn package_install(pkg_ptr: *mut Ffi__Package, host_ptr: *const Ffi__Host, result_ptr: *mut Ffi__CommandResult) -> *mut Ffi__PackageResult {
+    let mut pkg: Package = trynull!(readptr!(pkg_ptr, "Package struct"));
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
-    let result = pkg.install(&mut host).unwrap();
+    let result = trynull!(pkg.install(&mut host));
 
     // Write mutated Package state back to pointer
-    unsafe { ptr::write(&mut *ffi_pkg_ptr, Ffi__Package::from(pkg)); }
+    unsafe { ptr::write(&mut *pkg_ptr, Ffi__Package::from(pkg)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    match result {
+    Box::into_raw(Box::new(match result {
         PackageResult::Result(r) => {
-            unsafe { ptr::write(&mut *ffi_result_ptr, Ffi__CommandResult::from(r)); };
+            unsafe { ptr::write(&mut *result_ptr, Ffi__CommandResult::from(r)); };
             Ffi__PackageResult::Result
         },
         PackageResult::NoAction => Ffi__PackageResult::NoAction,
-    }
+    }))
 }
 
 #[no_mangle]
-pub extern "C" fn package_uninstall(ffi_pkg_ptr: *mut Ffi__Package, ffi_host_ptr: *const Ffi__Host, ffi_result_ptr: *mut Ffi__CommandResult) -> Ffi__PackageResult {
-    let mut pkg = Package::from(unsafe { ptr::read(ffi_pkg_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
+pub extern "C" fn package_uninstall(pkg_ptr: *mut Ffi__Package, host_ptr: *const Ffi__Host, result_ptr: *mut Ffi__CommandResult) -> *mut Ffi__PackageResult {
+    let mut pkg: Package = trynull!(readptr!(pkg_ptr, "Package struct"));
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
-    let result = pkg.uninstall(&mut host).unwrap();
+    let result = trynull!(pkg.uninstall(&mut host));
 
     // Write mutated Package state back to pointer
-    unsafe { ptr::write(&mut *ffi_pkg_ptr, Ffi__Package::from(pkg)); }
+    unsafe { ptr::write(&mut *pkg_ptr, Ffi__Package::from(pkg)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    match result {
+    Box::into_raw(Box::new(match result {
         PackageResult::Result(r) => {
-            unsafe { ptr::write(&mut *ffi_result_ptr, Ffi__CommandResult::from(r)); };
+            unsafe { ptr::write(&mut *result_ptr, Ffi__CommandResult::from(r)); };
             Ffi__PackageResult::Result
         },
         PackageResult::NoAction => Ffi__PackageResult::NoAction,
-    }
+    }))
 }
 
 #[cfg(test)]
@@ -164,9 +164,12 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use Host;
     use host::ffi::Ffi__Host;
+    use libc::uint8_t;
     use Package;
     use package::providers::Homebrew;
-    use std::ffi::{CStr, CString};
+    use std::ffi::CString;
+    #[cfg(feature = "remote-run")]
+    use std::ptr;
     use std::str;
     #[cfg(feature = "remote-run")]
     use std::thread;
@@ -198,9 +201,9 @@ mod tests {
         let host = Ffi__Host;
         let name = CString::new("nginx").unwrap().into_raw();
 
-        let ffi_pkg = package_new(&host as *const Ffi__Host, name, Ffi__Providers::Default);
+        let pkg: Package = readptr!(package_new(&host, name, Ffi__Providers::Default), "Package struct").unwrap();
 
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap() }, "nginx");
+        assert_eq!(pkg.name, "nginx");
     }
 
     #[cfg(feature = "remote-run")]
@@ -240,8 +243,8 @@ mod tests {
         let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let name = CString::new("nginx").unwrap().into_raw();
-        let ffi_pkg = package_new(&ffi_host as *const Ffi__Host, name, Ffi__Providers::Default);
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap() }, "nginx");
+        let pkg: Package = readptr!(package_new(&ffi_host, name, Ffi__Providers::Default), "Package struct").unwrap();
+        assert_eq!(pkg.name, "nginx");
 
         Host::from(ffi_host);
 
@@ -277,9 +280,9 @@ mod tests {
             providers = Ffi__Providers::Apt;
         }
 
-        let ffi_pkg = package_new(&host as *const Ffi__Host, name, providers);
+        let pkg: Package = readptr!(package_new(&host, name, providers), "Package struct").unwrap();
 
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_pkg.name).to_bytes()).unwrap() }, "nginx");
+        assert_eq!(pkg.name, "nginx");
     }
 
     #[cfg(feature = "remote-run")]
@@ -312,8 +315,7 @@ mod tests {
         let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let name = CString::new("nginx").unwrap().into_raw();
-        let ffi_pkg = package_new(&ffi_host as *const Ffi__Host, name, Ffi__Providers::Homebrew);
-        let pkg = Package::from(ffi_pkg);
+        let pkg: Package = readptr!(package_new(&ffi_host, name, Ffi__Providers::Homebrew), "Package struct").unwrap();
         assert_eq!(pkg.name, "nginx");
         assert!(!pkg.is_installed());
 
@@ -329,7 +331,7 @@ mod tests {
             provider: Ffi__Providers::Homebrew,
             installed: 1,
         };
-        let result = package_is_installed(&pkg as *const Ffi__Package);
+        let result: uint8_t = readptr!(package_is_installed(&pkg as *const Ffi__Package), "bool").unwrap();
         assert_eq!(result, 1);
     }
 
@@ -377,9 +379,10 @@ mod tests {
             stdout: CString::new("").unwrap().into_raw(),
             stderr: CString::new("").unwrap().into_raw(),
         };
-        let action = package_install(&mut ffi_pkg as *mut Ffi__Package, &ffi_host as *const Ffi__Host, &mut result as *mut Ffi__CommandResult);
+        let action = package_install(&mut ffi_pkg, &ffi_host, &mut result);
+        assert!(!action.is_null());
 
-        match action {
+        match unsafe { ptr::read(action) } {
             Ffi__PackageResult::Result => assert_eq!(result.exit_code, 0),
             _ => panic!("Package install not attempted"),
         }
@@ -434,9 +437,10 @@ mod tests {
             stdout: CString::new("").unwrap().into_raw(),
             stderr: CString::new("").unwrap().into_raw(),
         };
-        let action = package_uninstall(&mut ffi_pkg as *mut Ffi__Package, &ffi_host as *const Ffi__Host, &mut result as *mut Ffi__CommandResult);
+        let action = package_uninstall(&mut ffi_pkg, &ffi_host, &mut result);
+        assert!(!action.is_null());
 
-        match action {
+        match unsafe { ptr::read(action) } {
             Ffi__PackageResult::Result => assert_eq!(result.exit_code, 0),
             _ => panic!("Package uninstall not attempted"),
         }

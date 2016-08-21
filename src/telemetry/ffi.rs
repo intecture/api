@@ -11,16 +11,16 @@
 use ffi_helpers::Ffi__Array;
 use host::Host;
 use host::ffi::Ffi__Host;
-use libc::{c_char, c_float, uint32_t, uint64_t};
+use libc::{c_char, c_float, uint8_t, uint32_t, uint64_t};
 use std::{convert, ptr};
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 use super::*;
 
 #[repr(C)]
 pub struct Ffi__Telemetry {
     pub cpu: Ffi__Cpu,
     pub fs: Ffi__Array<Ffi__FsMount>,
-    pub hostname: *mut c_char,
+    pub hostname: *const c_char,
     pub memory: uint64_t,
     pub net: Ffi__Array<Ffi__Netif>,
     pub os: Ffi__Os,
@@ -52,12 +52,14 @@ impl convert::From<Telemetry> for Ffi__Telemetry {
 
 impl convert::From<Ffi__Telemetry> for Telemetry {
     fn from(ffi_telemetry: Ffi__Telemetry) -> Telemetry {
+        assert!(!ffi_telemetry.fs.ptr.is_null());
         let fs_vec = unsafe { Vec::from_raw_parts(ffi_telemetry.fs.ptr, ffi_telemetry.fs.length, ffi_telemetry.fs.capacity) };
         let mut fs = vec![];
         for mount in fs_vec {
             fs.push(FsMount::from(mount));
         }
 
+        assert!(!ffi_telemetry.net.ptr.is_null());
         let net_vec = unsafe { Vec::from_raw_parts(ffi_telemetry.net.ptr, ffi_telemetry.net.length, ffi_telemetry.net.capacity) };
         let mut net = vec![];
         for iface in net_vec {
@@ -67,7 +69,7 @@ impl convert::From<Ffi__Telemetry> for Telemetry {
         Telemetry {
             cpu: Cpu::from(ffi_telemetry.cpu),
             fs: fs,
-            hostname: unsafe { CString::from_raw(ffi_telemetry.hostname) }.to_str().unwrap().to_string(),
+            hostname: ptrtostr!(ffi_telemetry.hostname, "hostname string").unwrap().into(),
             memory: ffi_telemetry.memory as u64,
             net: net,
             os: Os::from(ffi_telemetry.os),
@@ -77,8 +79,8 @@ impl convert::From<Ffi__Telemetry> for Telemetry {
 
 #[repr(C)]
 pub struct Ffi__Cpu {
-    pub vendor: *mut c_char,
-    pub brand_string: *mut c_char,
+    pub vendor: *const c_char,
+    pub brand_string: *const c_char,
     pub cores: uint32_t,
 }
 
@@ -95,17 +97,17 @@ impl convert::From<Cpu> for Ffi__Cpu {
 impl convert::From<Ffi__Cpu> for Cpu {
     fn from(ffi_cpu: Ffi__Cpu) -> Cpu {
         Cpu {
-            vendor: unsafe { CString::from_raw(ffi_cpu.vendor) }.to_str().unwrap().to_string(),
-            brand_string: unsafe { CString::from_raw(ffi_cpu.brand_string) }.to_str().unwrap().to_string(),
-            cores: ffi_cpu.cores as u32,
+            vendor: ptrtostr!(ffi_cpu.vendor, "vendor string").unwrap().into(),
+            brand_string: ptrtostr!(ffi_cpu.brand_string, "brand string").unwrap().into(),
+            cores: ffi_cpu.cores,
         }
     }
 }
 
 #[repr(C)]
 pub struct Ffi__FsMount {
-    pub filesystem: *mut c_char,
-    pub mountpoint: *mut c_char,
+    pub filesystem: *const c_char,
+    pub mountpoint: *const c_char,
     pub size: uint64_t,
     pub used: uint64_t,
     pub available: uint64_t,
@@ -120,13 +122,13 @@ impl convert::From<FsMount> for Ffi__FsMount {
         Ffi__FsMount {
             filesystem: CString::new(mount.filesystem).unwrap().into_raw(),
             mountpoint: CString::new(mount.mountpoint).unwrap().into_raw(),
-            size: mount.size as uint64_t,
-            used: mount.used as uint64_t,
-            available: mount.available as uint64_t,
-            capacity: mount.capacity as c_float,
-//            inodes_used: mount.inodes_used as uint64_t,
-//            inodes_available: mount.inodes_available as uint64_t,
-//            inodes_capacity: mount.inodes_capacity as c_float,
+            size: mount.size,
+            used: mount.used,
+            available: mount.available,
+            capacity: mount.capacity,
+//            inodes_used: mount.inodes_used,
+//            inodes_available: mount.inodes_available,
+//            inodes_capacity: mount.inodes_capacity,
         }
     }
 }
@@ -134,62 +136,51 @@ impl convert::From<FsMount> for Ffi__FsMount {
 impl convert::From<Ffi__FsMount> for FsMount {
     fn from(ffi_mount: Ffi__FsMount) -> FsMount {
         FsMount {
-            filesystem: unsafe { CString::from_raw(ffi_mount.filesystem) }.to_str().unwrap().to_string(),
-            mountpoint: unsafe { CString::from_raw(ffi_mount.mountpoint) }.to_str().unwrap().to_string(),
-            size: ffi_mount.size as u64,
-            used: ffi_mount.used as u64,
-            available: ffi_mount.available as u64,
-            capacity: ffi_mount.capacity as f32,
-//            inodes_used: ffi_mount.inodes_used as u64,
-//            inodes_available: ffi_mount.inodes_available as u64,
-//            inodes_capacity: ffi_mount.inodes_capacity as f32,
+            filesystem: ptrtostr!(ffi_mount.filesystem, "filesystem string").unwrap().into(),
+            mountpoint: ptrtostr!(ffi_mount.mountpoint, "mountpoint string").unwrap().into(),
+            size: ffi_mount.size,
+            used: ffi_mount.used,
+            available: ffi_mount.available,
+            capacity: ffi_mount.capacity,
+//            inodes_used: ffi_mount.inodes_used,
+//            inodes_available: ffi_mount.inodes_available,
+//            inodes_capacity: ffi_mount.inodes_capacity,
         }
     }
 }
 
 #[repr(C)]
 pub struct Ffi__Netif {
-    pub interface: *mut c_char,
-    pub mac: *mut c_char,
-    pub inet: Ffi__NetifIPv4,
-    pub inet6: Ffi__NetifIPv6,
-    pub status: *mut c_char,
+    pub interface: *const c_char,
+    pub mac: *const c_char,
+    pub inet: *const Ffi__NetifIPv4,
+    pub inet6: *const Ffi__NetifIPv6,
+    pub status: *const c_char,
 }
 
 impl convert::From<Netif> for Ffi__Netif {
     fn from(netif: Netif) -> Ffi__Netif {
         Ffi__Netif {
             interface: CString::new(netif.interface).unwrap().into_raw(),
-            mac: if netif.mac.is_some() {
-                    CString::new(netif.mac.unwrap()).unwrap().into_raw()
-                } else {
-                    CString::new("").unwrap().into_raw()
+            mac: match netif.mac {
+                Some(mac) => CString::new(mac).unwrap().into_raw(),
+                None => ptr::null(),
+            },
+            inet: match netif.inet {
+                Some(inet) => Box::into_raw(Box::new(Ffi__NetifIPv4::from(inet))),
+                None => ptr::null(),
+            },
+            inet6: match netif.inet6 {
+                Some(inet6) => Box::into_raw(Box::new(Ffi__NetifIPv6::from(inet6))),
+                None => ptr::null(),
+            },
+            status: match netif.status {
+                Some(status) => match status {
+                    NetifStatus::Active => CString::new("Active").unwrap().into_raw(),
+                    NetifStatus::Inactive => CString::new("Inactive").unwrap().into_raw(),
                 },
-            inet: if netif.inet.is_some() {
-                    Ffi__NetifIPv4::from(netif.inet.unwrap())
-                } else {
-                    Ffi__NetifIPv4::from(NetifIPv4 {
-                        address: String::new(),
-                        netmask: String::new(),
-                    })
-                },
-            inet6: if netif.inet6.is_some() {
-                    Ffi__NetifIPv6::from(netif.inet6.unwrap())
-                } else {
-                    Ffi__NetifIPv6::from(NetifIPv6 {
-                        address: String::new(),
-                        prefixlen: 0,
-                        scopeid: None,
-                    })
-                },
-            status: if netif.status.is_some() {
-                    match netif.status.unwrap() {
-                        NetifStatus::Active => CString::new("Active").unwrap().into_raw(),
-                        NetifStatus::Inactive => CString::new("Inactive").unwrap().into_raw(),
-                    }
-                } else {
-                    CString::new("").unwrap().into_raw()
-                },
+                None => ptr::null(),
+            },
         }
     }
 }
@@ -197,47 +188,39 @@ impl convert::From<Netif> for Ffi__Netif {
 impl convert::From<Ffi__Netif> for Netif {
     fn from(ffi_netif: Ffi__Netif) -> Netif {
         Netif {
-            interface: unsafe { CStr::from_ptr(ffi_netif.interface) }.to_str().unwrap().to_string(),
-            mac: {
-                let mac = unsafe { CStr::from_ptr(ffi_netif.mac) }.to_str().unwrap();
-                if mac == "" {
-                    None
-                } else {
-                    Some(mac.to_string())
-                }
+            interface: ptrtostr!(ffi_netif.interface, "interface string").unwrap().into(),
+            mac: if ffi_netif.mac.is_null() {
+                None
+            } else {
+                Some(ptrtostr!(ffi_netif.mac, "mac string").unwrap().into())
             },
-            inet: {
-                let ipv4 = NetifIPv4::from(ffi_netif.inet);
-                if ipv4.address == "" {
-                    None
-                } else {
-                    Some(ipv4)
-                }
+            inet: if ffi_netif.inet.is_null() {
+                None
+            } else {
+                Some(readptr!(ffi_netif.inet, "NetifIPv4 struct").unwrap())
             },
-            inet6: {
-                let ipv6 = NetifIPv6::from(ffi_netif.inet6);
-                if ipv6.address == "" {
-                    None
-                } else {
-                    Some(ipv6)
-                }
+            inet6: if ffi_netif.inet6.is_null() {
+                None
+            } else {
+                Some(readptr!(ffi_netif.inet6, "NetifIPv6 struct").unwrap())
             },
-            status: {
-                let status = unsafe { CStr::from_ptr(ffi_netif.status) }.to_str().unwrap();
-                match status {
-                    "Active" => Some(NetifStatus::Active),
-                    "Inactive" => Some(NetifStatus::Inactive),
-                    _ => None,
-                }
-            }
+            status: if ffi_netif.status.is_null() {
+                None
+            } else {
+                Some(match ptrtostr!(ffi_netif.status, "NetifStatus struct").unwrap() {
+                    "Active" => NetifStatus::Active,
+                    "Inactive" => NetifStatus::Inactive,
+                    _ => unreachable!(),
+                })
+            },
         }
     }
 }
 
 #[repr(C)]
 pub struct Ffi__NetifIPv4 {
-    pub address: *mut c_char,
-    pub netmask: *mut c_char,
+    pub address: *const c_char,
+    pub netmask: *const c_char,
 }
 
 impl convert::From<NetifIPv4> for Ffi__NetifIPv4 {
@@ -252,28 +235,28 @@ impl convert::From<NetifIPv4> for Ffi__NetifIPv4 {
 impl convert::From<Ffi__NetifIPv4> for NetifIPv4 {
     fn from(ffi_netif: Ffi__NetifIPv4) -> NetifIPv4 {
         NetifIPv4 {
-            address: unsafe { CStr::from_ptr(ffi_netif.address) }.to_str().unwrap().to_string(),
-            netmask: unsafe { CStr::from_ptr(ffi_netif.netmask) }.to_str().unwrap().to_string(),
+            address: ptrtostr!(ffi_netif.address, "address string").unwrap().into(),
+            netmask: ptrtostr!(ffi_netif.netmask, "netmask string").unwrap().into(),
         }
     }
 }
 
 #[repr(C)]
 pub struct Ffi__NetifIPv6 {
-    pub address: *mut c_char,
-    pub prefixlen: uint32_t,
-    pub scopeid: *mut c_char,
+    pub address: *const c_char,
+    pub prefixlen: uint8_t,
+    pub scopeid: *const c_char,
 }
 
 impl convert::From<NetifIPv6> for Ffi__NetifIPv6 {
     fn from(netif: NetifIPv6) -> Ffi__NetifIPv6 {
         Ffi__NetifIPv6 {
             address: CString::new(netif.address).unwrap().into_raw(),
-            prefixlen: netif.prefixlen as uint32_t,
+            prefixlen: netif.prefixlen,
             scopeid: if netif.scopeid.is_some() {
                 CString::new(netif.scopeid.unwrap()).unwrap().into_raw()
             } else {
-                CString::new("").unwrap().into_raw()
+                ptr::null()
             },
         }
     }
@@ -282,16 +265,13 @@ impl convert::From<NetifIPv6> for Ffi__NetifIPv6 {
 impl convert::From<Ffi__NetifIPv6> for NetifIPv6 {
     fn from(netif: Ffi__NetifIPv6) -> NetifIPv6 {
         NetifIPv6 {
-            address: unsafe { CStr::from_ptr(netif.address) }.to_str().unwrap().to_string(),
-            prefixlen: netif.prefixlen as u8,
-            scopeid: {
-                let scopeid = unsafe { CStr::from_ptr(netif.scopeid) }.to_str().unwrap().to_string();
-                if scopeid == "" {
-                    None
-                } else {
-                    Some(scopeid)
-                }
-            }
+            address: ptrtostr!(netif.address, "address string").unwrap().into(),
+            prefixlen: netif.prefixlen,
+            scopeid: if netif.scopeid.is_null() {
+                None
+            } else {
+                Some(ptrtostr!(netif.scopeid, "scopeid string").unwrap().into())
+            },
         }
     }
 }
@@ -318,36 +298,35 @@ impl convert::From<Os> for Ffi__Os {
 impl convert::From<Ffi__Os> for Os {
     fn from(os: Ffi__Os) -> Os {
         Os {
-            arch: unsafe { CStr::from_ptr(os.arch) }.to_str().unwrap().to_string(),
-            family: unsafe { CStr::from_ptr(os.family) }.to_str().unwrap().to_string(),
-            platform: unsafe { CStr::from_ptr(os.platform) }.to_str().unwrap().to_string(),
-            version: unsafe { CStr::from_ptr(os.version) }.to_str().unwrap().to_string(),
+            arch: ptrtostr!(os.arch, "arch string").unwrap().into(),
+            family: ptrtostr!(os.family, "family string").unwrap().into(),
+            platform: ptrtostr!(os.platform, "platform string").unwrap().into(),
+            version: ptrtostr!(os.version, "version string").unwrap().into(),
         }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn telemetry_init(ffi_host_ptr: *mut Ffi__Host) -> Ffi__Telemetry {
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let telemetry = Ffi__Telemetry::from(Telemetry::init(&mut host).unwrap());
+pub extern "C" fn telemetry_init(host_ptr: *mut Ffi__Host) -> *const Ffi__Telemetry {
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+    let telemetry = Ffi__Telemetry::from(trynull!(Telemetry::init(&mut host)));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    telemetry
+    Box::into_raw(Box::new(telemetry))
 }
 
 #[no_mangle]
-pub extern "C" fn telemetry_free(ffi_telemetry_ptr: *mut Ffi__Telemetry) {
-    // Once converted from raw pointers to Rust pointers, we can just
-    // let the value fall out of scope to free.
-    Telemetry::from(unsafe { ptr::read(ffi_telemetry_ptr) });
+pub extern "C" fn telemetry_free(telemetry_ptr: *mut Ffi__Telemetry) -> uint8_t {
+    let _: Telemetry = tryrc!(readptr!(telemetry_ptr, "Telemetry struct"));
+    0
 }
 
 #[cfg(test)]
 mod tests {
     use ffi_helpers::Ffi__Array;
-    use libc::{c_float, size_t, uint32_t, uint64_t};
+    use libc::{c_float, uint64_t};
     use std::ffi::CString;
     use std::mem;
     use super::*;
@@ -427,15 +406,15 @@ mod tests {
         let mut net = vec![Ffi__Netif {
             interface: CString::new("em0").unwrap().into_raw(),
             mac: CString::new("01:23:45:67:89:ab").unwrap().into_raw(),
-            inet: Ffi__NetifIPv4 {
+            inet: Box::into_raw(Box::new(Ffi__NetifIPv4 {
                 address: CString::new("01:23:45:67:89:ab").unwrap().into_raw(),
                 netmask: CString::new("255.255.255.255").unwrap().into_raw(),
-            },
-            inet6: Ffi__NetifIPv6 {
+            })),
+            inet6: Box::into_raw(Box::new(Ffi__NetifIPv6 {
                 address: CString::new("::1").unwrap().into_raw(),
-                prefixlen: 8 as uint32_t,
+                prefixlen: 8,
                 scopeid: CString::new("0x4").unwrap().into_raw(),
-            },
+            })),
             status: CString::new("Active").unwrap().into_raw(),
         }];
 
@@ -443,19 +422,19 @@ mod tests {
             cpu: Ffi__Cpu {
                 vendor: CString::new("moo").unwrap().into_raw(),
                 brand_string: CString::new("Moo Cow Super Fun Happy CPU").unwrap().into_raw(),
-                cores: 100 as uint32_t,
+                cores: 100,
             },
             fs: Ffi__Array {
                 ptr: fs.as_mut_ptr(),
-                length: fs.len() as size_t,
-                capacity: fs.capacity() as size_t,
+                length: fs.len(),
+                capacity: fs.capacity(),
             },
             hostname: CString::new("localhost").unwrap().into_raw(),
-            memory: 2048 as uint64_t,
+            memory: 2048,
             net: Ffi__Array {
                 ptr: net.as_mut_ptr(),
-                length: net.len() as size_t,
-                capacity: net.capacity() as size_t,
+                length: net.len(),
+                capacity: net.capacity(),
             },
             os: Ffi__Os {
                 arch: CString::new("doctor string").unwrap().into_raw(),

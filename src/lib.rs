@@ -35,10 +35,11 @@ extern crate rustc_serialize;
 extern crate tempdir;
 extern crate zfilexfer;
 
+#[macro_use]
+mod ffi_helpers;
 pub mod command;
 pub mod directory;
 pub mod error;
-mod ffi_helpers;
 pub mod file;
 pub mod host;
 pub mod package;

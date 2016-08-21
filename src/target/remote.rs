@@ -14,6 +14,7 @@ use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use rustc_serialize::json;
 use service::ServiceTarget;
+use std::path::Path;
 use super::Target;
 use telemetry::{Telemetry, TelemetryTarget};
 
@@ -46,61 +47,61 @@ impl CommandTarget for Target {
 // Directory
 //
 
-impl DirectoryTarget for Target {
-    fn directory_is_directory(host: &mut Host, path: &str) -> Result<bool> {
+impl <P: AsRef<Path>> DirectoryTarget<P> for Target {
+    fn directory_is_directory(host: &mut Host, path: P) -> Result<bool> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::is_directory"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
 
         let reply = try!(host.recv(1, Some(1)));
         Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))) == "1")
     }
 
-    fn directory_exists(host: &mut Host, path: &str) -> Result<bool> {
+    fn directory_exists(host: &mut Host, path: P) -> Result<bool> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::exists"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
 
         let reply = try!(host.recv(1, Some(1)));
         Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))) == "1")
     }
 
-    fn directory_create(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
+    fn directory_create(host: &mut Host, path: P, recursive: bool) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::create"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(msg.addstr(if recursive { "1" } else { "0" }));
         try!(host.send(msg));
         try!(host.recv(0, None));
         Ok(())
     }
 
-    fn directory_delete(host: &mut Host, path: &str, recursive: bool) -> Result<()> {
+    fn directory_delete(host: &mut Host, path: P, recursive: bool) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::delete"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(msg.addstr(if recursive { "1" } else { "0" }));
         try!(host.send(msg));
         try!(host.recv(0, None));
         Ok(())
     }
 
-    fn directory_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn directory_mv(host: &mut Host, path: P, new_path: P) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::mv"));
-        try!(msg.addstr(path));
-        try!(msg.addstr(new_path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
+        try!(msg.addstr(new_path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
         try!(host.recv(0, None));
         Ok(())
     }
 
-    fn directory_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+    fn directory_get_owner(host: &mut Host, path: P) -> Result<FileOwner> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::get_owner"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
 
         let reply = try!(host.recv(4, Some(4)));
@@ -113,10 +114,10 @@ impl DirectoryTarget for Target {
         })
     }
 
-    fn directory_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+    fn directory_set_owner(host: &mut Host, path: P, user: &str, group: &str) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::set_owner"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(msg.addstr(user));
         try!(msg.addstr(group));
         try!(host.send(msg));
@@ -124,20 +125,20 @@ impl DirectoryTarget for Target {
         Ok(())
     }
 
-    fn directory_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+    fn directory_get_mode(host: &mut Host, path: P) -> Result<u16> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::get_mode"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
 
         let reply = try!(host.recv(0, None));
         Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).parse::<u16>().unwrap())
     }
 
-    fn directory_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+    fn directory_set_mode(host: &mut Host, path: P, mode: u16) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("directory::set_mode"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(msg.addstr(&mode.to_string()));
         try!(host.send(msg));
         try!(host.recv(0, None));
@@ -149,60 +150,60 @@ impl DirectoryTarget for Target {
 // File
 //
 
-impl FileTarget for Target {
-    fn file_is_file(host: &mut Host, path: &str) -> Result<bool> {
+impl <P: AsRef<Path>> FileTarget<P> for Target {
+    fn file_is_file(host: &mut Host, path: P) -> Result<bool> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::is_file"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
 
         let reply = try!(host.recv(0, None));
         Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))) == "1")
     }
 
-    fn file_exists(host: &mut Host, path: &str) -> Result<bool> {
+    fn file_exists(host: &mut Host, path: P) -> Result<bool> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::exists"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
 
         let reply = try!(host.recv(1, Some(1)));
         Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))) == "1")
     }
 
-    fn file_delete(host: &mut Host, path: &str) -> Result<()> {
+    fn file_delete(host: &mut Host, path: P) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::delete"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
         try!(host.recv(0, None));
         Ok(())
     }
 
-    fn file_mv(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn file_mv(host: &mut Host, path: P, new_path: P) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::mv"));
-        try!(msg.addstr(path));
-        try!(msg.addstr(new_path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
+        try!(msg.addstr(new_path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
         try!(host.recv(0, None));
         Ok(())
     }
 
-    fn file_copy(host: &mut Host, path: &str, new_path: &str) -> Result<()> {
+    fn file_copy(host: &mut Host, path: P, new_path: P) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::copy"));
-        try!(msg.addstr(path));
-        try!(msg.addstr(new_path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
+        try!(msg.addstr(new_path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
         try!(host.recv(0, None));
         Ok(())
     }
 
-    fn file_get_owner(host: &mut Host, path: &str) -> Result<FileOwner> {
+    fn file_get_owner(host: &mut Host, path: P) -> Result<FileOwner> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::get_owner"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
 
         let reply = try!(host.recv(4, Some(4)));
@@ -215,10 +216,10 @@ impl FileTarget for Target {
         })
     }
 
-    fn file_set_owner(host: &mut Host, path: &str, user: &str, group: &str) -> Result<()> {
+    fn file_set_owner(host: &mut Host, path: P, user: &str, group: &str) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::set_owner"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(msg.addstr(user));
         try!(msg.addstr(group));
         try!(host.send(msg));
@@ -226,20 +227,20 @@ impl FileTarget for Target {
         Ok(())
     }
 
-    fn file_get_mode(host: &mut Host, path: &str) -> Result<u16> {
+    fn file_get_mode(host: &mut Host, path: P) -> Result<u16> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::get_mode"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(host.send(msg));
 
         let reply = try!(host.recv(0, None));
         Ok(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).parse::<u16>().unwrap())
     }
 
-    fn file_set_mode(host: &mut Host, path: &str, mode: u16) -> Result<()> {
+    fn file_set_mode(host: &mut Host, path: P, mode: u16) -> Result<()> {
         let msg = ZMsg::new();
         try!(msg.addstr("file::set_mode"));
-        try!(msg.addstr(path));
+        try!(msg.addstr(path.as_ref().to_str().unwrap()));
         try!(msg.addstr(&mode.to_string()));
         try!(host.send(msg));
         try!(host.recv(0, None));

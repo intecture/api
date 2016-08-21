@@ -33,3 +33,49 @@ impl <T>convert::From<Vec<T>> for Ffi__Array<T> {
         ffi_item
     }
 }
+
+macro_rules! trynull {
+    ($e:expr) => (match $e {
+        Ok(val) => val,
+        Err(err) => {
+            ::error::seterr(err);
+            return ::std::ptr::null_mut()
+        },
+    });
+}
+
+macro_rules! tryrc {
+    ($e:expr) => (match $e {
+        Ok(val) => val,
+        Err(err) => {
+            ::error::seterr(err);
+            return 1
+        },
+    });
+}
+
+macro_rules! ptrtostr {
+    ($p:expr, $e:expr) => ({
+        let r = $p; // Evaluate $p before consuming the result
+        if r.is_null() {
+            Err(::error::Error::NullPtr(::std::convert::Into::into($e)))
+        } else {
+            match unsafe { ::std::ffi::CStr::from_ptr(r).to_str() } {
+                Ok(s) => Ok(s),
+                Err(e) => Err(e.into()),
+            }
+        }
+    });
+}
+
+macro_rules! readptr {
+    ($p:expr, $e:expr) => ({
+        let r = $p; // Evaluate $p before consuming the result
+        if r.is_null() {
+            Err(::error::Error::NullPtr(::std::convert::Into::into($e)))
+        } else {
+            let val = unsafe { ::std::ptr::read(r) };
+            Ok(::std::convert::Into::into(val))
+        }
+    });
+}

@@ -11,8 +11,9 @@
 use Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t, uint16_t, uint64_t};
-use std::{convert, ptr, str};
-use std::ffi::{CStr, CString};
+use std::{convert, ptr};
+use std::ffi::CString;
+use std::path::PathBuf;
 use super::*;
 use zfilexfer::FileOptions;
 
@@ -24,7 +25,7 @@ pub struct Ffi__File {
 impl convert::From<File> for Ffi__File {
     fn from(file: File) -> Ffi__File {
         Ffi__File {
-            path: CString::new(file.path).unwrap().into_raw(),
+            path: CString::new(file.path.to_str().unwrap()).unwrap().into_raw(),
         }
     }
 }
@@ -32,7 +33,7 @@ impl convert::From<File> for Ffi__File {
 impl convert::From<Ffi__File> for File {
     fn from(ffi_file: Ffi__File) -> File {
         File {
-            path: unsafe { str::from_utf8(CStr::from_ptr(ffi_file.path).to_bytes()).unwrap().to_string() },
+            path: PathBuf::from(ptrtostr!(ffi_file.path, "path string").unwrap()),
         }
     }
 }
@@ -48,11 +49,11 @@ impl convert::From<Ffi__FileOptions> for Vec<FileOptions> {
     fn from(ffi_opts: Ffi__FileOptions) -> Vec<FileOptions> {
         let mut opts = vec![];
         if ffi_opts.backup_existing != ptr::null() {
-            let suffix = unsafe { str::from_utf8(CStr::from_ptr(ffi_opts.backup_existing).to_bytes()).unwrap().to_string() };
+            let suffix: String = ptrtostr!(ffi_opts.backup_existing, "suffix string").unwrap().into();
             opts.push(FileOptions::BackupExisting(suffix));
         }
         if ffi_opts.chunk_size != ptr::null() {
-            opts.push(FileOptions::ChunkSize(unsafe { ptr::read(ffi_opts.chunk_size) }));
+            opts.push(FileOptions::ChunkSize(readptr!(ffi_opts.chunk_size, "chunk size int").unwrap()));
         }
         opts
     }
@@ -80,143 +81,161 @@ impl convert::From<FileOwner> for Ffi__FileOwner {
 impl convert::From<Ffi__FileOwner> for FileOwner {
     fn from(ffi_owner: Ffi__FileOwner) -> FileOwner {
         FileOwner {
-            user_name: unsafe { str::from_utf8(CStr::from_ptr(ffi_owner.user_name).to_bytes()).unwrap().to_string() },
+            user_name: ptrtostr!(ffi_owner.user_name, "user name string").unwrap().into(),
             user_uid: ffi_owner.user_uid as u64,
-            group_name: unsafe { str::from_utf8(CStr::from_ptr(ffi_owner.group_name).to_bytes()).unwrap().to_string() },
+            group_name: ptrtostr!(ffi_owner.group_name, "group name string").unwrap().into(),
             group_gid: ffi_owner.group_gid as u64,
         }
     }
 }
 
 #[no_mangle]
-pub extern "C" fn file_new(ffi_host_ptr: *const Ffi__Host, path_ptr: *const c_char) -> Ffi__File {
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let path = unsafe { str::from_utf8(CStr::from_ptr(path_ptr).to_bytes()).unwrap() };
+pub extern "C" fn file_new(host_ptr: *const Ffi__Host, path_ptr: *const c_char) -> *mut Ffi__File {
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+    let path = trynull!(ptrtostr!(path_ptr, "path string"));
 
-    let result = Ffi__File::from(File::new(&mut host, path).unwrap());
+    let result = Ffi__File::from(trynull!(File::new(&mut host, path)));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    result
+    Box::into_raw(Box::new(result))
 }
 
 #[no_mangle]
-pub extern "C" fn file_exists(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host) -> uint8_t {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
+pub extern "C" fn file_exists(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host) -> *mut uint8_t {
+    let file: File = trynull!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
-    let result = file.exists(&mut host).unwrap();
+    let result = if trynull!(file.exists(&mut host)) { 1 } else { 0 };
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    if result { 1 } else { 0 }
+    Box::into_raw(Box::new(result))
 }
 
 #[cfg(feature = "remote-run")]
 #[no_mangle]
-pub extern "C" fn file_upload(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host, local_path_ptr: *const c_char, ffi_file_options_ptr: *const Ffi__FileOptions) {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let local_path = unsafe { str::from_utf8(CStr::from_ptr(local_path_ptr).to_bytes()).unwrap() };
-    let mut opts: Vec<FileOptions> = vec![];
-    if ffi_file_options_ptr != ptr::null() {
-        opts = Vec::<FileOptions>::from(unsafe { ptr::read(ffi_file_options_ptr) });
-    }
+pub extern "C" fn file_upload(file_ptr: *const Ffi__File,
+                              host_ptr: *const Ffi__Host,
+                              local_path_ptr: *const c_char,
+                              file_options_ptr: *const Ffi__FileOptions) -> uint8_t {
+    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    let local_path = tryrc!(ptrtostr!(local_path_ptr, "local path string"));
+    let opts: Vec<FileOptions> = match readptr!(file_options_ptr, "FileOptions array") {
+        Ok(o) => o,
+        Err(_) => Vec::new(),
+    };
 
-    file.upload(&mut host, local_path, if opts.is_empty() { None } else { Some(&opts) }).unwrap();
-
-    // Convert ZMQ socket to raw to avoid destructor closing sock
-    Ffi__Host::from(host);
-}
-
-#[no_mangle]
-pub extern "C" fn file_delete(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host) {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-
-    file.delete(&mut host).unwrap();
+    tryrc!(file.upload(&mut host, local_path, if opts.is_empty() { None } else { Some(&opts) }));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
+
+    0
 }
 
 #[no_mangle]
-pub extern "C" fn file_mv(ffi_file_ptr: *mut Ffi__File, ffi_host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) {
-    let mut file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let new_path = unsafe { str::from_utf8(CStr::from_ptr(new_path_ptr).to_bytes()).unwrap() };
+pub extern "C" fn file_delete(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host) -> uint8_t {
+    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
 
-    file.mv(&mut host, new_path).unwrap();
+    tryrc!(file.delete(&mut host));
+
+    // Convert ZMQ socket to raw to avoid destructor closing sock
+    Ffi__Host::from(host);
+
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn file_mv(file_ptr: *mut Ffi__File, host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) -> uint8_t {
+    let mut file: File = tryrc!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
+
+    tryrc!(file.mv(&mut host, new_path));
 
     // Write mutated File path back to pointer
-    unsafe { ptr::write(&mut *ffi_file_ptr, Ffi__File::from(file)); }
+    unsafe { ptr::write(&mut *file_ptr, Ffi__File::from(file)); }
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
+
+    0
 }
 
 #[no_mangle]
-pub extern "C" fn file_copy(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let new_path = unsafe { str::from_utf8(CStr::from_ptr(new_path_ptr).to_bytes()).unwrap() };
+pub extern "C" fn file_copy(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) -> uint8_t {
+    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
 
-    file.copy(&mut host, new_path).unwrap();
+    tryrc!(file.copy(&mut host, new_path));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
+
+    0
 }
 
 #[no_mangle]
-pub extern "C" fn file_get_owner(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host) -> Ffi__FileOwner {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
+pub extern "C" fn file_get_owner(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host) -> *mut Ffi__FileOwner {
+    let file: File = trynull!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
-    let result = Ffi__FileOwner::from(file.get_owner(&mut host).unwrap());
+    let result = Ffi__FileOwner::from(trynull!(file.get_owner(&mut host)));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    result
+    Box::into_raw(Box::new(result))
 }
 
 #[no_mangle]
-pub extern "C" fn file_set_owner(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host, user_ptr: *const c_char, group_ptr: *const c_char) {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
-    let user = unsafe { str::from_utf8(CStr::from_ptr(user_ptr).to_bytes()).unwrap() };
-    let group = unsafe { str::from_utf8(CStr::from_ptr(group_ptr).to_bytes()).unwrap() };
+pub extern "C" fn file_set_owner(file_ptr: *const Ffi__File,
+                                 host_ptr: *const Ffi__Host,
+                                 user_ptr: *const c_char,
+                                 group_ptr: *const c_char) -> uint8_t {
+    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    let user = tryrc!(ptrtostr!(user_ptr, "user string"));
+    let group = tryrc!(ptrtostr!(group_ptr, "group string"));
 
-    file.set_owner(&mut host, user, group).unwrap();
+    tryrc!(file.set_owner(&mut host, user, group));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
+
+    0
 }
 
 #[no_mangle]
-pub extern "C" fn file_get_mode(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host) -> uint16_t {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
+pub extern "C" fn file_get_mode(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host) -> *mut uint16_t {
+    let file: File = trynull!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
-    let result = file.get_mode(&mut host).unwrap();
+    let result = trynull!(file.get_mode(&mut host));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
 
-    result as uint16_t
+    Box::into_raw(Box::new(result))
 }
 
 #[no_mangle]
-pub extern "C" fn file_set_mode(ffi_file_ptr: *const Ffi__File, ffi_host_ptr: *const Ffi__Host, mode: uint16_t) {
-    let file = File::from(unsafe { ptr::read(ffi_file_ptr) });
-    let mut host = Host::from(unsafe { ptr::read(ffi_host_ptr) });
+pub extern "C" fn file_set_mode(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host, mode: uint16_t) -> uint8_t {
+    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
 
-    file.set_mode(&mut host, mode as u16).unwrap();
+    tryrc!(file.set_mode(&mut host, mode as u16));
 
     // Convert ZMQ socket to raw to avoid destructor closing sock
     Ffi__Host::from(host);
+
+    0
 }
 
 #[cfg(test)]
@@ -226,7 +245,10 @@ mod tests {
     use czmq::{ZMsg, ZSys};
     #[cfg(feature = "remote-run")]
     use host::ffi::Ffi__Host;
+    #[cfg(feature = "remote-run")]
+    use libc::{uint8_t, uint16_t};
     use std::ffi::{CStr, CString};
+    use std::path::Path;
     use std::str;
     use super::*;
     #[cfg(feature = "remote-run")]
@@ -243,7 +265,7 @@ mod tests {
         let file = File::new(&mut host, "/path/to/file").unwrap();
         let ffi_file = Ffi__File::from(file);
 
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_file.path).to_bytes()).unwrap() }, "/path/to/file");
+        assert_eq!(ptrtostr!(ffi_file.path, "path string").unwrap(), "/path/to/file");
     }
 
     #[cfg(feature = "remote-run")]
@@ -267,7 +289,7 @@ mod tests {
         let file = File::new(&mut host, "/path/to/file").unwrap();
         let ffi_file = Ffi__File::from(file);
 
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_file.path).to_bytes()).unwrap() }, "/path/to/file");
+        assert_eq!(ptrtostr!(ffi_file.path, "path string").unwrap(), "/path/to/file");
 
         agent_mock.join().unwrap();
     }
@@ -279,7 +301,7 @@ mod tests {
         };
         let file = File::from(ffi_file);
 
-        assert_eq!(file.path, "/path/to/file");
+        assert_eq!(file.path, Path::new("/path/to/file"));
     }
 
     #[test]
@@ -349,8 +371,8 @@ mod tests {
         let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host as *const Ffi__Host, path);
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(file.path).to_bytes()).unwrap() }, "/path/to/file");
+        let file: File = readptr!(file_new(&host, path), "File struct").unwrap();
+        assert_eq!(file.path, Path::new("/path/to/file"));
 
         Host::from(host);
         agent_mock.join().unwrap();
@@ -358,7 +380,6 @@ mod tests {
 
     #[cfg(feature = "remote-run")]
     #[test]
-    #[should_panic()]
     fn test_new_fail() {
         ZSys::init();
 
@@ -376,9 +397,8 @@ mod tests {
         let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        file_new(&host as *const Ffi__Host, path);
+        assert!(file_new(&host, path).is_null());
 
-        Host::from(host);
         agent_mock.join().unwrap();
     }
 
@@ -408,17 +428,14 @@ mod tests {
         let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host as *const Ffi__Host, path);
-        assert_eq!(file_exists(&file as *const Ffi__File, &host as *const Ffi__Host), 0);
+        let file = file_new(&host, path);
+        assert!(!file.is_null());
+        let exists: uint8_t = readptr!(file_exists(file, &host), "bool").unwrap();
+        assert_eq!(exists, 0);
 
         Host::from(host);
         agent_mock.join().unwrap();
     }
-
-    // XXX Need to mock FS before we can test upload effectively
-    // #[test]
-    // fn test_upload() {
-    // }
 
     #[cfg(feature = "remote-run")]
     #[test]
@@ -442,8 +459,9 @@ mod tests {
         let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host as *const Ffi__Host, path);
-        file_delete(&file as *const Ffi__File, &host as *const Ffi__Host);
+        let file = file_new(&host, path);
+        assert!(!file.is_null());
+        assert_eq!(file_delete(file, &host), 0);
 
         Host::from(host);
         agent_mock.join().unwrap();
@@ -478,12 +496,13 @@ mod tests {
         let host = Ffi__Host::from(Host::test_new(None, Some(client), None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host as *const Ffi__Host, path);
+        let file = file_new(&host, path);
+        assert!(!file.is_null());
 
-        let owner = file_get_owner(&file as *const Ffi__File, &host as *const Ffi__Host);
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.user_name).to_bytes()).unwrap() }, "user");
+        let owner: FileOwner = readptr!(file_get_owner(file, &host), "FileOwner struct").unwrap();
+        assert_eq!(owner.user_name, "user");
         assert_eq!(owner.user_uid, 123);
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(owner.group_name).to_bytes()).unwrap() }, "group");
+        assert_eq!(owner.group_name, "group");
         assert_eq!(owner.group_gid, 123);
 
         Host::from(host);
@@ -518,9 +537,10 @@ mod tests {
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host as *const Ffi__Host, path);
+        assert!(!file.is_null());
         let user = CString::new("user").unwrap().into_raw();
         let group = CString::new("group").unwrap().into_raw();
-        file_set_owner(&file as *const Ffi__File, &host as *const Ffi__Host, user, group);
+        assert_eq!(file_set_owner(file, &host, user, group), 0);
 
         Host::from(host);
         agent_mock.join().unwrap();
@@ -553,7 +573,9 @@ mod tests {
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host as *const Ffi__Host, path);
-        assert_eq!(file_get_mode(&file as *const Ffi__File, &host as *const Ffi__Host), 755);
+        assert!(!file.is_null());
+        let mode: uint16_t = readptr!(file_get_mode(file, &host), "mode string").unwrap();
+        assert_eq!(mode, 755);
 
         Host::from(host);
         agent_mock.join().unwrap();
@@ -586,7 +608,8 @@ mod tests {
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host as *const Ffi__Host, path);
-        file_set_mode(&file as *const Ffi__File, &host as *const Ffi__Host, 644);
+        assert!(!file.is_null());
+        assert_eq!(file_set_mode(file, &host, 644), 0);
 
         Host::from(host);
         agent_mock.join().unwrap();
