@@ -77,8 +77,8 @@ impl convert::From<Ffi__Host> for Host {
 }
 
 #[no_mangle]
-pub extern "C" fn host_new() -> Ffi__Host {
-    Ffi__Host::from(Host::new())
+pub extern "C" fn host_new() -> *mut Ffi__Host {
+    Box::into_raw(Box::new(Ffi__Host::from(Host::new())))
 }
 
 #[cfg(feature = "remote-run")]
@@ -88,7 +88,6 @@ pub extern "C" fn host_connect(host_ptr: *mut Ffi__Host,
                                api_port: uint32_t,
                                upload_port: uint32_t,
                                auth_server_ptr: *const c_char) -> uint8_t {
-
     let hostname = tryrc!(ptrtostr!(hostname_ptr, "hostname string"));
     let auth_server = tryrc!(ptrtostr!(auth_server_ptr, "auth server string"));
     let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
@@ -152,9 +151,10 @@ mod tests {
         let hostname = CString::new("localhost").unwrap().as_ptr();
         let auth_server = CString::new(auth_server.as_bytes()).unwrap().as_ptr();
 
-        let mut host = host_new();
-        host_connect(&mut host as *mut Ffi__Host, hostname, 7101, 7102, auth_server);
-        host_close(&mut host as *mut Ffi__Host);
+        let host = host_new();
+        assert!(!host.is_null());
+        host_connect(host, hostname, 7101, 7102, auth_server);
+        host_close(host);
 
         handle.join().unwrap();
     }

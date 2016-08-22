@@ -160,7 +160,9 @@ impl <'a>convert::From<Ffi__Service> for Service<'a> {
 }
 
 #[no_mangle]
-pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable, mapped_actions: *mut Ffi__ServiceMappedAction, mapped_actions_len: size_t) -> Ffi__Service {
+pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable,
+                                      mapped_actions: *mut Ffi__ServiceMappedAction,
+                                      mapped_actions_len: size_t) -> *mut Ffi__Service {
     let runnable = ServiceRunnable::from(ffi_runnable);
     let mapped_actions = if !mapped_actions.is_null() {
         Some(convert_from_mapped_actions(Ffi__Array {
@@ -172,14 +174,14 @@ pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable, mapped
         None
     };
 
-    Ffi__Service::from(Service::new_service(runnable, mapped_actions))
+    Box::into_raw(Box::new(Ffi__Service::from(Service::new_service(runnable, mapped_actions))))
 }
 
 #[no_mangle]
 pub extern "C" fn service_new_map(actions_ptr: *mut Ffi__ServiceAction,
                                   actions_len: size_t,
                                   mapped_actions_ptr: *mut Ffi__ServiceMappedAction,
-                                  mapped_actions_len: size_t) -> Ffi__Service {
+                                  mapped_actions_len: size_t) -> *mut Ffi__Service {
     let actions = convert_from_actions(Ffi__Array {
         ptr: actions_ptr,
         length: actions_len,
@@ -195,7 +197,7 @@ pub extern "C" fn service_new_map(actions_ptr: *mut Ffi__ServiceAction,
         None
     };
 
-    Ffi__Service::from(Service::new_map(actions, mapped_actions))
+    Box::into_raw(Box::new(Ffi__Service::from(Service::new_map(actions, mapped_actions))))
 }
 
 #[no_mangle]
@@ -337,8 +339,7 @@ mod tests {
         mapped.insert("test", "mapped_test");
         let ffi_mapped = Ffi__Array::from(mapped);
 
-        let ffi_service = service_new_service(ffi_runnable, ffi_mapped.ptr, ffi_mapped.length);
-        let service = Service::from(ffi_service);
+        let service: Service = readptr!(service_new_service(ffi_runnable, ffi_mapped.ptr, ffi_mapped.length), "Service struct").unwrap();
 
         match service.actions.get("_").unwrap() {
             &ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),
@@ -354,8 +355,7 @@ mod tests {
         map.insert("test", ServiceRunnable::Command("test"));
         let ffi_map = Ffi__Array::from(map);
 
-        let ffi_service = service_new_map(ffi_map.ptr, ffi_map.length, ptr::null_mut(), 0);
-        let service = Service::from(ffi_service);
+        let service: Service = readptr!(service_new_map(ffi_map.ptr, ffi_map.length, ptr::null_mut(), 0), "Service struct").unwrap();
 
         match service.actions.get("test").unwrap() {
             &ServiceRunnable::Command(cmd) => assert_eq!(cmd, "test"),
@@ -396,17 +396,18 @@ mod tests {
         });
 
         let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
-        let mut ffi_service = service_new_service(Ffi__ServiceRunnable::from(ServiceRunnable::Service("nginx")), ptr::null_mut(), 0);
+        let ffi_service = service_new_service(Ffi__ServiceRunnable::from(ServiceRunnable::Service("nginx")), ptr::null_mut(), 0);
+        assert!(!ffi_service.is_null());
         let action_ptr = CString::new("start").unwrap().into_raw();
 
-        let result_ptr = service_action(&mut ffi_service as *mut Ffi__Service, &ffi_host as *const Ffi__Host, action_ptr);
+        let result_ptr = service_action(ffi_service, &ffi_host, action_ptr);
         assert!(!result_ptr.is_null());
         let result = unsafe { ptr::read(result_ptr) };
         assert_eq!(result.exit_code, 0);
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(result.stdout).to_bytes()).unwrap() }, "Service started...");
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(result.stderr).to_bytes()).unwrap() }, "");
 
-        let result_ptr = service_action(&mut ffi_service as *mut Ffi__Service, &ffi_host as *const Ffi__Host, action_ptr);
+        let result_ptr = service_action(ffi_service, &ffi_host, action_ptr);
         assert!(result_ptr.is_null());
 
         Host::from(ffi_host);
