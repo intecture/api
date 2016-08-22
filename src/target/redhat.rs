@@ -19,6 +19,7 @@ use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use service::ServiceTarget;
 use std::{env, str};
+use std::path::Path;
 use super::{default_base as default, linux_base as linux, redhat_base as redhat};
 use telemetry::TelemetryTarget;
 

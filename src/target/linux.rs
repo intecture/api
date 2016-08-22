@@ -19,6 +19,7 @@ use file::{FileTarget, FileOwner};
 use package::PackageTarget;
 use service::ServiceTarget;
 use std::fs;
+use std::path::Path;
 use std::sync::{Once, ONCE_INIT};
 use super::Target;
 use super::centos::CentosTarget;

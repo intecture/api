@@ -23,6 +23,7 @@ use service::ServiceTarget;
 use std::env;
 use std::fs::File;
 use std::io::Read;
+use std::path::Path;
 use super::{debian_base as debian, default_base as default, linux_base as linux};
 use telemetry::TelemetryTarget;
 

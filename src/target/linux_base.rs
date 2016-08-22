@@ -13,16 +13,17 @@ use regex::Regex;
 use std::{process, str};
 use std::fs::File;
 use std::io::prelude::*;
+use std::path::Path;
 use target::bin_resolver::BinResolver;
 use target::default_base as default;
 use telemetry::Netif;
 
 pub fn file_get_owner<P: AsRef<Path>>(path: P) -> Result<FileOwner> {
     Ok(FileOwner {
-        user_name: try!(default::file_stat(path, vec!["-c", "%U"])),
-        user_uid: try!(default::file_stat(path, vec!["-c", "%u"])).parse::<u64>().unwrap(),
-        group_name: try!(default::file_stat(path, vec!["-c", "%G"])),
-        group_gid: try!(default::file_stat(path, vec!["-c", "%g"])).parse::<u64>().unwrap()
+        user_name: try!(default::file_stat(path.as_ref(), vec!["-c", "%U"])),
+        user_uid: try!(default::file_stat(path.as_ref(), vec!["-c", "%u"])).parse::<u64>().unwrap(),
+        group_name: try!(default::file_stat(path.as_ref(), vec!["-c", "%G"])),
+        group_gid: try!(default::file_stat(path.as_ref(), vec!["-c", "%g"])).parse::<u64>().unwrap()
     })
 }
 
