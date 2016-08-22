@@ -206,12 +206,12 @@ PHP_METHOD(Package, uninstall) {
     CommandResult cmd_result;
     enum PackageResult *result = package_uninstall(intern->package, host->host, &cmd_result);
 
-    if (!*result) {
+    if (!result) {
         zend_throw_exception(inapi_ce_package_exception, geterr(), 1000 TSRMLS_CC);
         return;
     }
 
-    if (result == 0) {
+    if (*result == 0) {
         array_init(return_value);
         add_assoc_long(return_value, "exit_code", cmd_result.exit_code);
         add_assoc_string(return_value, "stdout", cmd_result.stdout, 1);
