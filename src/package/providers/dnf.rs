@@ -47,6 +47,13 @@ impl Provider for Dnf {
 
     fn uninstall(&self, host: &mut Host, name: &str) -> Result<CommandResult> {
         let cmd = Command::new(&format!("dnf -y remove {}", name));
-        cmd.exec(host)
+        let result = try!(cmd.exec(host));
+
+        if result.exit_code == 0 {
+            let cmd = Command::new("dnf clean dbcache");
+            try!(cmd.exec(host));
+        }
+
+        Ok(result)
     }
 }
