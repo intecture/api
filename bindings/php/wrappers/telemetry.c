@@ -154,7 +154,7 @@ zval* netif_to_array(Netif *netif) {
         add_assoc_string(znetif, "status", netif->status, 1);
     }
 
-    if (netif->inet->address && netif->inet->address[0] != '\0') {
+    if (netif->inet && netif->inet->address && netif->inet->address[0] != '\0') {
         ALLOC_INIT_ZVAL(inet4);
         array_init(inet4);
 
@@ -163,13 +163,15 @@ zval* netif_to_array(Netif *netif) {
         add_assoc_zval(znetif, "inet", inet4);
     }
 
-    if (netif->inet6->address && netif->inet6->address[0] != '\0') {
+    if (netif->inet6 && netif->inet6->address && netif->inet6->address[0] != '\0') {
         ALLOC_INIT_ZVAL(inet6);
         array_init(inet6);
 
         add_assoc_string(inet6, "address", netif->inet6->address, 1);
         add_assoc_long(inet6, "prefixlen", netif->inet6->prefixlen);
-        add_assoc_string(inet6, "scope_id", netif->inet6->scopeid, 1);
+        if (netif->inet6->scopeid) {
+            add_assoc_string(inet6, "scope_id", netif->inet6->scopeid, 1);
+        }
         add_assoc_zval(znetif, "inet6", inet6);
     }
 
