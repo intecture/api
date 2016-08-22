@@ -23,6 +23,7 @@ use service::ServiceTarget;
 use std::env;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
+use std::path::Path;
 use super::{default_base as default, Target, unix_base as unix};
 use telemetry::TelemetryTarget;
 
