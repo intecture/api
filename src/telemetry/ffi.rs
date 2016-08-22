@@ -311,9 +311,6 @@ pub extern "C" fn telemetry_init(host_ptr: *mut Ffi__Host) -> *const Ffi__Teleme
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
     let telemetry = Ffi__Telemetry::from(trynull!(Telemetry::init(&mut host)));
 
-    // Convert ZMQ socket to raw to avoid destructor closing sock
-    Ffi__Host::from(host);
-
     Box::into_raw(Box::new(telemetry))
 }
 

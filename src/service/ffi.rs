@@ -218,9 +218,6 @@ pub extern "C" fn service_action(service_ptr: *mut Ffi__Service, host_ptr: *cons
     // back to an FFI Service and write it to the pointer.
     unsafe { ptr::write(&mut *service_ptr, Ffi__Service::from(service)); }
 
-    // Convert ZMQ socket to raw to avoid destructor closing sock
-    Ffi__Host::from(host);
-
     result
 }
 
@@ -232,7 +229,7 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
     #[cfg(feature = "remote-run")]
-    use host::ffi::Ffi__Host;
+    use host::ffi::{Ffi__Host, host_close};
     use {Service, ServiceRunnable};
     use std::collections::HashMap;
     use std::ffi::{CStr, CString};
@@ -395,7 +392,7 @@ mod tests {
             rep.send(&server).unwrap();
         });
 
-        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
         let ffi_service = service_new_service(Ffi__ServiceRunnable::from(ServiceRunnable::Service("nginx")), ptr::null_mut(), 0);
         assert!(!ffi_service.is_null());
         let action_ptr = CString::new("start").unwrap().into_raw();
@@ -410,8 +407,7 @@ mod tests {
         let result_ptr = service_action(ffi_service, &ffi_host, action_ptr);
         assert!(result_ptr.is_null());
 
-        Host::from(ffi_host);
-
+        assert_eq!(host_close(&mut ffi_host), 0);
         agent_mock.join().unwrap();
     }
 }

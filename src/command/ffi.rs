@@ -65,9 +65,6 @@ pub extern "C" fn command_exec(ffi_cmd_ptr: *mut Ffi__Command, ffi_host_ptr: *mu
 
     let result = Ffi__CommandResult::from(trynull!(cmd.exec(&mut host)));
 
-    // Convert ZMQ socket to raw to avoid destructor closing sock
-    Ffi__Host::from(host);
-
     Box::into_raw(Box::new(result))
 }
 
@@ -80,6 +77,8 @@ mod tests {
     use czmq::{ZMsg, ZSys};
     use error::ERRMSG;
     use host::ffi::Ffi__Host;
+    #[cfg(feature = "remote-run")]
+    use host::ffi::host_close;
     #[cfg(feature = "remote-run")]
     use std::{str, thread};
     use std::ffi::CStr;
@@ -160,7 +159,7 @@ mod tests {
 
         let result = unsafe { ptr::read(command_exec(&mut ffi_command, &mut ffi_host)) };
 
-        Host::from(ffi_host);
+        assert_eq!(host_close(&mut ffi_host), 0);
 
         assert_eq!(result.exit_code, 0);
 

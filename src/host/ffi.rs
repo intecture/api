@@ -16,7 +16,7 @@ use std::convert;
 #[cfg(feature = "remote-run")]
 use std::ptr;
 #[cfg(feature = "remote-run")]
-use std::ffi::{CStr, CString};
+use std::ffi::CString;
 #[cfg(feature = "remote-run")]
 use std::os::raw::c_void;
 use super::*;
@@ -69,9 +69,9 @@ impl convert::From<Ffi__Host> for Host {
     #[cfg(feature = "remote-run")]
     fn from(ffi_host: Ffi__Host) -> Host {
         Host {
-            hostname: if ffi_host.hostname.is_null() { None } else { Some(unsafe { CStr::from_ptr(ffi_host.hostname) }.to_str().unwrap().into()) },
-            api_sock: if ffi_host.api_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.api_sock, true)) },
-            file_sock: if ffi_host.file_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.file_sock, true)) },
+            hostname: if ffi_host.hostname.is_null() { None } else { Some(ptrtostr!(ffi_host.hostname, "hostname string").unwrap().into()) },
+            api_sock: if ffi_host.api_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.api_sock, false)) },
+            file_sock: if ffi_host.file_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.file_sock, false)) },
         }
     }
 }
@@ -101,7 +101,13 @@ pub extern "C" fn host_connect(host_ptr: *mut Ffi__Host,
 #[cfg(feature = "remote-run")]
 #[no_mangle]
 pub extern "C" fn host_close(host_ptr: *mut Ffi__Host) -> uint8_t {
-    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    // Don't use the convert trait as we want owned ZSocks
+    let ffi_host: Ffi__Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    let mut host = Host {
+        hostname: if ffi_host.hostname.is_null() { None } else { Some(ptrtostr!(ffi_host.hostname, "hostname string").unwrap().into()) },
+        api_sock: if ffi_host.api_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.api_sock, true)) },
+        file_sock: if ffi_host.file_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.file_sock, true)) },
+    };
     host.close().unwrap();
     0
 }
@@ -134,8 +140,8 @@ mod tests {
 
         let mut host = Host::new();
         assert!(host.connect("localhost", 7101, 7102, &auth_server).is_ok());
-        let ffi = Ffi__Host::from(host);
-        Host::from(ffi);
+        let mut ffi = Ffi__Host::from(host);
+        assert_eq!(host_close(&mut ffi), 0);
 
         handle.join().unwrap();
     }
