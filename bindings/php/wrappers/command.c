@@ -99,7 +99,14 @@ PHP_METHOD(Command, __construct) {
 
 	intern = (php_command*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	intern->command = command_new(cmd);
+	Command *command = command_new(cmd);
+
+	if (!command) {
+		zend_throw_exception(inapi_ce_command_exception, geterr(), 1000 TSRMLS_CC);
+		return;
+	}
+
+	intern->command = command;
 }
 
 PHP_METHOD(Command, exec) {
@@ -119,10 +126,15 @@ PHP_METHOD(Command, exec) {
 		return;
 	}
 
-	CommandResult result = command_exec(&intern->command, &host->host);
+	CommandResult *result = command_exec(intern->command, host->host);
+
+	if (!result) {
+		zend_throw_exception(inapi_ce_command_exception, geterr(), 1000 TSRMLS_CC);
+		return;
+	}
 
 	array_init(return_value);
-	add_assoc_long(return_value, "exit_code", result.exit_code);
-	add_assoc_string(return_value, "stdout", result.stdout, 1);
-	add_assoc_string(return_value, "stderr", result.stderr, 1);
+	add_assoc_long(return_value, "exit_code", result->exit_code);
+	add_assoc_string(return_value, "stdout", result->stdout, 1);
+	add_assoc_string(return_value, "stderr", result->stderr, 1);
 }

@@ -28,7 +28,7 @@ PHP_METHOD(Package, uninstall);
 typedef struct _php_package {
     zend_object std;
 
-    Package package;
+    Package *package;
 } php_package;
 
 #endif

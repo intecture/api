@@ -149,6 +149,7 @@ void free_php_service_runnable(void *object TSRMLS_DC) {
 
 PHP_METHOD(Service, __construct) {
     php_service *intern;
+    Service *service;
     zval *pactions;
     zval *pmapped_actions = NULL;
     ServiceMappedAction *mapped_actions = NULL;
@@ -193,7 +194,14 @@ PHP_METHOD(Service, __construct) {
             }
 
             php_service_runnable *runnable = (php_service_runnable*)zend_object_store_get_object(pactions TSRMLS_CC);
-            intern->service = service_new_service(runnable->service_runnable, mapped_actions, mapped_count);
+            service = service_new_service(runnable->service_runnable, mapped_actions, mapped_count);
+
+            if (!service) {
+                zend_throw_exception(inapi_ce_service_exception, geterr(), 1000 TSRMLS_CC);
+                return;
+            }
+
+            intern->service = service;
             break;
 
         case IS_ARRAY: ;
@@ -228,7 +236,14 @@ PHP_METHOD(Service, __construct) {
                 actions_count++;
             }
 
-            intern->service = service_new_map(actions, actions_count, mapped_actions, mapped_count);
+            service = service_new_map(actions, actions_count, mapped_actions, mapped_count);
+
+            if (!service) {
+                zend_throw_exception(inapi_ce_service_exception, geterr(), 1000 TSRMLS_CC);
+                return;
+            }
+
+            intern->service = service;
             break;
 
         default:
@@ -255,7 +270,7 @@ PHP_METHOD(Service, action) {
         return;
     }
 
-    CommandResult *result = service_action(&intern->service, &host->host, action);
+    CommandResult *result = service_action(intern->service, host->host, action);
 
     if (result != NULL) {
         array_init(return_value);

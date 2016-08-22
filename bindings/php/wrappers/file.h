@@ -38,7 +38,7 @@ PHP_METHOD(File, set_mode);
 typedef struct _php_file {
     zend_object std;
 
-    File file;
+    File *file;
 } php_file;
 
 #endif

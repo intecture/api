@@ -35,7 +35,7 @@ PHP_METHOD(ServiceRunnable, __construct);
 typedef struct _php_service {
     zend_object std;
 
-    Service service;
+    Service *service;
 } php_service;
 
 typedef struct _php_service_runnable {

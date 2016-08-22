@@ -117,7 +117,14 @@ PHP_METHOD(File, __construct) {
         return;
     }
 
-    intern->file = file_new(&host->host, path);
+    File *file = file_new(host->host, path);
+
+    if (!file) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    intern->file = file;
 }
 
 PHP_METHOD(File, exists) {
@@ -137,7 +144,14 @@ PHP_METHOD(File, exists) {
         return;
     }
 
-    if (file_exists(&intern->file, &host->host) == true) {
+    bool *exists = file_exists(intern->file, host->host);
+
+    if (!exists) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    if (*exists == true) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -199,7 +213,12 @@ PHP_METHOD(File, upload) {
         }
     }
 
-    file_upload(&intern->file, &host->host, path, &c_opts);
+    int rc = file_upload(intern->file, host->host, path, &c_opts);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(File, delete) {
@@ -219,7 +238,12 @@ PHP_METHOD(File, delete) {
         return;
     }
 
-    file_delete(&intern->file, &host->host);
+    int rc = file_delete(intern->file, host->host);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(File, mv) {
@@ -241,7 +265,12 @@ PHP_METHOD(File, mv) {
         return;
     }
 
-    file_mv(&intern->file, &host->host, new_path);
+    int rc = file_mv(intern->file, host->host, new_path);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(File, copy) {
@@ -263,7 +292,12 @@ PHP_METHOD(File, copy) {
         return;
     }
 
-    file_copy(&intern->file, &host->host, new_path);
+    int rc = file_copy(intern->file, host->host, new_path);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(File, get_owner) {
@@ -283,13 +317,18 @@ PHP_METHOD(File, get_owner) {
         return;
     }
 
-    FileOwner owner = file_get_owner(&intern->file, &host->host);
+    FileOwner *owner = file_get_owner(intern->file, host->host);
+
+    if (!owner) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
     array_init(return_value);
-    add_assoc_string(return_value, "user_name", owner.user_name, 1);
-    add_assoc_long(return_value, "user_uid", owner.user_uid);
-    add_assoc_string(return_value, "group_name", owner.group_name, 1);
-    add_assoc_long(return_value, "group_gid", owner.group_gid);
+    add_assoc_string(return_value, "user_name", owner->user_name, 1);
+    add_assoc_long(return_value, "user_uid", owner->user_uid);
+    add_assoc_string(return_value, "group_name", owner->group_name, 1);
+    add_assoc_long(return_value, "group_gid", owner->group_gid);
 }
 
 PHP_METHOD(File, set_owner) {
@@ -311,7 +350,12 @@ PHP_METHOD(File, set_owner) {
         return;
     }
 
-    file_set_owner(&intern->file, &host->host, user, group);
+    int rc = file_set_owner(intern->file, host->host, user, group);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(File, get_mode) {
@@ -331,7 +375,14 @@ PHP_METHOD(File, get_mode) {
         return;
     }
 
-    RETURN_LONG(file_get_mode(&intern->file, &host->host));
+    uint16_t *mode = file_get_mode(intern->file, host->host);
+
+    if (!mode) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    RETURN_LONG(*mode);
 }
 
 PHP_METHOD(File, set_mode) {
@@ -352,5 +403,10 @@ PHP_METHOD(File, set_mode) {
         return;
     }
 
-    file_set_mode(&intern->file, &host->host, mode);
+    int rc = file_set_mode(intern->file, host->host, mode);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }

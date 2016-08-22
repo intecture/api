@@ -67,7 +67,7 @@ zend_object_value create_php_host(zend_class_entry *class_type TSRMLS_DC) {
 
 void free_php_host(void *object TSRMLS_DC) {
   php_host *host = (php_host*)object;
-  host_close(&host->host);
+  host_close(host->host);
   efree(host);
 }
 
@@ -96,7 +96,15 @@ PHP_METHOD(Host, __construct) {
     }
 
     intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
-    intern->host = host_new();
+
+    Host *host = host_new();
+
+    if (!host) {
+        zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    intern->host = host;
 }
 
 PHP_METHOD(Host, connect) {
@@ -110,7 +118,13 @@ PHP_METHOD(Host, connect) {
 	}
 
 	intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
-	host_connect(&intern->host, hostname, api_port, upload_port, auth_server);
+
+	int rc = host_connect(intern->host, hostname, api_port, upload_port, auth_server);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 int get_check_host(zval *phost, php_host **host TSRMLS_DC) {

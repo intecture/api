@@ -115,7 +115,14 @@ PHP_METHOD(Directory, __construct) {
         return;
     }
 
-    intern->directory = directory_new(&host->host, path);
+    Directory *directory = directory_new(host->host, path);
+
+    if (!directory) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    intern->directory = directory;
 }
 
 PHP_METHOD(Directory, exists) {
@@ -135,7 +142,14 @@ PHP_METHOD(Directory, exists) {
         return;
     }
 
-    if (directory_exists(&intern->directory, &host->host) == true) {
+    bool *result = directory_exists(intern->directory, host->host);
+
+    if (!result) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    if (*result == true) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -184,7 +198,12 @@ PHP_METHOD(Directory, create) {
         }
     }
 
-    directory_create(&intern->directory, &host->host, &c_opts);
+    int rc = directory_create(intern->directory, host->host, &c_opts);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(Directory, delete) {
@@ -229,7 +248,12 @@ PHP_METHOD(Directory, delete) {
         }
     }
 
-    directory_delete(&intern->directory, &host->host, &c_opts);
+    int rc = directory_delete(intern->directory, host->host, &c_opts);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(Directory, mv) {
@@ -251,7 +275,12 @@ PHP_METHOD(Directory, mv) {
         return;
     }
 
-    directory_mv(&intern->directory, &host->host, new_path);
+    int rc = directory_mv(intern->directory, host->host, new_path);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(Directory, get_owner) {
@@ -271,13 +300,18 @@ PHP_METHOD(Directory, get_owner) {
         return;
     }
 
-    FileOwner owner = directory_get_owner(&intern->directory, &host->host);
+    FileOwner *owner = directory_get_owner(intern->directory, host->host);
+
+    if (!owner) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
     array_init(return_value);
-    add_assoc_string(return_value, "user_name", owner.user_name, 1);
-    add_assoc_long(return_value, "user_uid", owner.user_uid);
-    add_assoc_string(return_value, "group_name", owner.group_name, 1);
-    add_assoc_long(return_value, "group_gid", owner.group_gid);
+    add_assoc_string(return_value, "user_name", owner->user_name, 1);
+    add_assoc_long(return_value, "user_uid", owner->user_uid);
+    add_assoc_string(return_value, "group_name", owner->group_name, 1);
+    add_assoc_long(return_value, "group_gid", owner->group_gid);
 }
 
 PHP_METHOD(Directory, set_owner) {
@@ -299,7 +333,12 @@ PHP_METHOD(Directory, set_owner) {
         return;
     }
 
-    directory_set_owner(&intern->directory, &host->host, user, group);
+    int rc = directory_set_owner(intern->directory, host->host, user, group);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(Directory, get_mode) {
@@ -319,7 +358,14 @@ PHP_METHOD(Directory, get_mode) {
         return;
     }
 
-    RETURN_LONG(directory_get_mode(&intern->directory, &host->host));
+    uint16_t *mode = directory_get_mode(intern->directory, host->host);
+
+    if (!mode) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    RETURN_LONG(*mode);
 }
 
 PHP_METHOD(Directory, set_mode) {
@@ -340,5 +386,10 @@ PHP_METHOD(Directory, set_mode) {
         return;
     }
 
-    directory_set_mode(&intern->directory, &host->host, mode);
+    int rc = directory_set_mode(intern->directory, host->host, mode);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }

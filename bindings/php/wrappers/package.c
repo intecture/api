@@ -118,7 +118,14 @@ PHP_METHOD(Package, __construct) {
         return;
     }
 
-    intern->package = package_new(&host->host, name, providers);
+    Package *package = package_new(host->host, name, providers);
+
+    if (!package) {
+        zend_throw_exception(inapi_ce_package_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    intern->package = package;
 }
 
 PHP_METHOD(Package, is_installed) {
@@ -130,7 +137,14 @@ PHP_METHOD(Package, is_installed) {
 
     intern = (php_package*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-    if (package_is_installed(&intern->package) == true) {
+    bool *installed = package_is_installed(intern->package);
+
+    if (!installed) {
+        zend_throw_exception(inapi_ce_package_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    if (*installed == true) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -155,9 +169,14 @@ PHP_METHOD(Package, install) {
     }
 
     CommandResult cmd_result;
-    enum PackageResult result = package_install(&intern->package, &host->host, &cmd_result);
+    enum PackageResult *result = package_install(intern->package, host->host, &cmd_result);
 
-    if (result == 0) {
+    if (!result) {
+        zend_throw_exception(inapi_ce_package_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    if (*result == 0) {
         array_init(return_value);
         add_assoc_long(return_value, "exit_code", cmd_result.exit_code);
         add_assoc_string(return_value, "stdout", cmd_result.stdout, 1);
@@ -185,7 +204,12 @@ PHP_METHOD(Package, uninstall) {
     }
 
     CommandResult cmd_result;
-    enum PackageResult result = package_uninstall(&intern->package, &host->host, &cmd_result);
+    enum PackageResult *result = package_uninstall(intern->package, host->host, &cmd_result);
+
+    if (!*result) {
+        zend_throw_exception(inapi_ce_package_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
     if (result == 0) {
         array_init(return_value);

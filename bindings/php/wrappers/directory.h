@@ -36,7 +36,7 @@ PHP_METHOD(Directory, set_mode);
 typedef struct _php_directory {
     zend_object std;
 
-    Directory directory;
+    Directory *directory;
 } php_directory;
 
 #endif

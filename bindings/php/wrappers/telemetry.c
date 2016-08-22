@@ -154,22 +154,22 @@ zval* netif_to_array(Netif *netif) {
         add_assoc_string(znetif, "status", netif->status, 1);
     }
 
-    if (netif->inet.address && netif->inet.address[0] != '\0') {
+    if (netif->inet->address && netif->inet->address[0] != '\0') {
         ALLOC_INIT_ZVAL(inet4);
         array_init(inet4);
 
-        add_assoc_string(inet4, "address", netif->inet.address, 1);
-        add_assoc_string(inet4, "netmask", netif->inet.netmask, 1);
+        add_assoc_string(inet4, "address", netif->inet->address, 1);
+        add_assoc_string(inet4, "netmask", netif->inet->netmask, 1);
         add_assoc_zval(znetif, "inet", inet4);
     }
 
-    if (netif->inet6.address && netif->inet6.address[0] != '\0') {
+    if (netif->inet6->address && netif->inet6->address[0] != '\0') {
         ALLOC_INIT_ZVAL(inet6);
         array_init(inet6);
 
-        add_assoc_string(inet6, "address", netif->inet6.address, 1);
-        add_assoc_long(inet6, "prefixlen", netif->inet6.prefixlen);
-        add_assoc_string(inet6, "scope_id", netif->inet6.scopeid, 1);
+        add_assoc_string(inet6, "address", netif->inet6->address, 1);
+        add_assoc_long(inet6, "prefixlen", netif->inet6->prefixlen);
+        add_assoc_string(inet6, "scope_id", netif->inet6->scopeid, 1);
         add_assoc_zval(znetif, "inet6", inet6);
     }
 
@@ -211,12 +211,18 @@ PHP_METHOD(Telemetry, load) {
 		return;
 	}
 
-    Telemetry telemetry = telemetry_init(&host->host);
-    intern->telemetry = telemetry_to_array(&telemetry);
+    Telemetry *telemetry = telemetry_init(host->host);
+
+	if (!telemetry) {
+		zend_throw_exception(inapi_ce_telemetry_exception, geterr(), 1000 TSRMLS_CC);
+		return;
+	}
+
+    intern->telemetry = telemetry_to_array(telemetry);
 
     // Free the original struct as we have a native zval
     // representation instead.
-    telemetry_free(&telemetry);
+    telemetry_free(telemetry);
 }
 
 PHP_METHOD(Telemetry, __construct) {

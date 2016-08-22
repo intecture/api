@@ -26,7 +26,7 @@ PHP_METHOD(Command, exec);
 typedef struct _php_command {
     zend_object std;
 
-    Command command;
+    Command *command;
 } php_command;
 
 #endif

@@ -26,7 +26,7 @@ PHP_METHOD(Host, connect);
 typedef struct _php_host {
     zend_object std;
 
-    Host host;
+    Host *host;
 } php_host;
 
 int get_check_host(zval *phost, php_host **host TSRMLS_DC);
