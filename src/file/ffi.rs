@@ -13,6 +13,7 @@ use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t, uint16_t, uint64_t};
 use std::{convert, ptr};
 use std::ffi::CString;
+use std::panic::catch_unwind;
 use std::path::PathBuf;
 use super::*;
 use zfilexfer::FileOptions;
@@ -30,10 +31,10 @@ impl convert::From<File> for Ffi__File {
     }
 }
 
-impl convert::From<Ffi__File> for File {
-    fn from(ffi_file: Ffi__File) -> File {
+impl convert::Into<File> for Ffi__File {
+    fn into(self) -> File {
         File {
-            path: PathBuf::from(ptrtostr!(ffi_file.path, "path string").unwrap()),
+            path: PathBuf::from(trypanic!(ptrtostr!(self.path, "path string"))),
         }
     }
 }
@@ -45,15 +46,15 @@ pub struct Ffi__FileOptions {
     chunk_size: *const uint64_t,
 }
 
-impl convert::From<Ffi__FileOptions> for Vec<FileOptions> {
-    fn from(ffi_opts: Ffi__FileOptions) -> Vec<FileOptions> {
+impl convert::Into<Vec<FileOptions>> for Ffi__FileOptions {
+    fn into(self) -> Vec<FileOptions> {
         let mut opts = vec![];
-        if ffi_opts.backup_existing != ptr::null() {
-            let suffix: String = ptrtostr!(ffi_opts.backup_existing, "suffix string").unwrap().into();
+        if self.backup_existing != ptr::null() {
+            let suffix: String = trypanic!(ptrtostr!(self.backup_existing, "suffix string")).into();
             opts.push(FileOptions::BackupExisting(suffix));
         }
-        if ffi_opts.chunk_size != ptr::null() {
-            opts.push(FileOptions::ChunkSize(readptr!(ffi_opts.chunk_size, "chunk size int").unwrap()));
+        if self.chunk_size != ptr::null() {
+            opts.push(FileOptions::ChunkSize(trypanic!(readptr!(self.chunk_size, "chunk size int"))));
         }
         opts
     }
@@ -78,13 +79,13 @@ impl convert::From<FileOwner> for Ffi__FileOwner {
     }
 }
 
-impl convert::From<Ffi__FileOwner> for FileOwner {
-    fn from(ffi_owner: Ffi__FileOwner) -> FileOwner {
+impl convert::Into<FileOwner> for Ffi__FileOwner {
+    fn into(self) -> FileOwner {
         FileOwner {
-            user_name: ptrtostr!(ffi_owner.user_name, "user name string").unwrap().into(),
-            user_uid: ffi_owner.user_uid as u64,
-            group_name: ptrtostr!(ffi_owner.group_name, "group name string").unwrap().into(),
-            group_gid: ffi_owner.group_gid as u64,
+            user_name: trypanic!(ptrtostr!(self.user_name, "user name string")).into(),
+            user_uid: self.user_uid as u64,
+            group_name: trypanic!(ptrtostr!(self.group_name, "group name string")).into(),
+            group_gid: self.group_gid as u64,
         }
     }
 }
@@ -94,9 +95,9 @@ pub extern "C" fn file_new(host_ptr: *const Ffi__Host, path_ptr: *const c_char) 
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
     let path = trynull!(ptrtostr!(path_ptr, "path string"));
 
-    let result = Ffi__File::from(trynull!(File::new(&mut host, path)));
-
-    Box::into_raw(Box::new(result))
+    let file = trynull!(File::new(&mut host, path));
+    let ffi_file: Ffi__File = trynull!(catch_unwind(|| file.into()));
+    Box::into_raw(Box::new(ffi_file))
 }
 
 #[no_mangle]
@@ -105,7 +106,6 @@ pub extern "C" fn file_exists(file_ptr: *const Ffi__File, host_ptr: *const Ffi__
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
     let result = if trynull!(file.exists(&mut host)) { 1 } else { 0 };
-
     Box::into_raw(Box::new(result))
 }
 
@@ -147,7 +147,8 @@ pub extern "C" fn file_mv(file_ptr: *mut Ffi__File, host_ptr: *const Ffi__Host, 
     tryrc!(file.mv(&mut host, new_path));
 
     // Write mutated File path back to pointer
-    unsafe { ptr::write(&mut *file_ptr, Ffi__File::from(file)); }
+    let ffi_file = tryrc!(catch_unwind(|| file.into()));
+    unsafe { ptr::write(&mut *file_ptr, ffi_file); }
 
     0
 }
@@ -168,9 +169,9 @@ pub extern "C" fn file_get_owner(file_ptr: *const Ffi__File, host_ptr: *const Ff
     let file: File = trynull!(readptr!(file_ptr, "File struct"));
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
-    let result = Ffi__FileOwner::from(trynull!(file.get_owner(&mut host)));
-
-    Box::into_raw(Box::new(result))
+    let owner = trynull!(file.get_owner(&mut host));
+    let ffi_owner: Ffi__FileOwner = trynull!(catch_unwind(|| owner.into()));
+    Box::into_raw(Box::new(ffi_owner))
 }
 
 #[no_mangle]
@@ -194,7 +195,6 @@ pub extern "C" fn file_get_mode(file_ptr: *const Ffi__File, host_ptr: *const Ffi
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
     let result = trynull!(file.get_mode(&mut host));
-
     Box::into_raw(Box::new(result))
 }
 
@@ -269,7 +269,7 @@ mod tests {
         let ffi_file = Ffi__File {
             path: CString::new("/path/to/file").unwrap().into_raw(),
         };
-        let file = File::from(ffi_file);
+        let file: File = ffi_file.into();
 
         assert_eq!(file.path, Path::new("/path/to/file"));
     }
@@ -280,7 +280,7 @@ mod tests {
             backup_existing: CString::new("_bak").unwrap().into_raw(),
             chunk_size: &123,
         };
-        let file_options = Vec::<FileOptions>::from(ffi_file_options);
+        let file_options: Vec<FileOptions> = ffi_file_options.into();
 
         for opt in file_options {
             match opt {
@@ -314,7 +314,7 @@ mod tests {
             group_name: CString::new("Cow").unwrap().into_raw(),
             group_gid: 456
         };
-        let owner = FileOwner::from(ffi_owner);
+        let owner: FileOwner = ffi_owner.into();
 
         assert_eq!(&owner.user_name, "Moo");
         assert_eq!(owner.user_uid, 123);

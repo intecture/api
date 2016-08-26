@@ -14,6 +14,7 @@ use host::ffi::Ffi__Host;
 use libc::{c_char, c_float, uint8_t, uint32_t, uint64_t};
 use std::{convert, ptr};
 use std::ffi::CString;
+use std::panic::catch_unwind;
 use super::*;
 
 #[repr(C)]
@@ -50,29 +51,27 @@ impl convert::From<Telemetry> for Ffi__Telemetry {
     }
 }
 
-impl convert::From<Ffi__Telemetry> for Telemetry {
-    fn from(ffi_telemetry: Ffi__Telemetry) -> Telemetry {
-        assert!(!ffi_telemetry.fs.ptr.is_null());
-        let fs_vec = unsafe { Vec::from_raw_parts(ffi_telemetry.fs.ptr, ffi_telemetry.fs.length, ffi_telemetry.fs.capacity) };
-        let mut fs = vec![];
-        for mount in fs_vec {
-            fs.push(FsMount::from(mount));
+impl convert::Into<Telemetry> for Ffi__Telemetry {
+    fn into(self) -> Telemetry {
+        let ffi_fs: Vec<_> = self.fs.into();
+        let mut fs: Vec<FsMount> = vec![];
+        for mount in ffi_fs {
+            fs.push(mount.into());
         }
 
-        assert!(!ffi_telemetry.net.ptr.is_null());
-        let net_vec = unsafe { Vec::from_raw_parts(ffi_telemetry.net.ptr, ffi_telemetry.net.length, ffi_telemetry.net.capacity) };
-        let mut net = vec![];
-        for iface in net_vec {
-            net.push(Netif::from(iface));
+        let ffi_net: Vec<_> = self.net.into();
+        let mut net: Vec<Netif> = vec![];
+        for iface in ffi_net {
+            net.push(iface.into());
         }
 
         Telemetry {
-            cpu: Cpu::from(ffi_telemetry.cpu),
+            cpu: self.cpu.into(),
             fs: fs,
-            hostname: ptrtostr!(ffi_telemetry.hostname, "hostname string").unwrap().into(),
-            memory: ffi_telemetry.memory as u64,
+            hostname: trypanic!(ptrtostr!(self.hostname, "hostname string")).into(),
+            memory: self.memory as u64,
             net: net,
-            os: Os::from(ffi_telemetry.os),
+            os: self.os.into(),
         }
     }
 }
@@ -94,12 +93,12 @@ impl convert::From<Cpu> for Ffi__Cpu {
     }
 }
 
-impl convert::From<Ffi__Cpu> for Cpu {
-    fn from(ffi_cpu: Ffi__Cpu) -> Cpu {
+impl convert::Into<Cpu> for Ffi__Cpu {
+    fn into(self) -> Cpu {
         Cpu {
-            vendor: ptrtostr!(ffi_cpu.vendor, "vendor string").unwrap().into(),
-            brand_string: ptrtostr!(ffi_cpu.brand_string, "brand string").unwrap().into(),
-            cores: ffi_cpu.cores,
+            vendor: trypanic!(ptrtostr!(self.vendor, "vendor string")).into(),
+            brand_string: trypanic!(ptrtostr!(self.brand_string, "brand string")).into(),
+            cores: self.cores,
         }
     }
 }
@@ -112,9 +111,6 @@ pub struct Ffi__FsMount {
     pub used: uint64_t,
     pub available: uint64_t,
     pub capacity: c_float,
-//    pub inodes_used: uint64_t,
-//    pub inodes_available: uint64_t,
-//    pub inodes_capacity: c_float,
 }
 
 impl convert::From<FsMount> for Ffi__FsMount {
@@ -126,25 +122,19 @@ impl convert::From<FsMount> for Ffi__FsMount {
             used: mount.used,
             available: mount.available,
             capacity: mount.capacity,
-//            inodes_used: mount.inodes_used,
-//            inodes_available: mount.inodes_available,
-//            inodes_capacity: mount.inodes_capacity,
         }
     }
 }
 
-impl convert::From<Ffi__FsMount> for FsMount {
-    fn from(ffi_mount: Ffi__FsMount) -> FsMount {
+impl convert::Into<FsMount> for Ffi__FsMount {
+    fn into(self) -> FsMount {
         FsMount {
-            filesystem: ptrtostr!(ffi_mount.filesystem, "filesystem string").unwrap().into(),
-            mountpoint: ptrtostr!(ffi_mount.mountpoint, "mountpoint string").unwrap().into(),
-            size: ffi_mount.size,
-            used: ffi_mount.used,
-            available: ffi_mount.available,
-            capacity: ffi_mount.capacity,
-//            inodes_used: ffi_mount.inodes_used,
-//            inodes_available: ffi_mount.inodes_available,
-//            inodes_capacity: ffi_mount.inodes_capacity,
+            filesystem: trypanic!(ptrtostr!(self.filesystem, "filesystem string")).into(),
+            mountpoint: trypanic!(ptrtostr!(self.mountpoint, "mountpoint string")).into(),
+            size: self.size,
+            used: self.used,
+            available: self.available,
+            capacity: self.capacity,
         }
     }
 }
@@ -185,29 +175,29 @@ impl convert::From<Netif> for Ffi__Netif {
     }
 }
 
-impl convert::From<Ffi__Netif> for Netif {
-    fn from(ffi_netif: Ffi__Netif) -> Netif {
+impl convert::Into<Netif> for Ffi__Netif {
+    fn into(self) -> Netif {
         Netif {
-            interface: ptrtostr!(ffi_netif.interface, "interface string").unwrap().into(),
-            mac: if ffi_netif.mac.is_null() {
+            interface: trypanic!(ptrtostr!(self.interface, "interface string")).into(),
+            mac: if self.mac.is_null() {
                 None
             } else {
-                Some(ptrtostr!(ffi_netif.mac, "mac string").unwrap().into())
+                Some(trypanic!(ptrtostr!(self.mac, "mac string")).into())
             },
-            inet: if ffi_netif.inet.is_null() {
+            inet: if self.inet.is_null() {
                 None
             } else {
-                Some(readptr!(ffi_netif.inet, "NetifIPv4 struct").unwrap())
+                Some(trypanic!(readptr!(self.inet, "NetifIPv4 struct")))
             },
-            inet6: if ffi_netif.inet6.is_null() {
+            inet6: if self.inet6.is_null() {
                 None
             } else {
-                Some(readptr!(ffi_netif.inet6, "NetifIPv6 struct").unwrap())
+                Some(trypanic!(readptr!(self.inet6, "NetifIPv6 struct")))
             },
-            status: if ffi_netif.status.is_null() {
+            status: if self.status.is_null() {
                 None
             } else {
-                Some(match ptrtostr!(ffi_netif.status, "NetifStatus struct").unwrap() {
+                Some(match trypanic!(ptrtostr!(self.status, "NetifStatus struct")) {
                     "Active" => NetifStatus::Active,
                     "Inactive" => NetifStatus::Inactive,
                     _ => unreachable!(),
@@ -232,11 +222,11 @@ impl convert::From<NetifIPv4> for Ffi__NetifIPv4 {
     }
 }
 
-impl convert::From<Ffi__NetifIPv4> for NetifIPv4 {
-    fn from(ffi_netif: Ffi__NetifIPv4) -> NetifIPv4 {
+impl convert::Into<NetifIPv4> for Ffi__NetifIPv4 {
+    fn into(self) -> NetifIPv4 {
         NetifIPv4 {
-            address: ptrtostr!(ffi_netif.address, "address string").unwrap().into(),
-            netmask: ptrtostr!(ffi_netif.netmask, "netmask string").unwrap().into(),
+            address: trypanic!(ptrtostr!(self.address, "address string")).into(),
+            netmask: trypanic!(ptrtostr!(self.netmask, "netmask string")).into(),
         }
     }
 }
@@ -262,15 +252,15 @@ impl convert::From<NetifIPv6> for Ffi__NetifIPv6 {
     }
 }
 
-impl convert::From<Ffi__NetifIPv6> for NetifIPv6 {
-    fn from(netif: Ffi__NetifIPv6) -> NetifIPv6 {
+impl convert::Into<NetifIPv6> for Ffi__NetifIPv6 {
+    fn into(self) -> NetifIPv6 {
         NetifIPv6 {
-            address: ptrtostr!(netif.address, "address string").unwrap().into(),
-            prefixlen: netif.prefixlen,
-            scopeid: if netif.scopeid.is_null() {
+            address: trypanic!(ptrtostr!(self.address, "address string")).into(),
+            prefixlen: self.prefixlen,
+            scopeid: if self.scopeid.is_null() {
                 None
             } else {
-                Some(ptrtostr!(netif.scopeid, "scopeid string").unwrap().into())
+                Some(trypanic!(ptrtostr!(self.scopeid, "scopeid string")).into())
             },
         }
     }
@@ -295,13 +285,13 @@ impl convert::From<Os> for Ffi__Os {
     }
 }
 
-impl convert::From<Ffi__Os> for Os {
-    fn from(os: Ffi__Os) -> Os {
+impl convert::Into<Os> for Ffi__Os {
+    fn into(self) -> Os {
         Os {
-            arch: ptrtostr!(os.arch, "arch string").unwrap().into(),
-            family: ptrtostr!(os.family, "family string").unwrap().into(),
-            platform: ptrtostr!(os.platform, "platform string").unwrap().into(),
-            version: ptrtostr!(os.version, "version string").unwrap().into(),
+            arch: trypanic!(ptrtostr!(self.arch, "arch string")).into(),
+            family: trypanic!(ptrtostr!(self.family, "family string")).into(),
+            platform: trypanic!(ptrtostr!(self.platform, "platform string")).into(),
+            version: trypanic!(ptrtostr!(self.version, "version string")).into(),
         }
     }
 }
@@ -309,9 +299,9 @@ impl convert::From<Ffi__Os> for Os {
 #[no_mangle]
 pub extern "C" fn telemetry_init(host_ptr: *mut Ffi__Host) -> *const Ffi__Telemetry {
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
-    let telemetry = Ffi__Telemetry::from(trynull!(Telemetry::init(&mut host)));
-
-    Box::into_raw(Box::new(telemetry))
+    let telemetry = trynull!(Telemetry::init(&mut host));
+    let ffi_t = trynull!(catch_unwind(|| telemetry.into()));
+    Box::into_raw(Box::new(ffi_t))
 }
 
 #[no_mangle]
@@ -331,12 +321,8 @@ mod tests {
 
     #[test]
     fn test_convert_telemetry() {
-        Ffi__Telemetry::from(create_telemetry());
-    }
-
-    #[test]
-    fn test_convert_ffi_telemetry() {
-        Telemetry::from(create_ffi_telemetry());
+        let _: Ffi__Telemetry = create_telemetry().into();
+        let _: Telemetry = create_ffi_telemetry().into();
     }
 
     #[test]

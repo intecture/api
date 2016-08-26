@@ -12,15 +12,16 @@ use libc::c_char;
 use regex;
 use rustc_serialize::json;
 use std::{convert, error, fmt, io, num, ptr, str, string};
+use std::any::Any;
 use std::ffi::CString;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
 
 /// Error message constant for communicating errors from the FFI to C consumers
-pub static mut ERRMSG: *const c_char = 0 as *const i8;
+pub static mut ERRMSG: *const c_char = 0 as *const c_char;
 
-pub fn seterr<E: Into<Error> + fmt::Display>(err: E) {
-    unsafe { ERRMSG = CString::new(err.to_string()).unwrap().into_raw(); }
+pub fn seterr<E: Into<Error>>(err: E) {
+    unsafe { ERRMSG = CString::new(err.into().to_string()).unwrap().into_raw(); }
 }
 
 #[no_mangle]
@@ -58,7 +59,7 @@ pub enum Error {
     /// IO error
     Io(io::Error),
     /// FFI received null pointer
-    NullPtr(String),
+    NullPtr(&'static str),
     /// Cast str as float
     ParseFloat(num::ParseFloatError),
     /// Cast str as int
@@ -73,6 +74,8 @@ pub enum Error {
     /// ZFileXfer error
     ZFileXfer(zfilexfer::Error),
 }
+
+unsafe impl Send for Error {}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -128,6 +131,19 @@ impl error::Error for Error {
             Error::StringFromUtf8(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
             Error::ZFileXfer(ref e) => e.description(),
+        }
+    }
+}
+
+// Specifically for catch_unwind()
+impl convert::From<Box<Any + Send>> for Error {
+    fn from(err: Box<Any + Send>) -> Error {
+        match err.downcast::<Error>() {
+            Ok(e) => *e,
+            Err(err) => match err.downcast::<String>() {
+                Ok(s) => Error::Generic(*s),
+                Err(_) => Error::Generic("Could not convert panic to Error".into())
+            }
         }
     }
 }

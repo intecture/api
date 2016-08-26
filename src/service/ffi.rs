@@ -16,6 +16,7 @@ use libc::{c_char, size_t};
 use std::{convert, ptr};
 use std::collections::HashMap;
 use std::ffi::CString;
+use std::panic::catch_unwind;
 use super::*;
 
 #[repr(C)]
@@ -39,12 +40,12 @@ impl <'a>convert::From<ServiceRunnable<'a>> for Ffi__ServiceRunnable {
     }
 }
 
-impl <'a>convert::From<Ffi__ServiceRunnable> for ServiceRunnable<'a> {
-    fn from(ffi_runnable: Ffi__ServiceRunnable) -> ServiceRunnable<'a> {
-        if !ffi_runnable.command.is_null() {
-            ServiceRunnable::Command(ptrtostr!(ffi_runnable.command, "command string").unwrap())
+impl <'a>convert::Into<ServiceRunnable<'a>> for Ffi__ServiceRunnable {
+    fn into(self) -> ServiceRunnable<'a> {
+        if !self.command.is_null() {
+            ServiceRunnable::Command(trypanic!(ptrtostr!(self.command, "command string")))
         } else {
-            ServiceRunnable::Service(ptrtostr!(ffi_runnable.service, "service string").unwrap())
+            ServiceRunnable::Service(trypanic!(ptrtostr!(self.service, "service string")))
         }
     }
 }
@@ -71,21 +72,20 @@ impl <'a>convert::From<HashMap<&'a str, ServiceRunnable<'a>>> for Ffi__Array<Ffi
     }
 }
 
-// Because we can't implement an un-owned trait on an un-owned
-// struct, we have to roll our own fn.
-fn convert_from_actions<'a>(ffi_actions: Ffi__Array<Ffi__ServiceAction>) -> HashMap<&'a str, ServiceRunnable<'a>> {
-    assert!(!ffi_actions.ptr.is_null());
+impl <'a>convert::Into<HashMap<&'a str, ServiceRunnable<'a>>> for Ffi__Array<Ffi__ServiceAction> {
+    fn into(self) -> HashMap<&'a str, ServiceRunnable<'a>> {
+        let actions_vec: Vec<_> = self.into();
 
-    let actions_vec = unsafe { Vec::from_raw_parts(ffi_actions.ptr, ffi_actions.length, ffi_actions.capacity) };
-    let mut actions = HashMap::new();
-    for action in actions_vec {
-        actions.insert(
-            ptrtostr!(action.action, "action string").unwrap(),
-            ServiceRunnable::from(action.runnable)
-        );
+        let mut actions = HashMap::new();
+        for action in actions_vec {
+            actions.insert(
+                trypanic!(ptrtostr!(action.action, "action string")),
+                action.runnable.into()
+            );
+        }
+
+        actions
     }
-
-    actions
 }
 
 #[repr(C)]
@@ -110,21 +110,20 @@ impl <'a>convert::From<HashMap<&'a str, &'a str>> for Ffi__Array<Ffi__ServiceMap
     }
 }
 
-// Because we can't implement an un-owned trait on an un-owned
-// struct, we have to roll our own fn.
-fn convert_from_mapped_actions<'a>(ffi_actions: Ffi__Array<Ffi__ServiceMappedAction>) -> HashMap<&'a str, &'a str> {
-    assert!(!ffi_actions.ptr.is_null());
+impl <'a>convert::Into<HashMap<&'a str, &'a str>> for Ffi__Array<Ffi__ServiceMappedAction> {
+    fn into(self) -> HashMap<&'a str, &'a str> {
+        let actions_vec: Vec<_> = self.into();
 
-    let actions_vec = unsafe { Vec::from_raw_parts(ffi_actions.ptr, ffi_actions.length, ffi_actions.capacity) };
-    let mut actions = HashMap::new();
-    for action in actions_vec {
-        actions.insert(
-            ptrtostr!(action.action, "action string").unwrap(),
-            ptrtostr!(action.mapped_action, "mapped action string").unwrap(),
-        );
+        let mut actions = HashMap::new();
+        for action in actions_vec {
+            actions.insert(
+                trypanic!(ptrtostr!(action.action, "action string")),
+                trypanic!(ptrtostr!(action.mapped_action, "mapped_action string")),
+            );
+        }
+
+        actions
     }
-
-    actions
 }
 
 #[repr(C)]
@@ -146,14 +145,14 @@ impl <'a>convert::From<Service<'a>> for Ffi__Service {
     }
 }
 
-impl <'a>convert::From<Ffi__Service> for Service<'a> {
-    fn from(ffi_service: Ffi__Service) -> Service<'a> {
+impl <'a>convert::Into<Service<'a>> for Ffi__Service {
+    fn into(self) -> Service<'a> {
         Service {
-            actions: convert_from_actions(ffi_service.actions),
-            mapped_actions: if ffi_service.mapped_actions.is_null() {
+            actions: self.actions.into(),
+            mapped_actions: if self.mapped_actions.is_null() {
                 None
             } else {
-                Some(convert_from_mapped_actions(unsafe { ptr::read(ffi_service.mapped_actions) }))
+                Some(trypanic!(readptr!(self.mapped_actions, "mapped_actions array")))
             }
         }
     }
@@ -163,18 +162,19 @@ impl <'a>convert::From<Ffi__Service> for Service<'a> {
 pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable,
                                       mapped_actions: *mut Ffi__ServiceMappedAction,
                                       mapped_actions_len: size_t) -> *mut Ffi__Service {
-    let runnable = ServiceRunnable::from(ffi_runnable);
+    let runnable: ServiceRunnable = trynull!(catch_unwind(|| ffi_runnable.into()));
     let mapped_actions = if !mapped_actions.is_null() {
-        Some(convert_from_mapped_actions(Ffi__Array {
+        Some(trynull!(catch_unwind(|| Ffi__Array {
             ptr: mapped_actions,
             length: mapped_actions_len,
             capacity: mapped_actions_len,
-        }))
+        }.into())))
     } else {
         None
     };
 
-    Box::into_raw(Box::new(Ffi__Service::from(Service::new_service(runnable, mapped_actions))))
+    let ffi_svc = trynull!(catch_unwind(|| Service::new_service(runnable, mapped_actions).into()));
+    Box::into_raw(Box::new(ffi_svc))
 }
 
 #[no_mangle]
@@ -182,22 +182,23 @@ pub extern "C" fn service_new_map(actions_ptr: *mut Ffi__ServiceAction,
                                   actions_len: size_t,
                                   mapped_actions_ptr: *mut Ffi__ServiceMappedAction,
                                   mapped_actions_len: size_t) -> *mut Ffi__Service {
-    let actions = convert_from_actions(Ffi__Array {
+    let actions: HashMap<_, _> = trynull!(catch_unwind(|| Ffi__Array {
         ptr: actions_ptr,
         length: actions_len,
         capacity: actions_len,
-    });
+    }.into()));
     let mapped_actions = if !mapped_actions_ptr.is_null() {
-        Some(convert_from_mapped_actions(Ffi__Array {
+        Some(trynull!(catch_unwind(|| Ffi__Array {
             ptr: mapped_actions_ptr,
             length: mapped_actions_len,
             capacity: mapped_actions_len,
-        }))
+        }.into())))
     } else {
         None
     };
 
-    Box::into_raw(Box::new(Ffi__Service::from(Service::new_map(actions, mapped_actions))))
+    let ffi_svc = trynull!(catch_unwind(|| Service::new_map(actions, mapped_actions).into()));
+    Box::into_raw(Box::new(ffi_svc))
 }
 
 #[no_mangle]
@@ -207,7 +208,10 @@ pub extern "C" fn service_action(service_ptr: *mut Ffi__Service, host_ptr: *cons
     let action = trynull!(ptrtostr!(action_ptr, "action string"));
 
     let result = match trynull!(service.action(&mut host, action)) {
-        Some(result) => Box::into_raw(Box::new(Ffi__CommandResult::from(result))),
+        Some(result) => {
+            let ffi_r = trynull!(catch_unwind(|| result.into()));
+            Box::into_raw(Box::new(ffi_r))
+        },
         None => ptr::null(),
     };
 
@@ -216,7 +220,8 @@ pub extern "C" fn service_action(service_ptr: *mut Ffi__Service, host_ptr: *cons
     // lifetime as the service binding. To avoid freeing this memory
     // when the binding goes out of scope, we convert the Service
     // back to an FFI Service and write it to the pointer.
-    unsafe { ptr::write(&mut *service_ptr, Ffi__Service::from(service)); }
+    let ffi_svc = trynull!(catch_unwind(|| service.into()));
+    unsafe { ptr::write(&mut *service_ptr, ffi_svc); }
 
     result
 }
@@ -237,7 +242,6 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use std::thread;
     use super::*;
-    use super::{convert_from_actions, convert_from_mapped_actions};
 
     #[test]
     fn test_convert_service_runnable_cmd() {
@@ -255,10 +259,10 @@ mod tests {
 
     #[test]
     fn test_convert_ffi_service_runnable_cmd() {
-        let runnable = ServiceRunnable::from(Ffi__ServiceRunnable {
+        let runnable: ServiceRunnable = Ffi__ServiceRunnable {
             command: CString::new("test").unwrap().into_raw(),
             service: ptr::null_mut(),
-        });
+        }.into();
 
         match runnable {
             ServiceRunnable::Command(cmd) => assert_eq!(cmd, "test"),
@@ -268,10 +272,10 @@ mod tests {
 
     #[test]
     fn test_convert_ffi_service_runnable_svc() {
-        let runnable = ServiceRunnable::from(Ffi__ServiceRunnable {
+        let runnable: ServiceRunnable = Ffi__ServiceRunnable {
             command: ptr::null_mut(),
             service: CString::new("test").unwrap().into_raw(),
-        });
+        }.into();
 
         match runnable {
             ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),
@@ -285,7 +289,7 @@ mod tests {
         actions.insert("test", ServiceRunnable::Service("test"));
 
         let ffi_actions = Ffi__Array::from(actions);
-        actions = convert_from_actions(ffi_actions);
+        let actions: HashMap<_, _> = ffi_actions.into();
 
         match actions.get("test").unwrap() {
             &ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),
@@ -299,7 +303,7 @@ mod tests {
         actions.insert("test", "mapped_test");
 
         let ffi_actions = Ffi__Array::from(actions);
-        actions = convert_from_mapped_actions(ffi_actions);
+        let actions: HashMap<_, _> = ffi_actions.into();
 
         assert_eq!(actions.get("test").unwrap(), &"mapped_test");
     }
@@ -312,13 +316,11 @@ mod tests {
         let mut mapped = HashMap::new();
         mapped.insert("test", "mapped_test");
 
-        let mut service = Service {
+        let ffi_service: Ffi__Service = Service {
             actions: actions,
             mapped_actions: Some(mapped),
-        };
-
-        let ffi_service = Ffi__Service::from(service);
-        service = Service::from(ffi_service);
+        }.into();
+        let service: Service = ffi_service.into();
 
         match service.actions.get("test").unwrap() {
             &ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),

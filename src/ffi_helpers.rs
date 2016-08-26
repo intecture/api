@@ -6,6 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use error::Error;
 use libc::size_t;
 use std::{convert, mem};
 
@@ -34,10 +35,19 @@ impl <T>convert::From<Vec<T>> for Ffi__Array<T> {
     }
 }
 
+impl <T>convert::Into<Vec<T>> for Ffi__Array<T> {
+    fn into(self) -> Vec<T> {
+        if self.ptr.is_null() {
+            panic!(Error::NullPtr("array"));
+        }
+        unsafe { Vec::from_raw_parts(self.ptr, self.length, self.capacity) }
+    }
+}
+
 macro_rules! trynull {
     ($e:expr) => (match $e {
-        Ok(val) => val,
-        Err(err) => {
+        ::std::result::Result::Ok(val) => val,
+        ::std::result::Result::Err(err) => {
             ::error::seterr(err);
             return ::std::ptr::null_mut()
         },
@@ -46,11 +56,18 @@ macro_rules! trynull {
 
 macro_rules! tryrc {
     ($e:expr) => (match $e {
-        Ok(val) => val,
-        Err(err) => {
+        ::std::result::Result::Ok(val) => val,
+        ::std::result::Result::Err(err) => {
             ::error::seterr(err);
             return 1
         },
+    });
+}
+
+macro_rules! trypanic {
+    ($e:expr) => (match $e {
+        ::std::result::Result::Ok(val) => val,
+        ::std::result::Result::Err(err) => panic!(err),
     });
 }
 
@@ -58,11 +75,11 @@ macro_rules! ptrtostr {
     ($p:expr, $e:expr) => ({
         let r = $p; // Evaluate $p before consuming the result
         if r.is_null() {
-            Err(::error::Error::NullPtr(::std::convert::Into::into($e)))
+            ::std::result::Result::Err(::error::Error::NullPtr($e))
         } else {
             match unsafe { ::std::ffi::CStr::from_ptr(r).to_str() } {
-                Ok(s) => Ok(s),
-                Err(e) => Err(e.into()),
+                ::std::result::Result::Ok(s) => ::std::result::Result::Ok(s),
+                ::std::result::Result::Err(e) => ::std::result::Result::Err(::std::convert::Into::into(e)),
             }
         }
     });
@@ -72,10 +89,12 @@ macro_rules! readptr {
     ($p:expr, $e:expr) => ({
         let r = $p; // Evaluate $p before consuming the result
         if r.is_null() {
-            Err(::error::Error::NullPtr(::std::convert::Into::into($e)))
+            ::std::result::Result::Err(::error::Error::NullPtr($e))
         } else {
-            let val = unsafe { ::std::ptr::read(r) };
-            Ok(::std::convert::Into::into(val))
+            match ::std::panic::catch_unwind(|| ::std::convert::Into::into(unsafe { ::std::ptr::read(r) })) {
+                ::std::result::Result::Ok(val) => ::std::result::Result::Ok(val),
+                ::std::result::Result::Err(e) => ::std::result::Result::Err(::std::convert::Into::into(e)),
+            }
         }
     });
 }

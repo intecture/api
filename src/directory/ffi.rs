@@ -14,6 +14,7 @@ use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t, uint16_t};
 use std::{convert, ptr};
 use std::ffi::CString;
+use std::panic::catch_unwind;
 use std::path::PathBuf;
 use super::*;
 
@@ -30,10 +31,10 @@ impl convert::From<Directory> for Ffi__Directory {
     }
 }
 
-impl convert::From<Ffi__Directory> for Directory {
-    fn from(ffi_dir: Ffi__Directory) -> Directory {
+impl convert::Into<Directory> for Ffi__Directory {
+    fn into(self) -> Directory {
         Directory {
-            path: PathBuf::from(ptrtostr!(ffi_dir.path, "path string").unwrap()),
+            path: PathBuf::from(trypanic!(ptrtostr!(self.path, "path string"))),
         }
     }
 }
@@ -59,10 +60,10 @@ impl convert::From<Vec<DirectoryOpts>> for Ffi__DirectoryOpts {
     }
 }
 
-impl convert::From<Ffi__DirectoryOpts> for Vec<DirectoryOpts> {
-    fn from(ffi_opts: Ffi__DirectoryOpts) -> Vec<DirectoryOpts> {
+impl convert::Into<Vec<DirectoryOpts>> for Ffi__DirectoryOpts {
+    fn into(self) -> Vec<DirectoryOpts> {
         let mut opts = vec![];
-        if ffi_opts.do_recursive == 1 {
+        if self.do_recursive == 1 {
             opts.push(DirectoryOpts::DoRecursive);
         }
         opts
@@ -74,9 +75,9 @@ pub extern "C" fn directory_new(ffi_host_ptr: *const Ffi__Host, path_ptr: *const
     let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
     let path = trynull!(ptrtostr!(path_ptr, "path string"));
 
-    let result = Ffi__Directory::from(trynull!(Directory::new(&mut host, path)));
-
-    Box::into_raw(Box::new(result))
+    let dir = trynull!(Directory::new(&mut host, path));
+    let ffi_dir = trynull!(catch_unwind(|| dir.into()));
+    Box::into_raw(Box::new(ffi_dir))
 }
 
 #[no_mangle]
@@ -85,7 +86,6 @@ pub extern "C" fn directory_exists(ffi_directory_ptr: *const Ffi__Directory, ffi
     let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
 
     let result = if trynull!(directory.exists(&mut host)) { 1 } else { 0 };
-
     Box::into_raw(Box::new(result))
 }
 
@@ -130,7 +130,8 @@ pub extern "C" fn directory_mv(ffi_directory_ptr: *mut Ffi__Directory, ffi_host_
     tryrc!(directory.mv(&mut host, new_path));
 
     // Write mutated Directory path back to pointer
-    unsafe { ptr::write(&mut *ffi_directory_ptr, Ffi__Directory::from(directory)); }
+    let ffi_dir = tryrc!(catch_unwind(|| directory.into()));
+    unsafe { ptr::write(&mut *ffi_directory_ptr, ffi_dir); }
 
     0
 }
@@ -140,9 +141,9 @@ pub extern "C" fn directory_get_owner(ffi_directory_ptr: *const Ffi__Directory, 
     let directory: Directory = trynull!(readptr!(ffi_directory_ptr, "Directory struct"));
     let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
 
-    let result = Ffi__FileOwner::from(trynull!(directory.get_owner(&mut host)));
-
-    Box::into_raw(Box::new(result))
+    let owner = trynull!(directory.get_owner(&mut host));
+    let ffi_owner = trynull!(catch_unwind(|| owner.into()));
+    Box::into_raw(Box::new(ffi_owner))
 }
 
 #[no_mangle]
@@ -166,7 +167,6 @@ pub extern "C" fn directory_get_mode(ffi_directory_ptr: *const Ffi__Directory, f
     let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
 
     let result = trynull!(directory.get_mode(&mut host));
-
     Box::into_raw(Box::new(result))
 }
 
@@ -247,7 +247,7 @@ mod tests {
         let ffi_directory = Ffi__Directory {
             path: CString::new("/path/to/dir").unwrap().into_raw(),
         };
-        let directory = Directory::from(ffi_directory);
+        let directory: Directory = ffi_directory.into();
 
         assert_eq!(directory.path, Path::new("/path/to/dir"));
     }
@@ -265,10 +265,10 @@ mod tests {
         let ffi_directoryopts = Ffi__DirectoryOpts {
             do_recursive: 1,
         };
-        let directoryopts = Vec::<DirectoryOpts>::from(ffi_directoryopts);
+        let directory_opts: Vec<DirectoryOpts> = ffi_directoryopts.into();
 
         let mut found = false;
-        for opt in directoryopts {
+        for opt in directory_opts {
             match opt {
                 DirectoryOpts::DoRecursive => found = true,
             }
@@ -301,7 +301,7 @@ mod tests {
             group_name: CString::new("Cow").unwrap().into_raw(),
             group_gid: 456
         };
-        let owner = FileOwner::from(ffi_owner);
+        let owner: FileOwner = ffi_owner.into();
 
         assert_eq!(&owner.user_name, "Moo");
         assert_eq!(owner.user_uid, 123);

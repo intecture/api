@@ -14,6 +14,7 @@ use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t};
 use std::{convert, ptr};
 use std::ffi::CString;
+use std::panic::catch_unwind;
 use super::*;
 use super::providers::ProviderFactory;
 
@@ -28,18 +29,19 @@ impl convert::From<Package> for Ffi__Package {
     fn from(pkg: Package) -> Ffi__Package {
         Ffi__Package {
             name: CString::new(pkg.name).unwrap().into_raw(),
-            provider: Ffi__Providers::from(pkg.provider.get_providers()),
+            provider: pkg.provider.get_providers().into(),
             installed: if pkg.installed { 1 } else { 0 },
         }
     }
 }
 
-impl convert::From<Ffi__Package> for Package {
-    fn from(ffi_pkg: Ffi__Package) -> Package {
+impl convert::Into<Package> for Ffi__Package {
+    fn into(self) -> Package {
+        let providers: Option<Providers> = self.provider.into();
         Package {
-            name: ptrtostr!(ffi_pkg.name, "name string").unwrap().into(),
-            provider: ProviderFactory::resolve(Option::<Providers>::from(ffi_pkg.provider).unwrap()),
-            installed: ffi_pkg.installed == 1,
+            name: trypanic!(ptrtostr!(self.name, "name string")).into(),
+            provider: ProviderFactory::resolve(providers.unwrap()),
+            installed: self.installed == 1,
         }
     }
 }
@@ -76,9 +78,9 @@ impl convert::From<Providers> for Ffi__Providers {
     }
 }
 
-impl convert::From<Ffi__Providers> for Option<Providers> {
-    fn from(ffi_providers: Ffi__Providers) -> Option<Providers> {
-        match ffi_providers {
+impl convert::Into<Option<Providers>> for Ffi__Providers {
+    fn into(self) -> Option<Providers> {
+        match self {
             Ffi__Providers::Default => None,
             Ffi__Providers::Apt => Some(Providers::Apt),
             Ffi__Providers::Dnf => Some(Providers::Dnf),
@@ -95,11 +97,11 @@ impl convert::From<Ffi__Providers> for Option<Providers> {
 pub extern "C" fn package_new(host_ptr: *const Ffi__Host, name_ptr: *const c_char, ffi_providers: Ffi__Providers) -> *mut Ffi__Package {
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
     let name = trynull!(ptrtostr!(name_ptr, "name string"));
-    let providers = Option::<Providers>::from(ffi_providers);
+    let providers: Option<Providers> = ffi_providers.into();
 
-    let result = Ffi__Package::from(trynull!(Package::new(&mut host, name, providers)));
-
-    Box::into_raw(Box::new(result))
+    let pkg = trynull!(Package::new(&mut host, name, providers));
+    let ffi_pkg = trynull!(catch_unwind(|| pkg.into()));
+    Box::into_raw(Box::new(ffi_pkg))
 }
 
 #[no_mangle]
@@ -116,11 +118,13 @@ pub extern "C" fn package_install(pkg_ptr: *mut Ffi__Package, host_ptr: *const F
     let result = trynull!(pkg.install(&mut host));
 
     // Write mutated Package state back to pointer
-    unsafe { ptr::write(&mut *pkg_ptr, Ffi__Package::from(pkg)); }
+    let ffi_pkg: Ffi__Package = trynull!(catch_unwind(|| pkg.into()));
+    unsafe { ptr::write(&mut *pkg_ptr, ffi_pkg); }
 
     Box::into_raw(Box::new(match result {
         PackageResult::Result(r) => {
-            unsafe { ptr::write(&mut *result_ptr, Ffi__CommandResult::from(r)); };
+            let ffi_r: Ffi__CommandResult = trynull!(catch_unwind(|| r.into()));
+            unsafe { ptr::write(&mut *result_ptr, ffi_r); };
             Ffi__PackageResult::Result
         },
         PackageResult::NoAction => Ffi__PackageResult::NoAction,
@@ -135,11 +139,13 @@ pub extern "C" fn package_uninstall(pkg_ptr: *mut Ffi__Package, host_ptr: *const
     let result = trynull!(pkg.uninstall(&mut host));
 
     // Write mutated Package state back to pointer
-    unsafe { ptr::write(&mut *pkg_ptr, Ffi__Package::from(pkg)); }
+    let ffi_pkg: Ffi__Package = trynull!(catch_unwind(|| pkg.into()));
+    unsafe { ptr::write(&mut *pkg_ptr, ffi_pkg); }
 
     Box::into_raw(Box::new(match result {
         PackageResult::Result(r) => {
-            unsafe { ptr::write(&mut *result_ptr, Ffi__CommandResult::from(r)); };
+            let ffi_r: Ffi__CommandResult = trynull!(catch_unwind(|| r.into()));
+            unsafe { ptr::write(&mut *result_ptr, ffi_r); };
             Ffi__PackageResult::Result
         },
         PackageResult::NoAction => Ffi__PackageResult::NoAction,
@@ -180,12 +186,11 @@ mod tests {
 
     #[test]
     fn test_convert_ffi_package() {
-        let ffi_pkg = Ffi__Package {
+        let _: Package = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,
             installed: 1,
-        };
-        Package::from(ffi_pkg);
+        }.into();
     }
 
     #[cfg(feature = "local-run")]

@@ -17,6 +17,7 @@ pub mod yum;
 use {CommandResult, Error, Host, Result};
 pub use self::homebrew::Homebrew;
 use std::convert;
+use std::panic;
 use std::string::ToString;
 use super::PackageTarget;
 use target::Target;
@@ -92,7 +93,7 @@ impl ProviderFactory {
     }
 }
 
-pub trait Provider {
+pub trait Provider: panic::UnwindSafe {
     fn get_providers(&self) -> Providers;
     fn is_active(&self, host: &mut Host) -> Result<bool>;
     fn is_installed(&self, host: &mut Host, name: &str) -> Result<bool>;

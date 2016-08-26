@@ -8,11 +8,12 @@
 
 //! FFI interface for Command
 
-use host::Host;
 use host::ffi::Ffi__Host;
+use host::Host;
 use libc::c_char;
 use std::convert;
 use std::ffi::CString;
+use std::panic::catch_unwind;
 use super::{Command, CommandResult};
 
 #[repr(C)]
@@ -28,9 +29,9 @@ impl convert::From<Command> for Ffi__Command {
     }
 }
 
-impl convert::From<Ffi__Command> for Command {
-    fn from(ffi_cmd: Ffi__Command) -> Command {
-        let cmd = ptrtostr!(ffi_cmd.cmd, "command string").unwrap();
+impl convert::Into<Command> for Ffi__Command {
+    fn into(self) -> Command {
+        let cmd = trypanic!(ptrtostr!(self.cmd, "Command.cmd string"));
         Command::new(cmd)
     }
 }
@@ -55,7 +56,9 @@ impl convert::From<CommandResult> for Ffi__CommandResult {
 #[no_mangle]
 pub extern "C" fn command_new(cmd_ptr: *const c_char) -> *mut Ffi__Command {
     let cmd = trynull!(ptrtostr!(cmd_ptr, "path string"));
-    Box::into_raw(Box::new(Ffi__Command::from(Command::new(cmd))))
+
+    let ffi_command: Ffi__Command = trynull!(catch_unwind(|| Command::new(cmd).into()));
+    Box::into_raw(Box::new(ffi_command))
 }
 
 #[no_mangle]
@@ -63,9 +66,9 @@ pub extern "C" fn command_exec(ffi_cmd_ptr: *mut Ffi__Command, ffi_host_ptr: *mu
     let cmd: Command = trynull!(readptr!(ffi_cmd_ptr, "Command struct"));
     let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
 
-    let result = Ffi__CommandResult::from(trynull!(cmd.exec(&mut host)));
-
-    Box::into_raw(Box::new(result))
+    let result = trynull!(cmd.exec(&mut host));
+    let ffi_result: Ffi__CommandResult = trynull!(catch_unwind(|| result.into()));
+    Box::into_raw(Box::new(ffi_result))
 }
 
 #[cfg(test)]
@@ -99,7 +102,7 @@ mod tests {
         let ffi_command = Ffi__Command {
             cmd: CString::new("whoami").unwrap().as_ptr(),
         };
-        Command::from(ffi_command);
+        let _: Command = ffi_command.into();
     }
 
     #[test]

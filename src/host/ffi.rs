@@ -19,6 +19,7 @@ use std::ptr;
 use std::ffi::CString;
 #[cfg(feature = "remote-run")]
 use std::os::raw::c_void;
+use std::panic::catch_unwind;
 use super::*;
 
 #[cfg(feature = "local-run")]
@@ -60,25 +61,26 @@ impl convert::From<Host> for Ffi__Host {
     }
 }
 
-impl convert::From<Ffi__Host> for Host {
+impl convert::Into<Host> for Ffi__Host {
     #[cfg(feature = "local-run")]
-    fn from(_: Ffi__Host) -> Host {
+    fn into(self) -> Host {
         Host
     }
 
     #[cfg(feature = "remote-run")]
-    fn from(ffi_host: Ffi__Host) -> Host {
+    fn into(self) -> Host {
         Host {
-            hostname: if ffi_host.hostname.is_null() { None } else { Some(ptrtostr!(ffi_host.hostname, "hostname string").unwrap().into()) },
-            api_sock: if ffi_host.api_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.api_sock, false)) },
-            file_sock: if ffi_host.file_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.file_sock, false)) },
+            hostname: if self.hostname.is_null() { None } else { Some(trypanic!(ptrtostr!(self.hostname, "hostname string")).into()) },
+            api_sock: if self.api_sock.is_null() { None } else { Some(ZSock::from_raw(self.api_sock, false)) },
+            file_sock: if self.file_sock.is_null() { None } else { Some(ZSock::from_raw(self.file_sock, false)) },
         }
     }
 }
 
 #[no_mangle]
 pub extern "C" fn host_new() -> *mut Ffi__Host {
-    Box::into_raw(Box::new(Ffi__Host::from(Host::new())))
+    let ffi_host = trynull!(catch_unwind(|| Host::new().into()));
+    Box::into_raw(Box::new(ffi_host))
 }
 
 #[cfg(feature = "remote-run")]
@@ -104,11 +106,12 @@ pub extern "C" fn host_close(host_ptr: *mut Ffi__Host) -> uint8_t {
     // Don't use the convert trait as we want owned ZSocks
     let ffi_host: Ffi__Host = tryrc!(readptr!(host_ptr, "Host struct"));
     let mut host = Host {
-        hostname: if ffi_host.hostname.is_null() { None } else { Some(ptrtostr!(ffi_host.hostname, "hostname string").unwrap().into()) },
+        hostname: if ffi_host.hostname.is_null() { None } else { Some(tryrc!(ptrtostr!(ffi_host.hostname, "hostname string")).into()) },
         api_sock: if ffi_host.api_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.api_sock, true)) },
         file_sock: if ffi_host.file_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.file_sock, true)) },
     };
-    host.close().unwrap();
+    tryrc!(host.close());
+
     0
 }
 
@@ -125,9 +128,8 @@ mod tests {
 
     #[test]
     fn test_convert_host() {
-        let host = Host::new();
-        let ffi = Ffi__Host::from(host);
-        Host::from(ffi);
+        let ffi: Ffi__Host = Host::new().into();
+        let _: Host = ffi.into();
     }
 
     #[cfg(feature = "remote-run")]
