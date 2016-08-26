@@ -19,6 +19,17 @@ else
 	$(CARGO) build
 endif
 
+c: install
+	install -m 0644 bindings/c/inapi.h $(USRPATH)/include/
+
+php: c
+	cd bindings/php
+	phpize
+	./configure
+	make
+	make install
+	cd ../..
+
 install:
 	install -m 0644 target/$(TARGET)/libinapi.$(LIBEXT) $(USRPATH)/lib/
 
