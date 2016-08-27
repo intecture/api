@@ -6,17 +6,13 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use {
-    CommandResult,
-    Host,
-    Providers,
-    Result,
-    Telemetry,
-};
-use command::CommandTarget;
+use command::{CommandResult, CommandTarget};
 use directory::DirectoryTarget;
+use error::Result;
 use file::{FileTarget, FileOwner};
+use host::Host;
 use package::PackageTarget;
+use package::providers::Providers;
 use service::ServiceTarget;
 use std::fs;
 use std::path::Path;
@@ -27,7 +23,7 @@ use super::debian::DebianTarget;
 use super::fedora::FedoraTarget;
 use super::redhat::RedhatTarget;
 use super::ubuntu::UbuntuTarget;
-use telemetry::TelemetryTarget;
+use telemetry::{Telemetry, TelemetryTarget};
 
 static mut LINUX_PLATFORM: LinuxPlatform = LinuxPlatform::Centos;
 static INIT_FINGERPRINT: Once = ONCE_INIT;

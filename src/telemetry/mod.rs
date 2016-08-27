@@ -31,8 +31,8 @@
 
 pub mod ffi;
 
-use Host;
-use Result;
+use error::Result;
+use host::Host;
 use target::Target;
 
 #[derive(Debug, RustcDecodable, RustcEncodable)]

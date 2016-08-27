@@ -14,7 +14,9 @@ pub mod pkg;
 pub mod ports;
 pub mod yum;
 
-use {CommandResult, Error, Host, Result};
+use command::CommandResult;
+use error::{Error, Result};
+use host::Host;
 pub use self::homebrew::Homebrew;
 use std::convert;
 use std::panic;

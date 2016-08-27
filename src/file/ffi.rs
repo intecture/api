@@ -8,7 +8,7 @@
 
 //! FFI interface for File
 
-use Host;
+use host::Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t, uint16_t, uint64_t};
 use std::{convert, ptr};

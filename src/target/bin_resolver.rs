@@ -6,8 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use error::Error;
-use Result;
+use error::{Error, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Mutex;

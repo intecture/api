@@ -10,7 +10,7 @@
 
 use command::ffi::Ffi__CommandResult;
 use ffi_helpers::Ffi__Array;
-use Host;
+use host::Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, size_t};
 use std::{convert, ptr};

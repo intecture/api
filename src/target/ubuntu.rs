@@ -6,18 +6,13 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use {
-    CommandResult,
-    Host,
-    Providers,
-    Result,
-    Cpu, Os, Telemetry,
-};
-use command::CommandTarget;
+use command::{CommandResult, CommandTarget};
 use directory::DirectoryTarget;
-use error::Error;
+use error::{Error, Result};
 use file::{FileTarget, FileOwner};
+use host::Host;
 use package::PackageTarget;
+use package::providers::Providers;
 use regex::Regex;
 use service::ServiceTarget;
 use std::env;
@@ -25,7 +20,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use super::{debian_base as debian, default_base as default, linux_base as linux};
-use telemetry::TelemetryTarget;
+use telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 
 pub struct UbuntuTarget;
 

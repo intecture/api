@@ -8,8 +8,9 @@
 
 //! Apt package provider
 
-use {Command, CommandResult, Host};
-use Result;
+use command::{Command, CommandResult};
+use error::Result;
+use host::Host;
 use super::*;
 
 pub struct Apt;

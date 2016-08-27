@@ -6,10 +6,9 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use error::Error;
+use error::{Error, Result};
 use file::FileOwner;
 use regex::Regex;
-use Result;
 use std::{process, str};
 use std::path::Path;
 use super::default_base as default;

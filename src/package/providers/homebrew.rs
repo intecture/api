@@ -8,8 +8,9 @@
 
 //! Homebrew package provider
 
-use {Command, CommandResult, Host};
-use {Error, Result};
+use command::{Command, CommandResult};
+use error::{Error, Result};
+use host::Host;
 use regex::Regex;
 use super::*;
 

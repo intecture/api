@@ -6,12 +6,14 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use {CommandResult, Error, Host, Providers, Result};
-use command::CommandTarget;
+use command::{CommandResult, CommandTarget};
 use czmq::ZMsg;
 use directory::DirectoryTarget;
+use error::{Error, Result};
 use file::{FileTarget, FileOwner};
+use host::Host;
 use package::PackageTarget;
+use package::providers::Providers;
 use rustc_serialize::json;
 use service::ServiceTarget;
 use std::path::Path;

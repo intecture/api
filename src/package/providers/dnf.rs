@@ -8,10 +8,12 @@
 
 //! Dnf package provider
 
-use {Command, CommandResult, Host, Telemetry};
-use {Error, Result};
+use command::{Command, CommandResult};
+use error::{Error, Result};
+use host::Host;
 use regex::Regex;
 use super::*;
+use telemetry::Telemetry;
 
 pub struct Dnf;
 

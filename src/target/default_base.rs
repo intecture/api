@@ -6,8 +6,10 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use {CommandResult, Host, ProviderFactory, Providers, Result};
-use error::Error;
+use command::CommandResult;
+use error::{Error, Result};
+use host::Host;
+use package::providers::{ProviderFactory, Providers};
 use regex::Regex;
 use std::{fs, process, str};
 use std::path::Path;

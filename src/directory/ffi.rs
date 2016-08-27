@@ -9,7 +9,7 @@
 //! FFI interface for Directory
 
 use file::ffi::Ffi__FileOwner;
-use Host;
+use host::Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t, uint16_t};
 use std::{convert, ptr};

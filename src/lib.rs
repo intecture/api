@@ -58,9 +58,6 @@ pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
 pub use zfilexfer::FileOptions;
 
-use std::result;
-pub type Result<T> = result::Result<T, Error>;
-
 #[cfg(all(test, feature = "remote-run"))]
 use czmq::ZCert;
 #[cfg(all(test, feature = "remote-run"))]

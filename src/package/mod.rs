@@ -43,7 +43,9 @@
 pub mod ffi;
 pub mod providers;
 
-use {CommandResult, Host, Result};
+use command::CommandResult;
+use error::Result;
+use host::Host;
 use self::providers::*;
 
 /// Container for operating on a package.

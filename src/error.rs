@@ -11,11 +11,13 @@ use czmq;
 use libc::c_char;
 use regex;
 use rustc_serialize::json;
-use std::{convert, error, fmt, io, num, ptr, str, string};
+use std::{convert, error, fmt, io, num, ptr, result, str, string};
 use std::any::Any;
 use std::ffi::CString;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
+
+pub type Result<T> = result::Result<T, Error>;
 
 /// Error message constant for communicating errors from the FFI to C consumers
 pub static mut ERRMSG: *const c_char = 0 as *const c_char;

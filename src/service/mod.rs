@@ -151,8 +151,9 @@
 
 pub mod ffi;
 
-use {CommandResult, Error, Host, Result};
-use command::CommandTarget;
+use command::{CommandResult, CommandTarget};
+use error::{Error, Result};
+use host::Host;
 use std::collections::HashMap;
 use target::Target;
 

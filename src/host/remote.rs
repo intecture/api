@@ -9,8 +9,7 @@
 //! The host wrapper for communicating with a remote host.
 
 use czmq::{ZCert, ZMsg, ZSock, ZSockType};
-use error::Error;
-use Result;
+use error::{Error, Result};
 use std::path::Path;
 use super::*;
 use zfilexfer;

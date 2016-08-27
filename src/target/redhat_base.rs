@@ -6,8 +6,8 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use {CommandResult, Result};
-use error::Error;
+use command::CommandResult;
+use error::{Error, Result};
 use regex::Regex;
 use std::fs::File;
 use std::io::Read;
