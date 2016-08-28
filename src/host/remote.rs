@@ -35,11 +35,11 @@ impl Host {
         host
     }
 
-    pub fn connect(&mut self, hostname: &str, api_port: u32, file_port: u32, auth_server: &str) -> Result<()> {
+    pub fn connect(&mut self, hostname: &str, api_port: u32, file_port: u32) -> Result<()> {
         self.hostname = Some(hostname.to_string());
 
         let user_cert = try!(ZCert::load("user.crt"));
-        let server_cert = try!(self.lookup_server_cert(hostname, auth_server, &user_cert));
+        let server_cert = try!(self.lookup_server_cert(hostname, &::PROJECT_CONFIG.auth_server, &user_cert));
 
         let api_sock = ZSock::new(ZSockType::REQ);
         user_cert.apply(&api_sock);
@@ -158,8 +158,8 @@ impl Host {
 
 #[cfg(test)]
 mod tests {
-    use {create_project_fs, Host, mock_auth_server};
     use czmq::{ZMsg, ZSys};
+    use host::Host;
     use std::fs;
     use std::thread::spawn;
     use tempdir::TempDir;
@@ -167,19 +167,16 @@ mod tests {
 
     #[test]
     fn test_connect_close() {
-        create_project_fs();
-        let (handle, auth_server) = mock_auth_server();
+        let _ = ::_MOCK_ENV.init();
 
         let mut host = Host::new();
-        assert!(host.connect("localhost", 7101, 7102, &auth_server).is_ok());
+        assert!(host.connect("localhost", 7101, 7102).is_ok());
         assert!(host.close().is_ok());
-
-        handle.join().unwrap();
     }
 
     #[test]
     fn test_send_recv() {
-        ZSys::init();
+        let _ = ::_MOCK_ENV.init();
 
         let (client, server) = ZSys::create_pipe().unwrap();
 
@@ -210,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_send_file() {
-        ZSys::init();
+        let _ = ::_MOCK_ENV.init();
 
         let tempdir = TempDir::new("host_test_send_file").unwrap();
         let path = format!("{}/file.txt", tempdir.path().to_str().unwrap());

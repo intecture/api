@@ -16,7 +16,7 @@
 //! ```no_run
 //! # use inapi::Host;
 //! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102, \"auth.example.com:7101\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102).unwrap();")]
 //! ```
 //!
 //! Now you can manage a file on your managed host.

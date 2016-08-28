@@ -88,12 +88,10 @@ pub extern "C" fn host_new() -> *mut Ffi__Host {
 pub extern "C" fn host_connect(host_ptr: *mut Ffi__Host,
                                hostname_ptr: *const c_char,
                                api_port: uint32_t,
-                               upload_port: uint32_t,
-                               auth_server_ptr: *const c_char) -> uint8_t {
+                               upload_port: uint32_t) -> uint8_t {
     let hostname = tryrc!(ptrtostr!(hostname_ptr, "hostname string"));
-    let auth_server = tryrc!(ptrtostr!(auth_server_ptr, "auth server string"));
     let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
-    tryrc!(host.connect(hostname, api_port, upload_port, auth_server));
+    tryrc!(host.connect(hostname, api_port, upload_port));
 
     unsafe { ptr::write(&mut *host_ptr, Ffi__Host::from(host)); }
 
@@ -117,11 +115,7 @@ pub extern "C" fn host_close(host_ptr: *mut Ffi__Host) -> uint8_t {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "remote-run")]
-    use {create_project_fs, mock_auth_server};
-    #[cfg(feature = "remote-run")]
-    use czmq::ZSys;
-    use Host;
+    use host::Host;
     #[cfg(feature = "remote-run")]
     use std::ffi::CString;
     use super::*;
@@ -135,35 +129,22 @@ mod tests {
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_convert_host_connected() {
-        ZSys::init();
-
-        create_project_fs();
-        let (handle, auth_server) = mock_auth_server();
+        let _ = ::_MOCK_ENV.init();
 
         let mut host = Host::new();
-        assert!(host.connect("localhost", 7101, 7102, &auth_server).is_ok());
+        assert!(host.connect("localhost", 7101, 7102).is_ok());
         let mut ffi = Ffi__Host::from(host);
         assert_eq!(host_close(&mut ffi), 0);
-
-        handle.join().unwrap();
     }
 
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_host_fns() {
-        ZSys::init();
-
-        create_project_fs();
-        let (handle, auth_server) = mock_auth_server();
-
-        let hostname = CString::new("localhost").unwrap().as_ptr();
-        let auth_server = CString::new(auth_server.as_bytes()).unwrap().as_ptr();
+        let _ = ::_MOCK_ENV.init();
 
         let host = host_new();
         assert!(!host.is_null());
-        host_connect(host, hostname, 7101, 7102, auth_server);
+        host_connect(host, CString::new("localhost").unwrap().as_ptr(), 7101, 7102);
         host_close(host);
-
-        handle.join().unwrap();
     }
 }

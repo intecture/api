@@ -33,15 +33,19 @@ extern crate regex;
 extern crate rustc_serialize;
 #[cfg(test)]
 extern crate tempdir;
+extern crate zdaemon;
 extern crate zfilexfer;
 
 #[macro_use]
 mod ffi_helpers;
 pub mod command;
+mod config;
 pub mod directory;
 pub mod error;
 pub mod file;
 pub mod host;
+#[cfg(all(test, feature = "remote-run"))]
+mod mock_env;
 pub mod package;
 pub mod service;
 mod target;
@@ -58,54 +62,15 @@ pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
 pub use zfilexfer::FileOptions;
 
-#[cfg(all(test, feature = "remote-run"))]
-use czmq::ZCert;
-#[cfg(all(test, feature = "remote-run"))]
-use std::env::set_current_dir;
-#[cfg(all(test, feature = "remote-run"))]
-use tempdir::TempDir;
-#[cfg(all(test, feature = "remote-run"))]
-use std::sync::{Once, ONCE_INIT};
-
-#[cfg(all(test, feature = "remote-run"))]
-static INIT_FS: Once = ONCE_INIT;
+#[cfg(feature = "remote-run")]
+use zdaemon::ConfigFile;
 
 #[cfg(all(test, feature = "remote-run"))]
 lazy_static! {
-    static ref INIT_FS_DIR: TempDir = TempDir::new("remote_host_connect").unwrap();
+    static ref _MOCK_ENV: mock_env::MockEnv = mock_env::MockEnv::new();
 }
 
-#[cfg(all(test, feature = "remote-run"))]
-fn create_project_fs() {
-    INIT_FS.call_once(|| {
-        set_current_dir(INIT_FS_DIR.path()).unwrap();
-
-        let cert = ZCert::new().unwrap();
-        cert.save_secret("user.crt").unwrap();
-
-        let cert = ZCert::new().unwrap();
-        cert.save_public("auth.crt").unwrap();
-        cert.save_secret(".auth_secret.crt").unwrap();
-    });
-}
-
-#[cfg(all(test, feature = "remote-run"))]
-fn mock_auth_server() -> (::std::thread::JoinHandle<()>, String) {
-    let sock = ::czmq::ZSock::new(::czmq::ZSockType::REP);
-    let cert = ZCert::load(".auth_secret.crt").unwrap();
-    cert.apply(&sock);
-    sock.set_curve_server(true);
-    sock.set_zap_domain("mock_auth_server");
-    let port = sock.bind("tcp://127.0.0.1:*[60000-]").unwrap();
-
-    let handle = ::std::thread::spawn(move|| {
-        sock.recv_str().unwrap().unwrap();
-
-        let reply = ::czmq::ZMsg::new();
-        reply.addstr("Ok").unwrap();
-        reply.addstr("0000000000000000000000000000000000000000").unwrap();
-        reply.send(&sock).unwrap();
-    });
-
-    (handle, format!("127.0.0.1:{}", port))
+#[cfg(feature = "remote-run")]
+lazy_static! {
+    static ref PROJECT_CONFIG: config::Config = config::Config::load("project.json").expect("Could not load project.json");
 }

@@ -22,7 +22,7 @@
 //! # use inapi::{Command, Host};
 //! let mut host = Host::new();
 #![cfg_attr(feature = "local-run", doc = "// host.connect(...) <-- we don't need this")]
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102, \"auth.example.com:7101\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102).unwrap();")]
 //!
 //! let cmd = Command::new("whoami");
 //! let result = cmd.exec(&mut host).unwrap();
