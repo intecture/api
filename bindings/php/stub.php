@@ -301,10 +301,8 @@ class Host
      *     $hostname.
      * @param int $upload_port The port number of the Agent file transfer
      *     service on $hostname.
-     * @param string $auth_server The endpoint (hostname/IP address + port
-     *     number) of your auth server (e.g. "auth.example.com:7101").
      */
-    public function connect($hostname, $api_port, $upload_port, $auth_server) {}
+    public function connect($hostname, $api_port, $upload_port) {}
 }
 
 /**

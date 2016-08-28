@@ -6,7 +6,7 @@
  */
 // Setup Host object to communicate with managed host
 $host = new Host();
-$host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
+$host->connect('example.com', 7101, 7102);
 
 // Create a new command and send it to the managed host
 $cmd = new Intecture\Command('whoami');
@@ -28,11 +28,11 @@ Array
  */
 // Web server
 $web = new Host();
-$web->connect('web.example.com', 7101, 7102, 'auth.example.com:7101');
+$web->connect('web.example.com', 7101, 7102);
 
 // Database server
 $db = new Host();
-$db->connect('db.example.com', 7101, 7102, 'auth.example.com:7101');
+$db->connect('db.example.com', 7101, 7102);
 
 $cmd = new Intecture\Command('whoami');
 
@@ -45,7 +45,7 @@ $db_result = $cmd->exec($db);
  */
 // Setup Host object to communicate with managed host
 $host = new Host();
-$host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
+$host->connect('example.com', 7101, 7102);
 
 // Create a new Directory object to manage a specific directory
 $dir = new Directory($host, '/path/to/dir');
@@ -61,7 +61,7 @@ if ($dir->exists($host)) {
  */
 // Setup Host object to communicate with managed host
 $host = new Host();
-$host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
+$host->connect('example.com', 7101, 7102);
 
 // Create a new File object to manage a specific file
 $file = new File($host, '/path/to/file');
@@ -91,7 +91,7 @@ $file->upload($host, 'my_local_file.txt', array(
  */
 // Setup Host object to communicate with managed host
 $host = new Host();
-$host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
+$host->connect('example.com', 7101, 7102);
 
 /*
  * Package
@@ -99,7 +99,7 @@ $host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
  */
 // Setup Host object to communicate with managed host
 $host = new Host();
-$host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
+$host->connect('example.com', 7101, 7102);
 
 // Create Package object to install a package from the default source
 $package = new Package($host, 'nginx');
@@ -124,7 +124,7 @@ $package = new Package($host, 'nginx', Package::PROVIDER_MACPORTS);
  */
 // Setup Host object to communicate with managed host
 $host = new Host();
-$host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
+$host->connect('example.com', 7101, 7102);
 
 // Setup a new Service with a Service type Runnable
 $runnable = new ServiceRunnable('nginx', ServiceRunnable::SERVICE);
@@ -142,7 +142,7 @@ if ($result['exit_code'] != 0) {
  */
 // Setup Host object to communicate with managed host
 $host = new Host();
-$host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
+$host->connect('example.com', 7101, 7102);
 
 // Setup a new Service with a Command type Runnable
 $runnable = new ServiceRunnable('/usr/local/bin/nginx', ServiceRunnable::COMMAND);
@@ -193,7 +193,7 @@ $runnable = new ServiceRunnable('nginx', ServiceRunnable::SERVICE);
  */
 // Setup Host object to communicate with managed host
 $host = new Host();
-$host->connect('example.com', 7101, 7102, 'auth.example.com:7101');
+$host->connect('example.com', 7101, 7102);
 
 // Load a new Telemetry object to hold your host's telemetry data
 $telemetry = Telemetry::load($host);
@@ -211,9 +211,9 @@ Array
  * Load data for multiple hosts
  */
 $web = new Host();
-$web->connect('web.example.com', 7101, 7102, 'auth.example.com:7101');
+$web->connect('web.example.com', 7101, 7102);
 $web_data = Telemetry::load($web);
 
 $db = new Host();
-$db->connect('db.example.com', 7101, 7102, 'auth.example.com:7101');
+$db->connect('db.example.com', 7101, 7102);
 $db_data = Telemetry::load($db);

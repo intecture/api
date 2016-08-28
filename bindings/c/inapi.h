@@ -61,7 +61,6 @@ extern Host *host_new();
  * @param hostname The IP address or hostname of your managed host.
  * @param api_port The port number that the Agent API service is listening on.
  * @param upload_port The port number that the Agent File Upload service is listening on.
- * @param auth_server The ip address/hostname and port number of your auth server.
  *
  * #### Usage Example
  *
@@ -70,11 +69,11 @@ extern Host *host_new();
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  * @endcode
  */
-extern uint8_t host_connect(Host *host, const char *hostname, uint32_t api_port, uint32_t upload_port, const char *auth_server);
+extern uint8_t host_connect(Host *host, const char *hostname, uint32_t api_port, uint32_t upload_port);
 
 /**
  * @brief Close the connection to your managed host.
@@ -111,7 +110,7 @@ typedef struct _CommandResult {
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  * @endcode
  *
@@ -242,7 +241,7 @@ typedef struct _Telemetry {
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  *
  * Telemetry *telemetry = telemetry_init(host);
@@ -299,7 +298,7 @@ typedef struct _FileOwner {
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  *
  * File *file = file_new(host, "/path/to/file");
@@ -328,7 +327,7 @@ extern bool *file_exists(File *file, Host *host);
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  *
  * File *file = file_new(host, "/path/to/remote/file");
@@ -431,7 +430,7 @@ typedef struct _DirectoryOpts {
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  *
  * Directory *dir = directory_new(host, "/path/to/dir");
@@ -550,7 +549,7 @@ enum PackageResult {
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  *
  * enum Providers providers;
@@ -669,7 +668,7 @@ typedef struct _Service {
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  *
  * ServiceRunnable runnable = { .service = "nginx" };
@@ -696,7 +695,7 @@ extern Service *service_new_service(ServiceRunnable runnable, ServiceMappedActio
  * @code
  * Host *host = host_new();
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102, "auth.example.com:7101");
+ * int rc = host->connect("example.com", 7101, 7102);
  * assert(rc == 0);
  *
  * ServiceRunnable start_runnable = { .command = "/usr/local/bin/nginx" };
