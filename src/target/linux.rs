@@ -298,6 +298,10 @@ fn fingerprint_os() -> &'static LinuxPlatform {
         if let Ok(_) = fs::metadata("/etc/centos-release") {
             unsafe { LINUX_PLATFORM = LinuxPlatform::Centos; }
         }
+        // Ubuntu
+        else if let Ok(_) = fs::metadata("/etc/lsb-release") {
+            unsafe { LINUX_PLATFORM = LinuxPlatform::Ubuntu; }
+        }
         // Debian
         else if let Ok(_) = fs::metadata("/etc/debian_version") {
             unsafe { LINUX_PLATFORM = LinuxPlatform::Debian; }
@@ -309,10 +313,6 @@ fn fingerprint_os() -> &'static LinuxPlatform {
         // RedHat
         else if let Ok(_) = fs::metadata("/etc/redhat-release") {
             unsafe { LINUX_PLATFORM = LinuxPlatform::Redhat; }
-        }
-        // Ubuntu
-        else if let Ok(_) = fs::metadata("/etc/lsb-release") {
-            unsafe { LINUX_PLATFORM = LinuxPlatform::Ubuntu; }
         } else {
             panic!("Unknown Linux distro");
         }
