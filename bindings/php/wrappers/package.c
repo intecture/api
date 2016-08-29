@@ -168,19 +168,13 @@ PHP_METHOD(Package, install) {
         return;
     }
 
-    CommandResult cmd_result;
-    enum PackageResult *result = package_install(intern->package, host->host, &cmd_result);
+    CommandResult *result = package_install(intern->package, host->host);
 
-    if (!result) {
-        zend_throw_exception(inapi_ce_package_exception, geterr(), 1000 TSRMLS_CC);
-        return;
-    }
-
-    if (*result == 0) {
+    if (result) {
         array_init(return_value);
-        add_assoc_long(return_value, "exit_code", cmd_result.exit_code);
-        add_assoc_string(return_value, "stdout", cmd_result.stdout, 1);
-        add_assoc_string(return_value, "stderr", cmd_result.stderr, 1);
+        add_assoc_long(return_value, "exit_code", result->exit_code);
+        add_assoc_string(return_value, "stdout", result->stdout, 1);
+        add_assoc_string(return_value, "stderr", result->stderr, 1);
     } else {
         RETURN_NULL();
     }
@@ -203,19 +197,13 @@ PHP_METHOD(Package, uninstall) {
         return;
     }
 
-    CommandResult cmd_result;
-    enum PackageResult *result = package_uninstall(intern->package, host->host, &cmd_result);
+    CommandResult *result = package_install(intern->package, host->host);
 
-    if (!result) {
-        zend_throw_exception(inapi_ce_package_exception, geterr(), 1000 TSRMLS_CC);
-        return;
-    }
-
-    if (*result == 0) {
+    if (result) {
         array_init(return_value);
-        add_assoc_long(return_value, "exit_code", cmd_result.exit_code);
-        add_assoc_string(return_value, "stdout", cmd_result.stdout, 1);
-        add_assoc_string(return_value, "stderr", cmd_result.stderr, 1);
+        add_assoc_long(return_value, "exit_code", result->exit_code);
+        add_assoc_string(return_value, "stdout", result->stdout, 1);
+        add_assoc_string(return_value, "stderr", result->stderr, 1);
     } else {
         RETURN_NULL();
     }

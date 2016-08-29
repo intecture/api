@@ -47,12 +47,6 @@ impl convert::Into<Package> for Ffi__Package {
 }
 
 #[repr(C)]
-pub enum Ffi__PackageResult {
-    Result,
-    NoAction,
-}
-
-#[repr(C)]
 pub enum Ffi__Providers {
     Default,
     Apt,
@@ -111,7 +105,7 @@ pub extern "C" fn package_is_installed(pkg_ptr: *const Ffi__Package) -> *mut uin
 }
 
 #[no_mangle]
-pub extern "C" fn package_install(pkg_ptr: *mut Ffi__Package, host_ptr: *const Ffi__Host, result_ptr: *mut Ffi__CommandResult) -> *mut Ffi__PackageResult {
+pub extern "C" fn package_install(pkg_ptr: *mut Ffi__Package, host_ptr: *const Ffi__Host) -> *mut Ffi__CommandResult {
     let mut pkg: Package = trynull!(readptr!(pkg_ptr, "Package struct"));
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
@@ -121,18 +115,17 @@ pub extern "C" fn package_install(pkg_ptr: *mut Ffi__Package, host_ptr: *const F
     let ffi_pkg: Ffi__Package = trynull!(catch_unwind(|| pkg.into()));
     unsafe { ptr::write(&mut *pkg_ptr, ffi_pkg); }
 
-    Box::into_raw(Box::new(match result {
-        PackageResult::Result(r) => {
+    match result {
+        Some(r) => {
             let ffi_r: Ffi__CommandResult = trynull!(catch_unwind(|| r.into()));
-            unsafe { ptr::write(&mut *result_ptr, ffi_r); };
-            Ffi__PackageResult::Result
+            Box::into_raw(Box::new(ffi_r))
         },
-        PackageResult::NoAction => Ffi__PackageResult::NoAction,
-    }))
+        None => ptr::null_mut(),
+    }
 }
 
 #[no_mangle]
-pub extern "C" fn package_uninstall(pkg_ptr: *mut Ffi__Package, host_ptr: *const Ffi__Host, result_ptr: *mut Ffi__CommandResult) -> *mut Ffi__PackageResult {
+pub extern "C" fn package_uninstall(pkg_ptr: *mut Ffi__Package, host_ptr: *const Ffi__Host) -> *mut Ffi__CommandResult {
     let mut pkg: Package = trynull!(readptr!(pkg_ptr, "Package struct"));
     let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
 
@@ -142,20 +135,17 @@ pub extern "C" fn package_uninstall(pkg_ptr: *mut Ffi__Package, host_ptr: *const
     let ffi_pkg: Ffi__Package = trynull!(catch_unwind(|| pkg.into()));
     unsafe { ptr::write(&mut *pkg_ptr, ffi_pkg); }
 
-    Box::into_raw(Box::new(match result {
-        PackageResult::Result(r) => {
+    match result {
+        Some(r) => {
             let ffi_r: Ffi__CommandResult = trynull!(catch_unwind(|| r.into()));
-            unsafe { ptr::write(&mut *result_ptr, ffi_r); };
-            Ffi__PackageResult::Result
+            Box::into_raw(Box::new(ffi_r))
         },
-        PackageResult::NoAction => Ffi__PackageResult::NoAction,
-    }))
+        None => ptr::null_mut(),
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "remote-run")]
-    use command::ffi::Ffi__CommandResult;
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
     #[cfg(feature = "remote-run")]
@@ -370,18 +360,10 @@ mod tests {
             installed: 0,
         };
 
-        let mut result = Ffi__CommandResult {
-            exit_code: 0,
-            stdout: CString::new("").unwrap().into_raw(),
-            stderr: CString::new("").unwrap().into_raw(),
-        };
-        let action = package_install(&mut ffi_pkg, &ffi_host, &mut result);
-        assert!(!action.is_null());
-
-        match unsafe { ptr::read(action) } {
-            Ffi__PackageResult::Result => assert_eq!(result.exit_code, 0),
-            _ => panic!("Package install not attempted"),
-        }
+        let result_ptr = package_install(&mut ffi_pkg, &ffi_host);
+        assert!(!result_ptr.is_null());
+        let result = unsafe { ptr::read(result_ptr) };
+        assert_eq!(result.exit_code, 0);
 
         assert_eq!(host_close(&mut ffi_host), 0);
         agent_mock.join().unwrap();
@@ -427,18 +409,10 @@ mod tests {
             installed: 1,
         };
 
-        let mut result = Ffi__CommandResult {
-            exit_code: 0,
-            stdout: CString::new("").unwrap().into_raw(),
-            stderr: CString::new("").unwrap().into_raw(),
-        };
-        let action = package_uninstall(&mut ffi_pkg, &ffi_host, &mut result);
-        assert!(!action.is_null());
-
-        match unsafe { ptr::read(action) } {
-            Ffi__PackageResult::Result => assert_eq!(result.exit_code, 0),
-            _ => panic!("Package uninstall not attempted"),
-        }
+        let result_ptr = package_uninstall(&mut ffi_pkg, &ffi_host);
+        assert!(!result_ptr.is_null());
+        let result = unsafe { ptr::read(result_ptr) };
+        assert_eq!(result.exit_code, 0);
 
         assert_eq!(host_close(&mut ffi_host), 0);
         agent_mock.join().unwrap();

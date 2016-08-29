@@ -56,7 +56,7 @@ pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOwner};
 pub use host::Host;
-pub use package::{Package, PackageResult};
+pub use package::Package;
 pub use package::providers::{Provider, ProviderFactory, Providers};
 pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};

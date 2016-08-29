@@ -530,14 +530,6 @@ typedef struct _Package {
 } Package;
 
 /**
- * @brief Result of package operation.
- */
-enum PackageResult {
-    Result, /**< The command result from a package operation (e.g. installing/uninstalling) */
-    NoAction /**< No action was necessary to achieve the desired state (e.g. calling install() on a currently installed package) */
-};
-
-/**
  * @brief Create a new Package struct.
  * @param host The Host struct you want to install the package on.
  * @param name The name of the package, e.g. `nginx`.
@@ -585,19 +577,17 @@ extern bool *package_is_installed(Package *package);
  * @brief Install the package.
  * @param package The Package struct.
  * @param host The Host struct you wish to install the package on.
- * @param result The CommandResult struct for the operation will be bound to this argument.
- * @return An enum indicating whether any command was run or not.
+ * @return The CommandResult struct for the operation, or NULL if nothing was done.
  */
-extern enum PackageResult *package_install(Package *package, Host *host, CommandResult *result);
+extern CommandResult *package_install(Package *package, Host *host);
 
 /**
  * @brief Uninstall the package.
  * @param package The Package struct.
  * @param host The Host struct you wish to uninstall the package on.
- * @param result The CommandResult struct for the operation will be bound to this argument.
- * @return An enum indicating whether any command was run or not.
+ * @return The CommandResult struct for the operation, or NULL if nothing was done.
  */
-extern enum PackageResult *package_uninstall(Package *package, Host *host, CommandResult *result);
+extern CommandResult *package_uninstall(Package *package, Host *host);
 
 /**
  * @brief Runnables are the executable items that a Service calls

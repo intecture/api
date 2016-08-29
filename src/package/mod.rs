@@ -88,9 +88,9 @@ impl Package {
     }
 
     /// Install the package.
-    pub fn install(&mut self, host: &mut Host) -> Result<PackageResult> {
+    pub fn install(&mut self, host: &mut Host) -> Result<Option<CommandResult>> {
         if self.installed {
-            Ok(PackageResult::NoAction)
+            Ok(None)
         } else {
             let result = try!(self.provider.install(host, &self.name));
 
@@ -98,12 +98,12 @@ impl Package {
                 self.installed = true;
             }
 
-            Ok(PackageResult::Result(result))
+            Ok(Some(result))
         }
     }
 
     /// Uninstall the package.
-    pub fn uninstall(&mut self, host: &mut Host) -> Result<PackageResult> {
+    pub fn uninstall(&mut self, host: &mut Host) -> Result<Option<CommandResult>> {
         if self.installed {
             let result = try!(self.provider.uninstall(host, &self.name));
 
@@ -111,22 +111,11 @@ impl Package {
                 self.installed = false;
             }
 
-            Ok(PackageResult::Result(result))
+            Ok(Some(result))
         } else {
-            Ok(PackageResult::NoAction)
+            Ok(None)
         }
     }
-}
-
-/// Result of package operation.
-#[derive(Debug)]
-pub enum PackageResult {
-    /// The command result from a package operation
-    /// (e.g. installing/uninstalling)
-    Result(CommandResult),
-    /// No action was necessary to achieve the desired state
-    /// (e.g. calling install() on a currently installed package)
-    NoAction,
 }
 
 pub trait PackageTarget {
