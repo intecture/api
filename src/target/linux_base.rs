@@ -32,8 +32,13 @@ pub fn file_get_mode<P: AsRef<Path>>(path: P) -> Result<u16> {
 }
 
 pub fn using_systemd() -> Result<bool> {
-    let output = process::Command::new(&try!(BinResolver::resolve("pidof"))).arg("systemd").output().unwrap();
-    Ok(output.status.success())
+    let output = process::Command::new(&try!(BinResolver::resolve("stat"))).args(&["--format=%N", "/proc/1/exe"]).output().unwrap();
+    if output.status.success() {
+        let out = try!(str::from_utf8(&output.stdout));
+        Ok(out.contains("systemd"))
+    } else {
+        Err(Error::Generic(try!(String::from_utf8(output.stdout))))
+    }
 }
 
 pub fn service_systemd(name: &str, action: &str) -> Result<Option<CommandResult>> {
