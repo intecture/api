@@ -30,9 +30,11 @@ extern crate czmq;
 extern crate lazy_static;
 extern crate libc;
 extern crate regex;
+extern crate rustache;
 extern crate rustc_serialize;
 #[cfg(test)]
 extern crate tempdir;
+extern crate tempfile;
 extern crate zdaemon;
 extern crate zfilexfer;
 
@@ -50,6 +52,7 @@ pub mod package;
 pub mod service;
 mod target;
 pub mod telemetry;
+pub mod template;
 
 pub use command::{Command, CommandResult};
 pub use directory::{Directory, DirectoryOpts};
@@ -58,8 +61,10 @@ pub use file::{File, FileOwner};
 pub use host::Host;
 pub use package::Package;
 pub use package::providers::{Provider, ProviderFactory, Providers};
+pub use rustache::HashBuilder;
 pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
+pub use template::Template;
 pub use zfilexfer::FileOptions;
 
 #[cfg(feature = "remote-run")]

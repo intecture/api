@@ -151,14 +151,12 @@ pub trait FileTarget<P: AsRef<Path>> {
 
 #[cfg(test)]
 mod tests {
-    use Host;
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
-    use super::*;
+    use host::Host;
     #[cfg(feature = "remote-run")]
     use std::thread;
-
-    // XXX local-run tests require FS mocking
+    use super::*;
 
     #[cfg(feature = "local-run")]
     #[test]

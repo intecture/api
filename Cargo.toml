@@ -29,7 +29,9 @@ tempdir = "0.3"
 lazy_static = "0.2"
 libc = "0.2"
 rustc-serialize = "0.3"
+rustache = "^0.0"
 regex = "0.1"
+tempfile = "2.1"
 zdaemon = { git = "https://github.com/betweenlines/zdaemon.git", tag = "0.0.1" }
 # zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", tag = "0.0.1" }
 zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", branch = "dev" }
