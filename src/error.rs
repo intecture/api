@@ -9,8 +9,8 @@
 #[cfg(feature = "remote-run")]
 use czmq;
 use libc::c_char;
+use mustache;
 use regex;
-use rustache;
 use rustc_serialize::json;
 use std::{convert, error, fmt, io, num, ptr, result, str, string};
 use std::any::Any;
@@ -61,6 +61,8 @@ pub enum Error {
     HostResponse,
     /// IO error
     Io(io::Error),
+    /// Mustache template error
+    Mustache(mustache::Error),
     /// FFI received null pointer
     NullPtr(&'static str),
     /// Cast str as float
@@ -69,8 +71,6 @@ pub enum Error {
     ParseInt(num::ParseIntError),
     /// Regex error
     Regex(regex::Error),
-    /// Rustache template error
-    Rustache(rustache::RustacheError),
     /// Cast str
     StrFromUtf8(str::Utf8Error),
     /// Cast String
@@ -99,11 +99,11 @@ impl fmt::Display for Error {
             #[cfg(feature = "remote-run")]
             Error::HostResponse => write!(f, "Invalid response from host"),
             Error::Io(ref e) => write!(f, "IO error: {}", e),
+            Error::Mustache(ref e) => write!(f, "Mustache error: {:?}", e),
             Error::NullPtr(ref e) => write!(f, "Received null when we expected a {} pointer", e),
             Error::ParseFloat(ref e) => write!(f, "Parse error: {}", e),
             Error::ParseInt(ref e) => write!(f, "Parse error: {}", e),
             Error::Regex(ref e) => write!(f, "Regex error: {}", e),
-            Error::Rustache(ref e) => write!(f, "Rustache error: {:?}", e),
             Error::StrFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to str error: {}", e),
             Error::StringFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to String error: {}", e),
             #[cfg(feature = "remote-run")]
@@ -129,11 +129,11 @@ impl error::Error for Error {
             #[cfg(feature = "remote-run")]
             Error::HostResponse => "Invalid response from host",
             Error::Io(ref e) => e.description(),
+            Error::Mustache(_) => "Mustache failed to render the template",
             Error::NullPtr(ref e) => e,
             Error::ParseFloat(ref e) => e.description(),
             Error::ParseInt(ref e) => e.description(),
             Error::Regex(ref e) => e.description(),
-            Error::Rustache(_) => "Rustache failed to render the template",
             Error::StrFromUtf8(ref e) => e.description(),
             Error::StringFromUtf8(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
@@ -162,6 +162,12 @@ impl convert::From<czmq::Error> for Error {
     }
 }
 
+impl convert::From<io::Error> for Error {
+    fn from(err: io::Error) -> Error {
+        Error::Io(err)
+    }
+}
+
 impl convert::From<json::DecoderError> for Error {
     fn from(err: json::DecoderError) -> Error {
         Error::JsonDecoder(err)
@@ -175,21 +181,15 @@ impl convert::From<MissingFrame> for Error {
     }
 }
 
-impl convert::From<io::Error> for Error {
-    fn from(err: io::Error) -> Error {
-        Error::Io(err)
+impl convert::From<mustache::Error> for Error {
+    fn from(err: mustache::Error) -> Error {
+        Error::Mustache(err)
     }
 }
 
 impl convert::From<regex::Error> for Error {
     fn from(err: regex::Error) -> Error {
         Error::Regex(err)
-    }
-}
-
-impl convert::From<rustache::RustacheError> for Error {
-    fn from(err: rustache::RustacheError) -> Error {
-        Error::Rustache(err)
     }
 }
 

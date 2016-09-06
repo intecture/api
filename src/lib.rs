@@ -29,8 +29,8 @@ extern crate czmq;
 #[macro_use]
 extern crate lazy_static;
 extern crate libc;
+extern crate mustache;
 extern crate regex;
-extern crate rustache;
 extern crate rustc_serialize;
 #[cfg(test)]
 extern crate tempdir;
@@ -59,9 +59,9 @@ pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOwner};
 pub use host::Host;
+pub use mustache::{MapBuilder, VecBuilder};
 pub use package::Package;
 pub use package::providers::{Provider, ProviderFactory, Providers};
-pub use rustache::HashBuilder;
 pub use service::{Service, ServiceRunnable};
 pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
 pub use template::Template;

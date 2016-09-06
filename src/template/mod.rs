@@ -11,26 +11,27 @@
 //! # Examples
 //!
 //! ```no_run
-//! # use inapi::{HashBuilder, Template};
+//! # use inapi::{MapBuilder, Template};
 //! let template = Template::new("/path/to/template").unwrap();
-//! let data = HashBuilder::new().insert_string("key", "value");
-//! let file = template.render_to_file(data).unwrap();
+//! let data = MapBuilder::new().insert_str("key", "value").build();
+//! let file = template.render_data(&data).unwrap();
 //! ```
 
 pub mod ffi;
 
 use error::Result;
 use error::Error;
-use rustache::{HashBuilder, render_file};
+use mustache;
+use rustc_serialize::Encodable;
 use std::convert::Into;
 use std::fs;
-use std::io::{Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::io::{Seek, SeekFrom};
+use std::path::Path;
 use tempfile::tempfile;
 
 /// Container for rendering and uploading templates.
 pub struct Template {
-    path: PathBuf,
+    inner: mustache::Template,
 }
 
 impl Template {
@@ -41,15 +42,26 @@ impl Template {
         }
 
         Ok(Template {
-            path: path.as_ref().to_owned(),
+            inner: try!(mustache::compile_path(path.as_ref())),
         })
     }
 
-    /// Render template to file.
-    pub fn render_to_file<'a>(&self, data: HashBuilder<'a>) -> Result<fs::File> {
-        let stream = try!(render_file(self.path.to_str().expect("Invalid template path"), data));
+    /// Render template to file using generic Encodable data.
+    pub fn render<T: Encodable>(&self, data: &T) -> Result<fs::File> {
         let mut fh = try!(tempfile());
-        try!(fh.write_all(stream.as_slice()));
+        try!(self.inner.render(&mut fh, data));
+
+        // Reset cursor to beginning of file for reading
+        try!(fh.seek(SeekFrom::Start(0)));
+        Ok(fh)
+    }
+
+    /// Render template to file using a Data instance.
+    pub fn render_data(&self, data: &mustache::Data) -> Result<fs::File> {
+        let mut fh = try!(tempfile());
+        self.inner.render_data(&mut fh, data);
+
+        // Reset cursor to beginning of file for reading
         try!(fh.seek(SeekFrom::Start(0)));
         Ok(fh)
     }
@@ -57,7 +69,7 @@ impl Template {
 
 #[cfg(test)]
 mod tests {
-    use rustache::HashBuilder;
+    use mustache::MapBuilder;
     use std::fs;
     use std::io::{Read, Write};
     use super::*;
@@ -66,29 +78,55 @@ mod tests {
     #[test]
     fn test_new() {
         let tempdir = TempDir::new("template_test_render").unwrap();
-        let template_path = format!("{}/template", tempdir.path().to_str().unwrap());
+        let template_path = format!("{}/template.mustache", tempdir.path().to_str().unwrap());
 
         assert!(Template::new(&template_path).is_err());
 
         fs::File::create(&template_path).unwrap();
+        Template::new(&template_path).unwrap();
         assert!(Template::new(&template_path).is_ok());
     }
 
     #[test]
-    fn test_render_to_file() {
+    fn test_render() {
         let tempdir = TempDir::new("template_test_render").unwrap();
-        let template_path = format!("{}/template", tempdir.path().to_str().unwrap());
+        let template_path = format!("{}/template.mustache", tempdir.path().to_str().unwrap());
 
         let template_str = "Hello, {{name}}!".to_string();
-        let data = HashBuilder::new().insert_string("name", "Jasper Beardly");
+        let data = TestData {
+            name: "Jasper Beardly"
+        };
 
         let mut fh = fs::File::create(&template_path).unwrap();
         fh.write_all(template_str.as_bytes()).unwrap();
 
         let template = Template::new(&template_path).unwrap();
-        let mut fh = template.render_to_file(data).unwrap();
+        let mut fh = template.render(&data).unwrap();
         let mut content = String::new();
         fh.read_to_string(&mut content).unwrap();
         assert_eq!(content, "Hello, Jasper Beardly!");
+    }
+
+    #[test]
+    fn test_render_data_to_file() {
+        let tempdir = TempDir::new("template_test_render").unwrap();
+        let template_path = format!("{}/template.mustache", tempdir.path().to_str().unwrap());
+
+        let template_str = "Hello, {{name}}!".to_string();
+        let data = MapBuilder::new().insert_str("name", "Jasper Beardly").build();
+
+        let mut fh = fs::File::create(&template_path).unwrap();
+        fh.write_all(template_str.as_bytes()).unwrap();
+
+        let template = Template::new(&template_path).unwrap();
+        let mut fh = template.render_data(&data).unwrap();
+        let mut content = String::new();
+        fh.read_to_string(&mut content).unwrap();
+        assert_eq!(content, "Hello, Jasper Beardly!");
+    }
+
+    #[derive(RustcEncodable)]
+    struct TestData {
+        name: &'static str,
     }
 }
