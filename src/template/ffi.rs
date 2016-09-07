@@ -98,17 +98,19 @@ pub extern "C" fn template_new(path_ptr: *const c_char) -> *mut Ffi__Template {
     Box::into_raw(Box::new(ffi_template))
 }
 
+#[no_mangle]
 pub extern "C" fn template_render_map(template_ptr: *const Ffi__Template, builder_ptr: *mut Ffi__MapBuilder) -> c_int {
-    let template: Template = tryrc!(readptr!(template_ptr, "Template struct"));
-    let builder: mustache::MapBuilder = tryrc!(readptr!(builder_ptr as *mut Ffi__MapBuilder, "MapBuilder struct"));
-    let fh = tryrc!(template.render_data(&builder.build()));
+    let template: Template = tryrc!(readptr!(template_ptr, "Template struct"), 0);
+    let builder: mustache::MapBuilder = tryrc!(readptr!(builder_ptr as *mut Ffi__MapBuilder, "MapBuilder struct"), 0);
+    let fh = tryrc!(template.render_data(&builder.build()), 0);
     fh.into_raw_fd()
 }
 
+#[no_mangle]
 pub extern "C" fn template_render_vec(template_ptr: *const Ffi__Template, builder_ptr: *mut Ffi__VecBuilder) -> c_int {
-    let template: Template = tryrc!(readptr!(template_ptr, "Template struct"));
-    let builder: mustache::VecBuilder = tryrc!(readptr!(builder_ptr as *mut Ffi__VecBuilder, "VecBuilder struct"));
-    let fh = tryrc!(template.render_data(&builder.build()));
+    let template: Template = tryrc!(readptr!(template_ptr, "Template struct"), 0);
+    let builder: mustache::VecBuilder = tryrc!(readptr!(builder_ptr as *mut Ffi__VecBuilder, "VecBuilder struct"), 0);
+    let fh = tryrc!(template.render_data(&builder.build()), 0);
     fh.into_raw_fd()
 }
 

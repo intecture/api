@@ -55,11 +55,12 @@ macro_rules! trynull {
 }
 
 macro_rules! tryrc {
-    ($e:expr) => (match $e {
+    ($e:expr) => (tryrc!($e, 1));
+    ($e:expr, $r:expr) => (match $e {
         ::std::result::Result::Ok(val) => val,
         ::std::result::Result::Err(err) => {
             ::error::seterr(err);
-            return 1
+            return $r
         },
     });
 }
