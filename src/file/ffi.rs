@@ -8,11 +8,19 @@
 
 //! FFI interface for File
 
+#[cfg(feature = "remote-run")]
+use error;
 use host::Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t, uint16_t, uint64_t};
+#[cfg(feature = "remote-run")]
+use libc::c_int;
 use std::{convert, ptr};
 use std::ffi::CString;
+#[cfg(feature = "remote-run")]
+use std::fs;
+#[cfg(feature = "remote-run")]
+use std::os::unix::io::FromRawFd;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
 use super::*;
@@ -124,6 +132,31 @@ pub extern "C" fn file_upload(file_ptr: *const Ffi__File,
     };
 
     tryrc!(file.upload(&mut host, local_path, if opts.is_empty() { None } else { Some(&opts) }));
+
+    0
+}
+
+#[cfg(feature = "remote-run")]
+#[no_mangle]
+pub extern "C" fn file_upload_file(file_ptr: *const Ffi__File,
+                                   host_ptr: *const Ffi__Host,
+                                   file_descriptor: c_int,
+                                   file_options_ptr: *const Ffi__FileOptions) -> uint8_t {
+    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
+    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+
+    if file_descriptor == 0 {
+        error::seterr(error::Error::InvalidFileDescriptor);
+        return 1;
+    }
+
+    let fh = unsafe { fs::File::from_raw_fd(file_descriptor) };
+    let opts: Vec<FileOptions> = match readptr!(file_options_ptr, "FileOptions array") {
+        Ok(o) => o,
+        Err(_) => Vec::new(),
+    };
+
+    tryrc!(file.upload_file(&mut host, fh, if opts.is_empty() { None } else { Some(&opts) }));
 
     0
 }

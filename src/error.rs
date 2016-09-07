@@ -59,6 +59,8 @@ pub enum Error {
     #[cfg(feature = "remote-run")]
     /// Invalid response from host
     HostResponse,
+    /// Invalid file descriptor
+    InvalidFileDescriptor,
     /// IO error
     Io(io::Error),
     /// Mustache template error
@@ -98,6 +100,7 @@ impl fmt::Display for Error {
             Error::HostDisconnected => write!(f, "Cannot run command while host is disconnected"),
             #[cfg(feature = "remote-run")]
             Error::HostResponse => write!(f, "Invalid response from host"),
+            Error::InvalidFileDescriptor => write!(f, "Invalid file descriptor"),
             Error::Io(ref e) => write!(f, "IO error: {}", e),
             Error::Mustache(ref e) => write!(f, "Mustache error: {:?}", e),
             Error::NullPtr(ref e) => write!(f, "Received null when we expected a {} pointer", e),
@@ -128,6 +131,7 @@ impl error::Error for Error {
             Error::HostDisconnected => "Cannot run command on disconnected host",
             #[cfg(feature = "remote-run")]
             Error::HostResponse => "Invalid response from host",
+            Error::InvalidFileDescriptor => "Invalid file descriptor",
             Error::Io(ref e) => e.description(),
             Error::Mustache(_) => "Mustache failed to render the template",
             Error::NullPtr(ref e) => e,
