@@ -61,6 +61,7 @@ extern Host *host_new();
  * @param hostname The IP address or hostname of your managed host.
  * @param api_port The port number that the Agent API service is listening on.
  * @param upload_port The port number that the Agent File Upload service is listening on.
+ * @return Return code - zero on success, non-zero on error.
  *
  * #### Usage Example
  *
@@ -73,13 +74,14 @@ extern Host *host_new();
  * assert(rc == 0);
  * @endcode
  */
-extern uint8_t host_connect(Host *host, const char *hostname, uint32_t api_port, uint32_t upload_port);
+extern int host_connect(Host *host, const char *hostname, uint32_t api_port, uint32_t upload_port);
 
 /**
  * @brief Close the connection to your managed host.
  * @param host The host connection you wish to close.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t host_close(Host *host);
+extern int host_close(Host *host);
 
 /**
  * @brief The shell command primitive for running commands on a
@@ -253,6 +255,7 @@ extern Telemetry *telemetry_init(Host *host);
 /**
  * @brief Destroy the Telemetry struct and free its memory.
  * @param telemetry The telemetry object you wish to destroy.
+ * @return Return code - zero on success, non-zero on error.
  *
  * #### Warning!
  *
@@ -260,7 +263,7 @@ extern Telemetry *telemetry_init(Host *host);
  * memory is allocated idiomatically by Rust and is incompatible with
  * C free().
  */
-extern uint8_t telemetry_free(Telemetry *telemetry);
+extern int telemetry_free(Telemetry *telemetry);
 
 /**
  * @brief Container for operating on a file.
@@ -321,6 +324,7 @@ extern bool *file_exists(File *file, Host *host);
  * @param host The Host struct you wish to upload to.
  * @param local_path Absolute path to the local file you wish to upload.
  * @param opts File options struct for controlling upload behaviour.
+ * @return Return code - zero on success, non-zero on error.
  *
  * #### Usage Example
  *
@@ -347,30 +351,61 @@ extern bool *file_exists(File *file, Host *host);
  * // "/path/to/remote/file" and "/path/to/remote/file_bk"
  * @endcode
  */
-extern uint8_t file_upload(File *file, Host *host, const char *local_path, FileOptions *opts);
+extern int file_upload(File *file, Host *host, const char *local_path, FileOptions *opts);
+
+/**
+ * @brief Upload a file descriptor to the managed host.
+ * @param file The File struct you wish to upload.
+ * @param host The Host struct you wish to upload to.
+ * @param file_descriptor C file descriptor for the file you wish to
+ *        upload.
+ * @param opts File options struct for controlling upload behaviour.
+ * @return Return code - zero on success, non-zero on error.
+ *
+ * #### Usage Example
+ *
+ * @code
+ * Host *host = host_new();
+ * assert(host);
+ * int rc = host->connect("example.com", 7101, 7102);
+ * assert(rc == 0);
+ *
+ * File *file = file_new(host, "/path/to/remote/file");
+ * assert(file);
+ * FILE *fp;
+ * fp = fopen("/path/to/local/file", "r");
+ * int fd = fileno(fp);
+ * rc = file_upload_file(file, host, fd, NULL);
+ * assert(rc == 0);
+ * @endcode
+ */
+extern int file_upload_file(File *file, Host *host, int file_descriptor, FileOptions *opts);
 
 /**
  * @brief Delete a file.
  * @param file The File struct you wish to delete.
  * @param host The Host struct you wish to delete a file on.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t file_delete(File *file, Host *host);
+extern int file_delete(File *file, Host *host);
 
 /**
  * @brief Move a file to a new path.
  * @param file The File struct you wish to move.
  * @param host The Host struct you wish to move a file on.
  * @param new_path The absolute file path you wish to move the file to.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t file_mv(File *file, Host *host, const char *new_path);
+extern int file_mv(File *file, Host *host, const char *new_path);
 
 /**
  * @brief Copy a file to a new path.
  * @param file The File struct you wish to delete.
  * @param host The Host struct you wish to delete a file on.
  * @param new_path The absolute file path you wish to copy the file to.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t file_copy(File *file, Host *host, const char *new_path);
+extern int file_copy(File *file, Host *host, const char *new_path);
 
 /**
  * @brief Get the file's owner.
@@ -386,8 +421,9 @@ extern FileOwner *file_get_owner(File *file, Host *host);
  * @param host The Host struct you wish to edit a file on.
  * @param user The user name of the new owner.
  * @param group The group name of the new owner.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t file_set_owner(File *file, Host *host, const char *user, const char *group);
+extern int file_set_owner(File *file, Host *host, const char *user, const char *group);
 
 /**
  * @brief Get the file's permissions mask.
@@ -402,8 +438,9 @@ extern uint16_t *file_get_mode(File *file, Host *host);
  * @param file The File struct you wish to edit.
  * @param host The Host struct you wish to edit a file on.
  * @param mode The new mask you wish to apply to the file.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t file_set_mode(File *file, Host *host, uint16_t mode);
+extern int file_set_mode(File *file, Host *host, uint16_t mode);
 
 /**
  * @brief Container for operating on a directory.
@@ -452,8 +489,9 @@ extern bool *directory_exists(Directory *dir, Host *host);
  * @param host The Host struct you wish to delete a directory on.
  * @param opts Directory options struct for controlling create
  *     behaviour.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t directory_create(Directory *dir, Host *host, DirectoryOpts *opts);
+extern int directory_create(Directory *dir, Host *host, DirectoryOpts *opts);
 
 /**
  * @brief Delete a directory.
@@ -461,16 +499,18 @@ extern uint8_t directory_create(Directory *dir, Host *host, DirectoryOpts *opts)
  * @param host The Host struct you wish to delete a directory on.
  * @param opts Directory options struct for controlling delete
  *     behaviour.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t directory_delete(Directory *dir, Host *host, DirectoryOpts *opts);
+extern int directory_delete(Directory *dir, Host *host, DirectoryOpts *opts);
 
 /**
  * @brief Move a directory to a new path.
  * @param dir The Directory struct you wish to move.
  * @param host The Host struct you wish to move a directory on.
  * @param new_path The absolute dir path you wish to move the dir to.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t directory_mv(Directory *dir, Host *host, char *new_path);
+extern int directory_mv(Directory *dir, Host *host, char *new_path);
 
 /**
  * @brief Get the directory's owner.
@@ -486,8 +526,9 @@ extern FileOwner *directory_get_owner(Directory *dir, Host *host);
  * @param host The Host struct you wish to edit a directory on.
  * @param user The user name of the new owner.
  * @param group The group name of the new owner.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t directory_set_owner(Directory *dir, Host *host, char *user, char *group);
+extern int directory_set_owner(Directory *dir, Host *host, char *user, char *group);
 
 /**
  * @brief Get the directory's permissions mask.
@@ -502,8 +543,9 @@ extern uint16_t *directory_get_mode(Directory *dir, Host *host);
  * @param dir The Directory struct you wish to edit.
  * @param host The Host struct you wish to edit a directory on.
  * @param mode The new mask you wish to apply to the directory.
+ * @return Return code - zero on success, non-zero on error.
  */
-extern uint8_t directory_set_mode(Directory *dir, Host *host, uint16_t mode);
+extern int directory_set_mode(Directory *dir, Host *host, uint16_t mode);
 
 /**
  * @brief A list of supported Package providers.
@@ -710,5 +752,156 @@ extern Service *service_new_map(ServiceAction *actions, size_t actions_len, Serv
  * @return A struct containing the execution results, or null if no action was required.
  */
 extern CommandResult *service_action(Service *service, Host *host, char *action);
+
+/**
+ * @brief A File primitive wrapper for managing file templates.
+ */
+typedef struct _Template {
+    void *inner; /**< Template internals */
+} Template;
+
+/**
+ * @brief Template helper for building a hash data structure.
+ */
+typedef struct _MapBuilder {
+    void *inner; /**< Internal data storage */
+} MapBuilder;
+
+/**
+ * @brief Template helper for building a vector data structure.
+ */
+typedef struct _VecBuilder {
+    void *inner; /**< Internal data storage */
+} VecBuilder;
+
+/**
+ * @brief Create a new Template.
+ * @param path File path to your template.
+ * @return A new Template struct.
+ *
+ * #### Usage Example
+ *
+ * @code
+ * Host *host = host_new();
+ * assert(host);
+ * int rc = host->connect("example.com", 7101, 7102);
+ * assert(rc == 0);
+ *
+ * Template *template = template_new("payloads/nginx/nginx.conf");
+ * assert(template);
+ *
+ * MapBuilder *builder = map_new();
+ * assert(builder);
+ * int rc = map_insert_str(builder, "name", "Cyril Figgis");
+ * assert(rc == 0);
+ *
+ * int fd = template_render_map(template, builder);
+ * assert(rc != 0);
+ *
+ * File *file = file_new(host, "/usr/local/etc/nginx/nginx.conf");
+ * assert(file);
+ * rc = file_upload_file(file, host, fd, NULL);
+ * assert(rc == 0);
+ * @endcode
+ */
+extern Template *template_new(const char *path);
+
+/**
+ * @brief Render a Template using a MapBuilder data structure.
+ * @param template The Template struct you want to render.
+ * @param builder Data structure to pass to the template.
+ * @return File descriptor - zero is error.
+ */
+extern int template_render_map(Template *template, MapBuilder *builder);
+
+/**
+ * @brief Render a Template using a VecBuilder data structure.
+ * @param template The Template struct you want to render.
+ * @param builder Data structure to pass to the template.
+ * @return File descriptor - zero is error.
+ */
+extern int template_render_vec(Template *template, VecBuilder *builder);
+
+/**
+ * @brief Create a new MapBuilder instance that allows you to build
+ *         a hash map data structure to pass to your template.
+ * @return A new MapBuilder struct.
+ */
+extern MapBuilder *map_new();
+
+/**
+ * @brief Insert a string to the hash map.
+ * @param builder The MapBuilder struct.
+ * @param key The reference for the data item.
+ * @param value The data item.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int map_insert_str(MapBuilder *builder, const char *key, const char *value);
+
+/**
+ * @brief Insert a boolean to the hash map.
+ * @param builder The MapBuilder struct.
+ * @param key The reference for the data item.
+ * @param value The data item.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int map_insert_bool(MapBuilder *builder, const char *key, bool value);
+
+/**
+ * @brief Insert a vector (via VecBuilder) to the hash map.
+ * @param builder The MapBuilder struct.
+ * @param key The reference for the data item.
+ * @param value The data item.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int map_insert_vec(MapBuilder *builder, const char *key, VecBuilder *value);
+
+/**
+ * @brief Insert a nested hash map (via MapBuilder) to the hash map.
+ * @param builder The MapBuilder struct.
+ * @param key The reference for the data item.
+ * @param value The data item.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int map_insert_map(MapBuilder *builder, const char *key, MapBuilder *value);
+
+/**
+ * @brief Create a new VecBuilder instance that allows you to build
+ *         a vector (array) data structure to pass to your template.
+ * @return A new VecBuilder struct.
+ */
+extern VecBuilder *vec_new();
+
+/**
+ * @brief Insert a string to the vector.
+ * @param builder The VecBuilder struct.
+ * @param value The data item.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int vec_push_str(VecBuilder *builder, const char *value);
+
+/**
+ * @brief Insert a boolean to the vector.
+ * @param builder The VecBuilder struct.
+ * @param value The data item.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int vec_push_bool(VecBuilder *builder, bool value);
+
+/**
+ * @brief Insert a nested vector (via VecBuilder) to the vector.
+ * @param builder The VecBuilder struct.
+ * @param value The data item.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
+
+/**
+ * @brief Insert a hash map (via MapBuilder) to the vector.
+ * @param builder The VecBuilder struct.
+ * @param value The data item.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int vec_push_hash(VecBuilder *builder, MapBuilder *value);
 
 #endif
