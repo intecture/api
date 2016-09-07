@@ -237,7 +237,7 @@ mod tests {
     fn test_telemetry_init() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             assert_eq!("telemetry", server.recv_str().unwrap().unwrap());
@@ -286,7 +286,7 @@ mod tests {
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr(&json::encode(&telemetry).unwrap()).unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);

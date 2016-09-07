@@ -132,10 +132,10 @@ mod tests {
     fn test_exec() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
             assert_eq!("moo", req.popstr().unwrap().unwrap());
 
@@ -144,7 +144,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("cow").unwrap();
             rep.addstr("err").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);

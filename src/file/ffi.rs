@@ -243,7 +243,7 @@ mod tests {
     fn test_convert_file() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -251,7 +251,7 @@ mod tests {
             let msg = ZMsg::new();
             msg.addstr("Ok").unwrap();
             msg.addstr("1").unwrap();
-            msg.send(&server).unwrap();
+            msg.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -327,7 +327,7 @@ mod tests {
     fn test_new_ok() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -335,7 +335,7 @@ mod tests {
             let msg = ZMsg::new();
             msg.addstr("Ok").unwrap();
             msg.addstr("1").unwrap();
-            msg.send(&server).unwrap();
+            msg.send(&mut server).unwrap();
         });
 
         let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
@@ -353,7 +353,7 @@ mod tests {
     fn test_new_fail() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -361,7 +361,7 @@ mod tests {
             let msg = ZMsg::new();
             msg.addstr("Ok").unwrap();
             msg.addstr("0").unwrap();
-            msg.send(&server).unwrap();
+            msg.send(&mut server).unwrap();
         });
 
         let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
@@ -378,7 +378,7 @@ mod tests {
     fn test_exists() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -386,14 +386,14 @@ mod tests {
             let msg = ZMsg::new();
             msg.addstr("Ok").unwrap();
             msg.addstr("1").unwrap();
-            msg.send(&server).unwrap();
+            msg.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
 
             let msg = ZMsg::new();
             msg.addstr("Ok").unwrap();
             msg.addstr("0").unwrap();
-            msg.send(&server).unwrap();
+            msg.send(&mut server).unwrap();
         });
 
         let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
@@ -413,7 +413,7 @@ mod tests {
     fn test_delete() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -421,7 +421,7 @@ mod tests {
             let msg = ZMsg::new();
             msg.addstr("Ok").unwrap();
             msg.addstr("1").unwrap();
-            msg.send(&server).unwrap();
+            msg.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
             server.send_str("Ok").unwrap();
@@ -443,7 +443,7 @@ mod tests {
     fn test_get_owner() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -451,7 +451,7 @@ mod tests {
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
 
@@ -461,7 +461,7 @@ mod tests {
             reply.addstr("123").unwrap();
             reply.addstr("group").unwrap();
             reply.addstr("123").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
         });
 
         let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
@@ -485,7 +485,7 @@ mod tests {
     fn test_set_owner() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -493,9 +493,9 @@ mod tests {
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::set_owner", msg.popstr().unwrap().unwrap());
             assert_eq!("/path/to/file", msg.popstr().unwrap().unwrap());
             assert_eq!("user", msg.popstr().unwrap().unwrap());
@@ -522,7 +522,7 @@ mod tests {
     fn test_get_mode() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -530,14 +530,14 @@ mod tests {
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("755").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
         });
 
         let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
@@ -557,7 +557,7 @@ mod tests {
     fn test_set_mode() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -565,9 +565,9 @@ mod tests {
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::set_mode", msg.popstr().unwrap().unwrap());
             assert_eq!("/path/to/file", msg.popstr().unwrap().unwrap());
             assert_eq!("644", msg.popstr().unwrap().unwrap());

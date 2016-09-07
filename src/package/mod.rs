@@ -138,12 +138,12 @@ mod tests {
     fn test_new_homebrew() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
         client.set_rcvtimeo(Some(500));
         server.set_rcvtimeo(Some(500));
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
             assert_eq!("which brew", req.popstr().unwrap().unwrap());
 
@@ -152,9 +152,9 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("/usr/local/bin/brew").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
             assert_eq!("brew list", req.popstr().unwrap().unwrap());
 
@@ -163,7 +163,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("nginx-filesystem").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -188,7 +188,7 @@ mod tests {
     fn test_new_default() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
         client.set_rcvtimeo(Some(500));
         server.set_rcvtimeo(Some(500));
 
@@ -198,9 +198,9 @@ mod tests {
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("Homebrew").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
             assert_eq!("which brew", req.popstr().unwrap().unwrap());
 
@@ -209,9 +209,9 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("/usr/local/bin/brew").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
             assert_eq!("brew list", req.popstr().unwrap().unwrap());
 
@@ -220,7 +220,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("abc def nginx pkg").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);

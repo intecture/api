@@ -171,26 +171,26 @@ mod tests {
     fn test_new_ok() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("0").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -209,26 +209,26 @@ mod tests {
     fn test_exists() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::exists", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("0").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -244,19 +244,19 @@ mod tests {
     fn test_create() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::create", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
             assert_eq!("1", req.popstr().unwrap().unwrap());
@@ -277,19 +277,19 @@ mod tests {
     fn test_delete() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::delete", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
             assert_eq!("0", req.popstr().unwrap().unwrap());
@@ -310,19 +310,19 @@ mod tests {
     fn test_mv() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/old", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::mv", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/old", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/new", req.popstr().unwrap().unwrap());
@@ -343,19 +343,19 @@ mod tests {
     fn test_get_owner() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::get_owner", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
@@ -365,7 +365,7 @@ mod tests {
             rep.addstr("123").unwrap();
             rep.addstr("group").unwrap();
             rep.addstr("123").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -387,19 +387,19 @@ mod tests {
     fn test_set_owner() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::set_owner", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
             assert_eq!("user", req.popstr().unwrap().unwrap());
@@ -422,26 +422,26 @@ mod tests {
     fn test_get_mode() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::get_mode", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("755").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -458,19 +458,19 @@ mod tests {
     fn test_set_mode() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::is_directory", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("1").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::set_mode", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
             assert_eq!("644", req.popstr().unwrap().unwrap());

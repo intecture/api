@@ -70,9 +70,21 @@ impl convert::Into<Host> for Ffi__Host {
     #[cfg(feature = "remote-run")]
     fn into(self) -> Host {
         Host {
-            hostname: if self.hostname.is_null() { None } else { Some(trypanic!(ptrtostr!(self.hostname, "hostname string")).into()) },
-            api_sock: if self.api_sock.is_null() { None } else { Some(ZSock::from_raw(self.api_sock, false)) },
-            file_sock: if self.file_sock.is_null() { None } else { Some(ZSock::from_raw(self.file_sock, false)) },
+            hostname: if self.hostname.is_null() {
+                None
+            } else {
+                Some(trypanic!(ptrtostr!(self.hostname, "hostname string")).into())
+            },
+            api_sock: if self.api_sock.is_null() {
+                None
+            } else {
+                Some(unsafe { ZSock::from_raw(self.api_sock, false) })
+            },
+            file_sock: if self.file_sock.is_null() {
+                None
+            } else {
+                Some(unsafe { ZSock::from_raw(self.file_sock, false) })
+            },
         }
     }
 }
@@ -104,9 +116,21 @@ pub extern "C" fn host_close(host_ptr: *mut Ffi__Host) -> uint8_t {
     // Don't use the convert trait as we want owned ZSocks
     let ffi_host: Ffi__Host = tryrc!(readptr!(host_ptr, "Host struct"));
     let mut host = Host {
-        hostname: if ffi_host.hostname.is_null() { None } else { Some(tryrc!(ptrtostr!(ffi_host.hostname, "hostname string")).into()) },
-        api_sock: if ffi_host.api_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.api_sock, true)) },
-        file_sock: if ffi_host.file_sock.is_null() { None } else { Some(ZSock::from_raw(ffi_host.file_sock, true)) },
+        hostname: if ffi_host.hostname.is_null() {
+            None
+        } else {
+            Some(tryrc!(ptrtostr!(ffi_host.hostname, "hostname string")).into())
+        },
+        api_sock: if ffi_host.api_sock.is_null() {
+            None
+        } else {
+            Some(unsafe { ZSock::from_raw(ffi_host.api_sock, true) })
+        },
+        file_sock: if ffi_host.file_sock.is_null() {
+            None
+        } else {
+            Some(unsafe { ZSock::from_raw(ffi_host.file_sock, true) })
+        },
     };
     tryrc!(host.close());
 

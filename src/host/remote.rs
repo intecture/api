@@ -41,16 +41,16 @@ impl Host {
         let user_cert = try!(ZCert::load("user.crt"));
         let server_cert = try!(self.lookup_server_cert(hostname, &::PROJECT_CONFIG.auth_server, &user_cert));
 
-        let api_sock = ZSock::new(ZSockType::REQ);
-        user_cert.apply(&api_sock);
+        let mut api_sock = ZSock::new(ZSockType::REQ);
+        user_cert.apply(&mut api_sock);
         api_sock.set_curve_serverkey(server_cert.public_txt());
         api_sock.set_sndtimeo(Some(1800000));
         api_sock.set_rcvtimeo(Some(1800000));
         try!(api_sock.connect(&format!("tcp://{}:{}", hostname, api_port)));
         self.api_sock = Some(api_sock);
 
-        let file_sock = ZSock::new(ZSockType::DEALER);
-        user_cert.apply(&file_sock);
+        let mut file_sock = ZSock::new(ZSockType::DEALER);
+        user_cert.apply(&mut file_sock);
         file_sock.set_curve_serverkey(server_cert.public_txt());
         file_sock.set_sndtimeo(Some(1800000));
         file_sock.set_rcvtimeo(Some(1800000));
@@ -63,8 +63,8 @@ impl Host {
     fn lookup_server_cert(&self, hostname: &str, auth_server: &str, user_cert: &ZCert) -> Result<ZCert> {
         let auth_cert = try!(ZCert::load("auth.crt"));
 
-        let auth_sock = ZSock::new(ZSockType::REQ);
-        user_cert.apply(&auth_sock);
+        let mut auth_sock = ZSock::new(ZSockType::REQ);
+        user_cert.apply(&mut auth_sock);
         auth_sock.set_curve_serverkey(auth_cert.public_txt());
         auth_sock.set_sndtimeo(Some(10000));
         auth_sock.set_rcvtimeo(Some(10000));
@@ -74,9 +74,9 @@ impl Host {
         let msg = ZMsg::new();
         try!(msg.addstr("cert::lookup"));
         try!(msg.addstr(hostname));
-        try!(msg.send(&auth_sock));
+        try!(msg.send(&mut auth_sock));
 
-        let reply = try!(ZMsg::recv(&auth_sock));
+        let reply = try!(ZMsg::recv(&mut auth_sock));
 
         if reply.size() != 2 {
             return Err(Error::HostResponse);
@@ -85,7 +85,7 @@ impl Host {
         match try!(reply.popstr().unwrap().or(Err(Error::HostResponse))).as_ref() {
             "Ok" => {
                 let pk = try!(reply.popstr().unwrap().or(Err(Error::HostResponse)));
-                Ok(ZCert::from_txt(&pk, "0000000000000000000000000000000000000000"))
+                Ok(try!(ZCert::from_txt(&pk, "0000000000000000000000000000000000000000")))
             },
             "Err" => Err(Error::Auth(try!(reply.popstr().unwrap().or(Err(Error::HostResponse))))),
             _ => unreachable!(),
@@ -115,18 +115,18 @@ impl Host {
     }
 
     #[doc(hidden)]
-    pub fn send_file<P: AsRef<Path>>(&mut self, file: &zfilexfer::File, remote_path: P) -> Result<()> {
+    pub fn send_file<P: AsRef<Path>>(&mut self, file: &mut zfilexfer::File, remote_path: P) -> Result<()> {
         if self.file_sock.is_none() {
             return Err(Error::HostDisconnected);
         }
 
-        try!(file.send(self.file_sock.as_ref().unwrap(), remote_path));
+        try!(file.send(self.file_sock.as_mut().unwrap(), remote_path));
         Ok(())
     }
 
     #[doc(hidden)]
-    pub fn recv(&self, min: usize, max: Option<usize>) -> Result<ZMsg> {
-        let msg = try!(ZMsg::recv(self.api_sock.as_ref().unwrap()));
+    pub fn recv(&mut self, min: usize, max: Option<usize>) -> Result<ZMsg> {
+        let msg = try!(ZMsg::recv(self.api_sock.as_mut().unwrap()));
         try!(Self::extract_header(&msg));
 
         // Check msg size
@@ -212,14 +212,14 @@ mod tests {
         let tempdir = TempDir::new("host_test_send_file").unwrap();
         let path = format!("{}/file.txt", tempdir.path().to_str().unwrap());
         fs::File::create(&path).unwrap();
-        let file = File::open(&path, None).unwrap();
+        let mut file = File::open(&path, None).unwrap();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
         client.set_rcvtimeo(Some(500));
         server.set_rcvtimeo(Some(500));
 
         let handle = spawn(move|| {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!(msg.popstr().unwrap().unwrap(), "NEW");
 
             server.flush();
@@ -227,7 +227,7 @@ mod tests {
         });
 
         let mut host = Host::test_new(None, None, Some(client));
-        assert!(host.send_file(&file, &path).is_ok());
+        assert!(host.send_file(&mut file, &path).is_ok());
 
         handle.join().unwrap();
     }

@@ -31,9 +31,9 @@ impl MockEnv {
         cert.save_secret(".auth_secret.crt").unwrap();
 
         ZSys::init();
-        let sock = ZSock::new(::czmq::ZSockType::REP);
+        let mut sock = ZSock::new(::czmq::ZSockType::REP);
         let cert = ZCert::load(".auth_secret.crt").unwrap();
-        cert.apply(&sock);
+        cert.apply(&mut sock);
         sock.set_curve_server(true);
         sock.set_zap_domain("mock_auth_server");
         let port = sock.bind("tcp://127.0.0.1:*[60000-]").unwrap();
@@ -53,14 +53,14 @@ impl MockEnv {
     // MockEnv instance.
     pub fn init(&self) {}
 
-    fn auth_handler(sock: ZSock) {
+    fn auth_handler(mut sock: ZSock) {
         loop {
             sock.recv_str().unwrap().unwrap();
 
             let reply = ::czmq::ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("0000000000000000000000000000000000000000").unwrap();
-            reply.send(&sock).unwrap();
+            reply.send(&mut sock).unwrap();
         }
     }
 }

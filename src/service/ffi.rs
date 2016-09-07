@@ -375,7 +375,7 @@ mod tests {
     fn test_service_action() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -385,13 +385,13 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("Service started...").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));

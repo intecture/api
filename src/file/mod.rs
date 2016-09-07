@@ -93,8 +93,8 @@ impl File {
     #[cfg(feature = "remote-run")]
     /// Upload a file to the managed host.
     pub fn upload<P: AsRef<Path>>(&self, host: &mut Host, local_path: P, options: Option<&[zfilexfer::FileOptions]>) -> Result<()> {
-        let file = try!(zfilexfer::File::open(&local_path, options));
-        host.send_file(&file, &self.path)
+        let mut file = try!(zfilexfer::File::open(&local_path, options));
+        host.send_file(&mut file, &self.path)
     }
 
     /// Delete the file.
@@ -171,24 +171,24 @@ mod tests {
     fn test_new() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("0").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -207,26 +207,26 @@ mod tests {
     fn test_exists() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::exists", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -247,19 +247,19 @@ mod tests {
     fn test_delete() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::delete", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
@@ -279,19 +279,19 @@ mod tests {
     fn test_mv() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/old", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::mv", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/old", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/new", msg.popstr().unwrap().unwrap());
@@ -312,19 +312,19 @@ mod tests {
     fn test_copy() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/existing", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::copy", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/existing", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/new", msg.popstr().unwrap().unwrap());
@@ -345,19 +345,19 @@ mod tests {
     fn test_get_owner() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::get_owner", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
@@ -367,7 +367,7 @@ mod tests {
             reply.addstr("123").unwrap();
             reply.addstr("group").unwrap();
             reply.addstr("123").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -387,19 +387,19 @@ mod tests {
     fn test_set_owner() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::set_owner", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
             assert_eq!("user", msg.popstr().unwrap().unwrap());
@@ -421,26 +421,26 @@ mod tests {
     fn test_get_mode() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::get_mode", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("755").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -456,19 +456,19 @@ mod tests {
     fn test_set_mode() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::is_file", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
 
             let reply = ZMsg::new();
             reply.addstr("Ok").unwrap();
             reply.addstr("1").unwrap();
-            reply.send(&server).unwrap();
+            reply.send(&mut server).unwrap();
 
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("file::set_mode", msg.popstr().unwrap().unwrap());
             assert_eq!("/tmp/test", msg.popstr().unwrap().unwrap());
             assert_eq!("644", msg.popstr().unwrap().unwrap());

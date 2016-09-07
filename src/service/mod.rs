@@ -282,10 +282,10 @@ mod tests {
     fn test_action_default() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("service::action", req.popstr().unwrap().unwrap());
             assert_eq!("nginx", req.popstr().unwrap().unwrap());
             assert_eq!("start", req.popstr().unwrap().unwrap());
@@ -295,16 +295,16 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("Service started...").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
-            let req = ZMsg::recv(&server).unwrap();
+            let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("service::action", req.popstr().unwrap().unwrap());
             assert_eq!("nginx", req.popstr().unwrap().unwrap());
             assert_eq!("start", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -327,10 +327,10 @@ mod tests {
     fn test_action_map() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("service::action", msg.popstr().unwrap().unwrap());
             assert_eq!("nginx", msg.popstr().unwrap().unwrap());
             assert_eq!("start", msg.popstr().unwrap().unwrap());
@@ -340,7 +340,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("Service started...").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -362,10 +362,10 @@ mod tests {
     fn test_action_mapped() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("service::action", msg.popstr().unwrap().unwrap());
             assert_eq!("nginx", msg.popstr().unwrap().unwrap());
             assert_eq!("load", msg.popstr().unwrap().unwrap());
@@ -375,7 +375,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("Service started...").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -408,10 +408,10 @@ mod tests {
     fn test_action_command() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", msg.popstr().unwrap().unwrap());
             assert_eq!("/usr/local/bin/nginx", msg.popstr().unwrap().unwrap());
 
@@ -420,7 +420,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("Service started...").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);
@@ -442,10 +442,10 @@ mod tests {
     fn test_action_command_mapped() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
-            let msg = ZMsg::recv(&server).unwrap();
+            let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", msg.popstr().unwrap().unwrap());
             assert_eq!("/usr/local/bin/nginx -s", msg.popstr().unwrap().unwrap());
 
@@ -454,7 +454,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("Service started...").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut host = Host::test_new(None, Some(client), None);

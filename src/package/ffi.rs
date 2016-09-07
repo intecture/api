@@ -199,7 +199,7 @@ mod tests {
     fn test_package_new_default() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -207,7 +207,7 @@ mod tests {
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
             rep.addstr("Homebrew").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
 
@@ -216,7 +216,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("/usr/local/bin/brew").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
 
@@ -225,7 +225,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
@@ -277,7 +277,7 @@ mod tests {
     fn test_package_new_homebrew() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -287,7 +287,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("/usr/local/bin/brew").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
 
             server.recv_str().unwrap().unwrap();
 
@@ -296,7 +296,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
@@ -340,7 +340,7 @@ mod tests {
     fn test_package_install() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -350,7 +350,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
@@ -389,7 +389,7 @@ mod tests {
     fn test_package_uninstall() {
         ZSys::init();
 
-        let (client, server) = ZSys::create_pipe().unwrap();
+        let (client, mut server) = ZSys::create_pipe().unwrap();
 
         let agent_mock = thread::spawn(move || {
             server.recv_str().unwrap().unwrap();
@@ -399,7 +399,7 @@ mod tests {
             rep.addstr("0").unwrap();
             rep.addstr("").unwrap();
             rep.addstr("").unwrap();
-            rep.send(&server).unwrap();
+            rep.send(&mut server).unwrap();
         });
 
         let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
