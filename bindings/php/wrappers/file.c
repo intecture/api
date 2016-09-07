@@ -180,7 +180,7 @@ PHP_METHOD(File, upload) {
     }
 
     FileOptions c_opts;
-    int rc = parse_opts(opts, &c_opts);
+    int rc = parse_opts(opts, &c_opts TSRMLS_CC);
     if (rc != 0) {
         return;
     }
@@ -213,7 +213,7 @@ PHP_METHOD(File, upload_file) {
     }
 
     FileOptions c_opts;
-    int rc = parse_opts(opts, &c_opts);
+    int rc = parse_opts(opts, &c_opts TSRMLS_CC);
     if (rc != 0) {
         return;
     }
@@ -416,7 +416,7 @@ PHP_METHOD(File, set_mode) {
     }
 }
 
-int parse_opts(zval *opts, FileOptions *fopts) {
+int parse_opts(zval *opts, FileOptions *fopts TSRMLS_DC) {
     zval **data;
     HashTable *arr_hash;
     HashPosition pointer;
