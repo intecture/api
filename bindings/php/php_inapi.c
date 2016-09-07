@@ -16,6 +16,7 @@
 #include "wrappers/package.h"
 #include "wrappers/service.h"
 #include "wrappers/telemetry.h"
+#include "wrappers/template.h"
 
 PHP_MINIT_FUNCTION(inapi)
 {
@@ -34,6 +35,10 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_init_service_runnable(TSRMLS_C);
     inapi_init_telemetry(TSRMLS_C);
     inapi_init_telemetry_exception(TSRMLS_C);
+    inapi_init_template(TSRMLS_C);
+    inapi_init_template_exception(TSRMLS_C);
+    inapi_init_mapbuilder(TSRMLS_C);
+    inapi_init_vecbuilder(TSRMLS_C);
     return SUCCESS;
 }
 

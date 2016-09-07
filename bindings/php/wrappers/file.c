@@ -34,6 +34,7 @@ static zend_function_entry file_methods[] = {
     PHP_ME(File, __construct, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
     PHP_ME(File, exists, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(File, upload, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(File, upload_file, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(File, delete, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(File, mv, NULL, ZEND_ACC_PUBLIC)
     PHP_ME(File, copy, NULL, ZEND_ACC_PUBLIC)
@@ -165,10 +166,6 @@ PHP_METHOD(File, upload) {
     char *path;
     int path_len;
     zval *opts = NULL;
-    zval **data;
-    HashTable *arr_hash;
-    HashPosition pointer;
-    int array_count;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zs|a", &phost, &path, &path_len, &opts) == FAILURE) {
         return;
@@ -183,37 +180,45 @@ PHP_METHOD(File, upload) {
     }
 
     FileOptions c_opts;
-    c_opts.backup_existing = NULL;
-    c_opts.chunk_size = NULL;
-
-    if (opts != NULL) {
-        arr_hash = Z_ARRVAL_P(opts);
-        array_count = zend_hash_num_elements(arr_hash);
-
-        for (zend_hash_internal_pointer_reset_ex(arr_hash, &pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &pointer)) {
-            char *key;
-            unsigned int key_len;
-            unsigned long index;
-
-            if (zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &index, 0, &pointer) == HASH_KEY_IS_LONG) {
-                switch (index) {
-                    case OPT_BACKUP_EXISTING:
-                        c_opts.backup_existing = Z_STRVAL_PP(data);
-                        break;
-                    case OPT_CHUNK_SIZE:
-                        c_opts.chunk_size = (unsigned long long*) Z_LVAL_PP(data);
-                    default:
-                        zend_throw_exception(inapi_ce_file_exception, "Invalid option key - must be File constant", 1001 TSRMLS_CC);
-                        break;
-                }
-            } else {
-                zend_throw_exception(inapi_ce_file_exception, "Invalid option key - must be File constant", 1001 TSRMLS_CC);
-                return;
-            }
-        }
+    int rc = parse_opts(opts, &c_opts);
+    if (rc != 0) {
+        return;
     }
 
-    int rc = file_upload(intern->file, host->host, path, &c_opts);
+    rc = file_upload(intern->file, host->host, path, &c_opts);
+
+    if (rc != 0) {
+        zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+}
+
+PHP_METHOD(File, upload_file) {
+    php_file *intern;
+    zval *phost;
+    php_host *host;
+    int fd;
+    zval *opts = NULL;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl|a", &phost, &fd, &opts) == FAILURE) {
+        return;
+    }
+
+    intern = (php_file*)zend_object_store_get_object(getThis() TSRMLS_CC);
+
+    int rtn = get_check_host(phost, &host TSRMLS_CC);
+    if (rtn != 0) {
+        zend_throw_exception(inapi_ce_file_exception, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        return;
+    }
+
+    FileOptions c_opts;
+    int rc = parse_opts(opts, &c_opts);
+    if (rc != 0) {
+        return;
+    }
+
+    rc = file_upload_file(intern->file, host->host, fd, &c_opts);
 
     if (rc != 0) {
         zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
@@ -409,4 +414,43 @@ PHP_METHOD(File, set_mode) {
         zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
         return;
     }
+}
+
+int parse_opts(zval *opts, FileOptions *fopts) {
+    zval **data;
+    HashTable *arr_hash;
+    HashPosition pointer;
+    int array_count;
+
+    fopts->backup_existing = NULL;
+    fopts->chunk_size = NULL;
+
+    if (opts != NULL) {
+        arr_hash = Z_ARRVAL_P(opts);
+        array_count = zend_hash_num_elements(arr_hash);
+
+        for (zend_hash_internal_pointer_reset_ex(arr_hash, &pointer); zend_hash_get_current_data_ex(arr_hash, (void**) &data, &pointer) == SUCCESS; zend_hash_move_forward_ex(arr_hash, &pointer)) {
+            char *key;
+            unsigned int key_len;
+            unsigned long index;
+
+            if (zend_hash_get_current_key_ex(arr_hash, &key, &key_len, &index, 0, &pointer) == HASH_KEY_IS_LONG) {
+                switch (index) {
+                    case OPT_BACKUP_EXISTING:
+                        fopts->backup_existing = Z_STRVAL_PP(data);
+                        break;
+                    case OPT_CHUNK_SIZE:
+                        fopts->chunk_size = (unsigned long long*) Z_LVAL_PP(data);
+                    default:
+                        zend_throw_exception(inapi_ce_file_exception, "Invalid option key - must be File constant", 1001 TSRMLS_CC);
+                        return 1;
+                }
+            } else {
+                zend_throw_exception(inapi_ce_file_exception, "Invalid option key - must be File constant", 1001 TSRMLS_CC);
+                return 1;
+            }
+        }
+    }
+
+    return 0;
 }

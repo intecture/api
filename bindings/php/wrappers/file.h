@@ -24,9 +24,12 @@ void inapi_init_file_exception(TSRMLS_D);
 zend_object_value create_php_file(zend_class_entry *class_type TSRMLS_DC);
 void free_php_file(void *object TSRMLS_DC);
 
+int parse_opts(zval *opts, FileOptions *fopts);
+
 PHP_METHOD(File, __construct);
 PHP_METHOD(File, exists);
 PHP_METHOD(File, upload);
+PHP_METHOD(File, upload_file);
 PHP_METHOD(File, delete);
 PHP_METHOD(File, mv);
 PHP_METHOD(File, copy);
