@@ -246,11 +246,6 @@ mod tests {
         agent_mock.join().unwrap();
     }
 
-    // XXX Need to mock FS before we can test upload effectively
-    // #[test]
-    // fn test_upload() {
-    // }
-
     #[cfg(feature = "remote-run")]
     #[test]
     fn test_delete() {
