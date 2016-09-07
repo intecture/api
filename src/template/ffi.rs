@@ -155,7 +155,7 @@ pub extern "C" fn map_insert_vec(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *co
 }
 
 #[no_mangle]
-pub extern "C" fn map_insert_hash(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *const c_char, val_ptr: *mut Ffi__MapBuilder) -> uint8_t {
+pub extern "C" fn map_insert_map(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *const c_char, val_ptr: *mut Ffi__MapBuilder) -> uint8_t {
     let builder: mustache::MapBuilder = tryrc!(readptr!(builder_ptr, "MapBuilder struct"));
     let key = tryrc!(ptrtostr!(key_ptr, "key string"));
     let mut value: Option<mustache::MapBuilder> = Some(tryrc!(readptr!(val_ptr, "value struct")));
@@ -324,7 +324,7 @@ mod tests {
 
         let m = map_new();
         assert_eq!(map_insert_str(m, CString::new("one").unwrap().into_raw(), CString::new("two").unwrap().into_raw()), 0);
-        assert_eq!(map_insert_hash(m, CString::new("nested").unwrap().into_raw(), c), 0);
+        assert_eq!(map_insert_map(m, CString::new("nested").unwrap().into_raw(), c), 0);
 
         let template = mustache::compile_str("{{#nested}}{{key}}{{/nested}}{{one}}");
         let m: mustache::MapBuilder = readptr!(m, "MapBuilder struct").unwrap();
