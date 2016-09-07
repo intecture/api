@@ -208,7 +208,7 @@ pub extern "C" fn vec_push_vec(builder_ptr: *mut Ffi__VecBuilder, val_ptr: *mut 
 }
 
 #[no_mangle]
-pub extern "C" fn vec_push_hash(builder_ptr: *mut Ffi__VecBuilder, val_ptr: *mut Ffi__MapBuilder) -> uint8_t {
+pub extern "C" fn vec_push_map(builder_ptr: *mut Ffi__VecBuilder, val_ptr: *mut Ffi__MapBuilder) -> uint8_t {
     let builder: mustache::VecBuilder = tryrc!(readptr!(builder_ptr, "VecBuilder struct"));
     let mut value: Option<mustache::MapBuilder> = Some(tryrc!(readptr!(val_ptr, "value struct")));
 
@@ -425,7 +425,7 @@ mod tests {
     //     assert_eq!(map_insert_str(m, CString::new("one").unwrap().into_raw(), CString::new("two").unwrap().into_raw()), 0);
     //
     //     let v = vec_new();
-    //     assert_eq!(vec_push_hash(v, m), 0);
+    //     assert_eq!(vec_push_map(v, m), 0);
     //
     //     let template = mustache::compile_str("{{#.}}{{one}}{{/.}}");
     //     let v: mustache::VecBuilder = readptr!(v, "VecBuilder struct").unwrap();
