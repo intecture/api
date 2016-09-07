@@ -902,6 +902,6 @@ extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int vec_push_hash(VecBuilder *builder, MapBuilder *value);
+extern int vec_push_map(VecBuilder *builder, MapBuilder *value);
 
 #endif
