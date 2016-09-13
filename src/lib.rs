@@ -32,6 +32,8 @@ extern crate libc;
 extern crate mustache;
 extern crate regex;
 extern crate rustc_serialize;
+extern crate serde;
+extern crate serde_json;
 #[cfg(test)]
 extern crate tempdir;
 extern crate tempfile;
@@ -42,6 +44,7 @@ extern crate zfilexfer;
 mod ffi_helpers;
 pub mod command;
 mod config;
+mod data;
 pub mod directory;
 pub mod error;
 pub mod file;
@@ -55,6 +58,7 @@ pub mod telemetry;
 pub mod template;
 
 pub use command::{Command, CommandResult};
+pub use data::DataParser;
 pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOwner};

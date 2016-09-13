@@ -32,10 +32,9 @@
 
 pub mod ffi;
 
-use error::Result;
+use error::{Error, Result};
 use file::FileOwner;
 use host::Host;
-use error::Error;
 use std::path::{Path, PathBuf};
 use target::Target;
 

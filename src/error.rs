@@ -12,6 +12,7 @@ use libc::c_char;
 use mustache;
 use regex;
 use rustc_serialize::json;
+use serde_json;
 use std::{convert, error, fmt, io, num, ptr, result, str, string};
 use std::any::Any;
 use std::ffi::CString;
@@ -73,6 +74,8 @@ pub enum Error {
     ParseInt(num::ParseIntError),
     /// Regex error
     Regex(regex::Error),
+    /// Serde JSON error
+    SerdeJson(serde_json::Error),
     /// Cast str
     StrFromUtf8(str::Utf8Error),
     /// Cast String
@@ -107,6 +110,7 @@ impl fmt::Display for Error {
             Error::ParseFloat(ref e) => write!(f, "Parse error: {}", e),
             Error::ParseInt(ref e) => write!(f, "Parse error: {}", e),
             Error::Regex(ref e) => write!(f, "Regex error: {}", e),
+            Error::SerdeJson(ref e) => write!(f, "Serde JSON error: {}", e),
             Error::StrFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to str error: {}", e),
             Error::StringFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to String error: {}", e),
             #[cfg(feature = "remote-run")]
@@ -138,6 +142,7 @@ impl error::Error for Error {
             Error::ParseFloat(ref e) => e.description(),
             Error::ParseInt(ref e) => e.description(),
             Error::Regex(ref e) => e.description(),
+            Error::SerdeJson(ref e) => e.description(),
             Error::StrFromUtf8(ref e) => e.description(),
             Error::StringFromUtf8(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
@@ -194,6 +199,12 @@ impl convert::From<mustache::Error> for Error {
 impl convert::From<regex::Error> for Error {
     fn from(err: regex::Error) -> Error {
         Error::Regex(err)
+    }
+}
+
+impl convert::From<serde_json::Error> for Error {
+    fn from(err: serde_json::Error) -> Error {
+        Error::SerdeJson(err)
     }
 }
 
