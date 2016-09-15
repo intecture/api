@@ -15,13 +15,13 @@
 /* PHP 5.4 */
 #if PHP_VERSION_ID < 50399
 # define object_properties_init(zo, class_type) { \
-	zval *tmp; \
-	zend_hash_copy((*zo).properties, \
-		&class_type->default_properties, \
-		(copy_ctor_func_t) zval_add_ref, \
-		(void *) &tmp, \
-		sizeof(zval *)); \
-	}
+    zval *tmp; \
+    zend_hash_copy((*zo).properties, \
+        &class_type->default_properties, \
+        (copy_ctor_func_t) zval_add_ref, \
+        (void *) &tmp, \
+        sizeof(zval *)); \
+    }
 #endif
 
 /*
@@ -57,10 +57,10 @@ zend_object_value create_php_telemetry(zend_class_entry *class_type TSRMLS_DC) {
   object_properties_init(&intern->std, class_type);
 
   retval.handle = zend_objects_store_put(
-	  intern,
-	  (zend_objects_store_dtor_t) zend_objects_destroy_object,
-	  free_php_telemetry,
-	  NULL TSRMLS_CC
+      intern,
+      (zend_objects_store_dtor_t) zend_objects_destroy_object,
+      free_php_telemetry,
+      NULL TSRMLS_CC
   );
   retval.handlers = zend_get_std_object_handlers();
 
@@ -196,29 +196,29 @@ void inapi_init_telemetry_exception(TSRMLS_D) {
  */
 
 PHP_METHOD(Telemetry, load) {
-	php_telemetry *intern;
-	zval *phost;
-	php_host *host;
+    php_telemetry *intern;
+    zval *phost;
+    php_host *host;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &phost) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &phost) == FAILURE) {
+        return;
+    }
 
-	object_init_ex(return_value, inapi_ce_telemetry);
-	intern = (php_telemetry *)zend_object_store_get_object(return_value TSRMLS_CC);
+    object_init_ex(return_value, inapi_ce_telemetry);
+    intern = (php_telemetry *)zend_object_store_get_object(return_value TSRMLS_CC);
 
-	int rtn = get_check_host(phost, &host TSRMLS_CC);
-	if (rtn != 0) {
-		zend_throw_exception(inapi_ce_telemetry_exception, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
-		return;
-	}
+    int rtn = get_check_host(phost, &host TSRMLS_CC);
+    if (rtn != 0) {
+        zend_throw_exception(inapi_ce_telemetry_exception, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        return;
+    }
 
     Telemetry *telemetry = telemetry_init(host->host);
 
-	if (!telemetry) {
-		zend_throw_exception(inapi_ce_telemetry_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+    if (!telemetry) {
+        zend_throw_exception(inapi_ce_telemetry_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
     intern->telemetry = telemetry_to_array(telemetry);
 

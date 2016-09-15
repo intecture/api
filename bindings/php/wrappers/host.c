@@ -108,18 +108,18 @@ PHP_METHOD(Host, __construct) {
 }
 
 PHP_METHOD(Host, connect) {
-	php_host *intern;
-	char *hostname;
-	int hostname_len;
-	long api_port, upload_port;
+    php_host *intern;
+    char *hostname;
+    int hostname_len;
+    long api_port, upload_port;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll", &hostname, &hostname_len, &api_port, &upload_port) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll", &hostname, &hostname_len, &api_port, &upload_port) == FAILURE) {
+        return;
+    }
 
-	intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	int rc = host_connect(intern->host, hostname, api_port, upload_port);
+    int rc = host_connect(intern->host, hostname, api_port, upload_port);
 
     if (rc != 0) {
         zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);

@@ -191,36 +191,36 @@ void free_php_vecbuilder(void *object TSRMLS_DC) {
  */
 
 PHP_METHOD(Template, __construct) {
-	php_template *intern;
-	char *path;
-	int path_len;
+    php_template *intern;
+    char *path;
+    int path_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
+        return;
+    }
 
-	intern = (php_template*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_template*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	Template *template = template_new(path);
+    Template *template = template_new(path);
 
-	if (!template) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+    if (!template) {
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
-	intern->template = template;
+    intern->template = template;
 }
 
 PHP_METHOD(Template, render_map) {
-	php_template *intern;
+    php_template *intern;
     zval *zbuilder;
-	php_mapbuilder *builder;
+    php_mapbuilder *builder;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zbuilder) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zbuilder) == FAILURE) {
+        return;
+    }
 
-	intern = (php_template*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_template*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
     switch (Z_TYPE_P(zbuilder)) {
         case IS_OBJECT:
@@ -248,15 +248,15 @@ PHP_METHOD(Template, render_map) {
 }
 
 PHP_METHOD(Template, render_vec) {
-	php_template *intern;
+    php_template *intern;
     zval *zbuilder;
-	php_vecbuilder *builder;
+    php_vecbuilder *builder;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zbuilder) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zbuilder) == FAILURE) {
+        return;
+    }
 
-	intern = (php_template*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_template*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
     switch (Z_TYPE_P(zbuilder)) {
         case IS_OBJECT:
@@ -288,22 +288,22 @@ PHP_METHOD(Template, render_vec) {
  */
 
 PHP_METHOD(MapBuilder, __construct) {
-	php_mapbuilder *intern;
+    php_mapbuilder *intern;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+        return;
+    }
 
-	intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	MapBuilder *builder = map_new();
+    MapBuilder *builder = map_new();
 
-	if (!builder) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+    if (!builder) {
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
-	intern->builder = builder;
+    intern->builder = builder;
 }
 
 PHP_METHOD(MapBuilder, insert_str) {
@@ -311,18 +311,18 @@ PHP_METHOD(MapBuilder, insert_str) {
     char *key, *value;
     int key_len, value_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &key, &key_len, &value, &value_len) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &key, &key_len, &value, &value_len) == FAILURE) {
+        return;
+    }
 
-	intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	int rc = map_insert_str(intern->builder, key, value);
+    int rc = map_insert_str(intern->builder, key, value);
 
     if (rc != 0) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(MapBuilder, insert_bool) {
@@ -331,18 +331,18 @@ PHP_METHOD(MapBuilder, insert_bool) {
     int key_len;
     bool *value;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sb", &key, &key_len, &value) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sb", &key, &key_len, &value) == FAILURE) {
+        return;
+    }
 
-	intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	int rc = map_insert_bool(intern->builder, key, value);
+    int rc = map_insert_bool(intern->builder, key, value);
 
     if (rc != 0) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(MapBuilder, insert_vec) {
@@ -352,11 +352,11 @@ PHP_METHOD(MapBuilder, insert_vec) {
     zval *value;
     php_vecbuilder *builder;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &key, &key_len, &value) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &key, &key_len, &value) == FAILURE) {
+        return;
+    }
 
-	intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
     switch (Z_TYPE_P(value)) {
         case IS_OBJECT:
@@ -373,12 +373,12 @@ PHP_METHOD(MapBuilder, insert_vec) {
             return;
     }
 
-	int rc = map_insert_vec(intern->builder, key, builder->builder);
+    int rc = map_insert_vec(intern->builder, key, builder->builder);
 
     if (rc != 0) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(MapBuilder, insert_map) {
@@ -388,11 +388,11 @@ PHP_METHOD(MapBuilder, insert_map) {
     zval *value;
     php_mapbuilder *builder;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &key, &key_len, &value) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sz", &key, &key_len, &value) == FAILURE) {
+        return;
+    }
 
-	intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_mapbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
     switch (Z_TYPE_P(value)) {
         case IS_OBJECT:
@@ -409,12 +409,12 @@ PHP_METHOD(MapBuilder, insert_map) {
             return;
     }
 
-	int rc = map_insert_map(intern->builder, key, builder->builder);
+    int rc = map_insert_map(intern->builder, key, builder->builder);
 
     if (rc != 0) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 /*
@@ -422,22 +422,22 @@ PHP_METHOD(MapBuilder, insert_map) {
  */
 
 PHP_METHOD(VecBuilder, __construct) {
-	php_vecbuilder *intern;
+    php_vecbuilder *intern;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "") == FAILURE) {
+        return;
+    }
 
-	intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	VecBuilder *builder = vec_new();
+    VecBuilder *builder = vec_new();
 
-	if (!builder) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+    if (!builder) {
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
-	intern->builder = builder;
+    intern->builder = builder;
 }
 
 PHP_METHOD(VecBuilder, push_str) {
@@ -445,36 +445,36 @@ PHP_METHOD(VecBuilder, push_str) {
     char *value;
     int value_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &value, &value_len) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &value, &value_len) == FAILURE) {
+        return;
+    }
 
-	intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	int rc = vec_push_str(intern->builder, value);
+    int rc = vec_push_str(intern->builder, value);
 
     if (rc != 0) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(VecBuilder, push_bool) {
     php_vecbuilder *intern;
     bool *value;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &value) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "b", &value) == FAILURE) {
+        return;
+    }
 
-	intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	int rc = vec_push_bool(intern->builder, value);
+    int rc = vec_push_bool(intern->builder, value);
 
     if (rc != 0) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(VecBuilder, push_vec) {
@@ -482,11 +482,11 @@ PHP_METHOD(VecBuilder, push_vec) {
     zval *value;
     php_vecbuilder *builder;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) == FAILURE) {
+        return;
+    }
 
-	intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
     switch (Z_TYPE_P(value)) {
         case IS_OBJECT:
@@ -503,12 +503,12 @@ PHP_METHOD(VecBuilder, push_vec) {
             return;
     }
 
-	int rc = vec_push_vec(intern->builder, builder->builder);
+    int rc = vec_push_vec(intern->builder, builder->builder);
 
     if (rc != 0) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }
 
 PHP_METHOD(VecBuilder, push_map) {
@@ -516,11 +516,11 @@ PHP_METHOD(VecBuilder, push_map) {
     zval *value;
     php_mapbuilder *builder;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &value) == FAILURE) {
+        return;
+    }
 
-	intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_vecbuilder*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
     switch (Z_TYPE_P(value)) {
         case IS_OBJECT:
@@ -537,10 +537,10 @@ PHP_METHOD(VecBuilder, push_map) {
             return;
     }
 
-	int rc = vec_push_map(intern->builder, builder->builder);
+    int rc = vec_push_map(intern->builder, builder->builder);
 
     if (rc != 0) {
-		zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 }

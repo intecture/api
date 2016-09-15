@@ -209,27 +209,27 @@ impl convert::From<serde_json::Error> for Error {
 }
 
 impl convert::From<str::Utf8Error> for Error {
-	fn from(err: str::Utf8Error) -> Error {
-		Error::StrFromUtf8(err)
-	}
+    fn from(err: str::Utf8Error) -> Error {
+        Error::StrFromUtf8(err)
+    }
 }
 
 impl convert::From<string::FromUtf8Error> for Error {
-	fn from(err: string::FromUtf8Error) -> Error {
-		Error::StringFromUtf8(err)
-	}
+    fn from(err: string::FromUtf8Error) -> Error {
+        Error::StringFromUtf8(err)
+    }
 }
 
 impl convert::From<num::ParseFloatError> for Error {
-	fn from(err: num::ParseFloatError) -> Error {
-		Error::ParseFloat(err)
-	}
+    fn from(err: num::ParseFloatError) -> Error {
+        Error::ParseFloat(err)
+    }
 }
 
 impl convert::From<num::ParseIntError> for Error {
-	fn from(err: num::ParseIntError) -> Error {
-		Error::ParseInt(err)
-	}
+    fn from(err: num::ParseIntError) -> Error {
+        Error::ParseInt(err)
+    }
 }
 
 #[cfg(feature = "remote-run")]

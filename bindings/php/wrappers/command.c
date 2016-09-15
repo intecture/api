@@ -15,13 +15,13 @@
 /* PHP 5.4 */
 #if PHP_VERSION_ID < 50399
 # define object_properties_init(zo, class_type) { \
-	zval *tmp; \
-	zend_hash_copy((*zo).properties, \
-		&class_type->default_properties, \
-		(copy_ctor_func_t) zval_add_ref, \
-		(void *) &tmp, \
-		sizeof(zval *)); \
-	}
+    zval *tmp; \
+    zend_hash_copy((*zo).properties, \
+        &class_type->default_properties, \
+        (copy_ctor_func_t) zval_add_ref, \
+        (void *) &tmp, \
+        sizeof(zval *)); \
+    }
 #endif
 
 /*
@@ -56,10 +56,10 @@ zend_object_value create_php_command(zend_class_entry *class_type TSRMLS_DC) {
   object_properties_init(&intern->std, class_type);
 
   retval.handle = zend_objects_store_put(
-	  intern,
-	  (zend_objects_store_dtor_t) zend_objects_destroy_object,
-	  free_php_command,
-	  NULL TSRMLS_CC
+      intern,
+      (zend_objects_store_dtor_t) zend_objects_destroy_object,
+      free_php_command,
+      NULL TSRMLS_CC
   );
   retval.handlers = zend_get_std_object_handlers();
 
@@ -89,52 +89,52 @@ void inapi_init_command_exception(TSRMLS_D) {
  */
 
 PHP_METHOD(Command, __construct) {
-	php_command *intern;
-	char *cmd;
-	int cmd_len;
+    php_command *intern;
+    char *cmd;
+    int cmd_len;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &cmd, &cmd_len) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &cmd, &cmd_len) == FAILURE) {
+        return;
+    }
 
-	intern = (php_command*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_command*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	Command *command = command_new(cmd);
+    Command *command = command_new(cmd);
 
-	if (!command) {
-		zend_throw_exception(inapi_ce_command_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+    if (!command) {
+        zend_throw_exception(inapi_ce_command_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
-	intern->command = command;
+    intern->command = command;
 }
 
 PHP_METHOD(Command, exec) {
-	php_command *intern;
-	zval *phost;
-	php_host *host;
+    php_command *intern;
+    zval *phost;
+    php_host *host;
 
-	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &phost) == FAILURE) {
-		return;
-	}
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &phost) == FAILURE) {
+        return;
+    }
 
-	intern = (php_command*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern = (php_command*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-	int rtn = get_check_host(phost, &host TSRMLS_CC);
-	if (rtn != 0) {
-		zend_throw_exception(inapi_ce_command_exception, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
-		return;
-	}
+    int rtn = get_check_host(phost, &host TSRMLS_CC);
+    if (rtn != 0) {
+        zend_throw_exception(inapi_ce_command_exception, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        return;
+    }
 
-	CommandResult *result = command_exec(intern->command, host->host);
+    CommandResult *result = command_exec(intern->command, host->host);
 
-	if (!result) {
-		zend_throw_exception(inapi_ce_command_exception, geterr(), 1000 TSRMLS_CC);
-		return;
-	}
+    if (!result) {
+        zend_throw_exception(inapi_ce_command_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
 
-	array_init(return_value);
-	add_assoc_long(return_value, "exit_code", result->exit_code);
-	add_assoc_string(return_value, "stdout", result->stdout, 1);
-	add_assoc_string(return_value, "stderr", result->stderr, 1);
+    array_init(return_value);
+    add_assoc_long(return_value, "exit_code", result->exit_code);
+    add_assoc_string(return_value, "stdout", result->stdout, 1);
+    add_assoc_string(return_value, "stderr", result->stderr, 1);
 }
