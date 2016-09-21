@@ -47,6 +47,8 @@ pub enum Error {
     #[cfg(feature = "remote-run")]
     /// CZMQ error
     Czmq(czmq::Error),
+    /// Data condition error
+    InvalidCondition(String),
     /// JSON decoder error
     JsonDecoder(json::DecoderError),
     #[cfg(feature = "remote-run")]
@@ -95,6 +97,7 @@ impl fmt::Display for Error {
             Error::Auth(ref e) => write!(f, "Auth error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => write!(f, "CZMQ error: {}", e),
+            Error::InvalidCondition(ref e) => write!(f, "Invalid condition: {}", e),
             Error::JsonDecoder(ref e) => write!(f, "JSON decoder error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Frame(ref e) => write!(f, "Missing frame {} in message: {}", e.order, e.name),
@@ -127,6 +130,7 @@ impl error::Error for Error {
             Error::Auth(ref e) => e,
             #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => e.description(),
+            Error::InvalidCondition(ref e) => e,
             Error::JsonDecoder(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
             Error::Frame(_) => "The Agent's reply was missing a part ('frame') of the expected message",

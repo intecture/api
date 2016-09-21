@@ -13,9 +13,11 @@
 //! ```no_run
 //! ```
 
+mod condition;
 // pub mod ffi;
 
 use error::{Error, Result};
+use regex::Regex;
 use serde_json::{self, Value};
 use std::fs;
 use std::path::Path;
@@ -82,12 +84,12 @@ impl DataFile {
             last_value = dep.v;
         }
 
-        Self::merge_values(&mut self.v, last_value);
+        try!(Self::merge_values(&mut self.v, last_value));
 
         Ok(())
     }
 
-    fn merge_values(into: &mut Value, mut from: Value) {
+    fn merge_values(into: &mut Value, mut from: Value) -> Result<()> {
         match *into {
             Value::Null |
             Value::Bool(_) |
@@ -106,14 +108,25 @@ impl DataFile {
                 let mut overwrite_keys = Vec::new();
 
                 for (key, value) in o.iter_mut() {
-                    if key.ends_with("!") {
+                    let mut new_key = key.clone();
+
+                    if key.ends_with("?") || key.ends_with("?!") {
+                        if new_key.pop().unwrap() == '!' {
+                            new_key.pop();
+                            new_key.push('!');
+                        }
+
+                        try!(Self::query_value(value));
+                    }
+
+                    if new_key.ends_with("!") {
                         // Cache key for later removal
                         let mut new_key = key.clone();
                         new_key.pop();
                         overwrite_keys.push(new_key);
                     }
                     else if let Some(o1) = from.find(key) {
-                        Self::merge_values(value, o1.clone());
+                        try!(Self::merge_values(value, o1.clone()));
                     }
                 }
 
@@ -132,6 +145,41 @@ impl DataFile {
                     }
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    fn query_value(mut value: &mut Value) -> Result<bool> {
+        match *value {
+            Value::Array(a) => {
+                for opt in a.iter_mut() {
+                    if try!(Self::query_value(opt)) {
+                        value = opt;
+                        return Ok(true);
+                    }
+                }
+
+                Ok(false)
+            },
+            Value::Object(o) => {
+                if let Some(v) = o.get_mut("_") {
+                    if let Some(q) = o.get("?") {
+                        match *q {
+                            Value::String(ref s) => if !try!(condition::parse(s)) {
+                                return Ok(false);
+                            },
+                            _ => return Err(Error::Generic("Query must be string".into())),
+                        };
+                    }
+
+                    value = v;
+                    Ok(true)
+                } else {
+                    Ok(false)
+                }
+            },
+            _ => Ok(true),
         }
     }
 }
@@ -184,7 +232,7 @@ mod tests {
         fh.write_all(b"{
             \"payload\": {
                 \"b!\": [ 3, 4 ],
-                \"c\": [
+                \"c?\": [
                     {
                         \"_\": [ 6, 7 ],
                         \"?\": \"telemetry/os/family=linux\"
