@@ -47,10 +47,6 @@ pub enum Error {
     #[cfg(feature = "remote-run")]
     /// CZMQ error
     Czmq(czmq::Error),
-    /// Data condition error
-    InvalidCondition(String),
-    /// JSON decoder error
-    JsonDecoder(json::DecoderError),
     #[cfg(feature = "remote-run")]
     /// Message frames missing in the response from host's Intecture Agent
     Frame(MissingFrame),
@@ -66,6 +62,8 @@ pub enum Error {
     InvalidFileDescriptor,
     /// IO error
     Io(io::Error),
+    /// JSON decoder error
+    JsonDecoder(json::DecoderError),
     /// Mustache template error
     Mustache(mustache::Error),
     /// FFI received null pointer
@@ -74,6 +72,8 @@ pub enum Error {
     ParseFloat(num::ParseFloatError),
     /// Cast str as int
     ParseInt(num::ParseIntError),
+    /// Data query parser
+    QueryParser(String),
     /// Regex error
     Regex(regex::Error),
     /// Serde JSON error
@@ -97,8 +97,6 @@ impl fmt::Display for Error {
             Error::Auth(ref e) => write!(f, "Auth error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => write!(f, "CZMQ error: {}", e),
-            Error::InvalidCondition(ref e) => write!(f, "Invalid condition: {}", e),
-            Error::JsonDecoder(ref e) => write!(f, "JSON decoder error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Frame(ref e) => write!(f, "Missing frame {} in message: {}", e.order, e.name),
             Error::Generic(ref e) => write!(f, "Error: {}", e),
@@ -108,10 +106,12 @@ impl fmt::Display for Error {
             Error::HostResponse => write!(f, "Invalid response from host"),
             Error::InvalidFileDescriptor => write!(f, "Invalid file descriptor"),
             Error::Io(ref e) => write!(f, "IO error: {}", e),
+            Error::JsonDecoder(ref e) => write!(f, "JSON decoder error: {}", e),
             Error::Mustache(ref e) => write!(f, "Mustache error: {:?}", e),
             Error::NullPtr(ref e) => write!(f, "Received null when we expected a {} pointer", e),
             Error::ParseFloat(ref e) => write!(f, "Parse error: {}", e),
             Error::ParseInt(ref e) => write!(f, "Parse error: {}", e),
+            Error::QueryParser(ref e) => write!(f, "Query parser error: {}", e),
             Error::Regex(ref e) => write!(f, "Regex error: {}", e),
             Error::SerdeJson(ref e) => write!(f, "Serde JSON error: {}", e),
             Error::StrFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to str error: {}", e),
@@ -130,8 +130,6 @@ impl error::Error for Error {
             Error::Auth(ref e) => e,
             #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => e.description(),
-            Error::InvalidCondition(ref e) => e,
-            Error::JsonDecoder(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
             Error::Frame(_) => "The Agent's reply was missing a part ('frame') of the expected message",
             Error::Generic(ref e) => e,
@@ -141,10 +139,12 @@ impl error::Error for Error {
             Error::HostResponse => "Invalid response from host",
             Error::InvalidFileDescriptor => "Invalid file descriptor",
             Error::Io(ref e) => e.description(),
-            Error::Mustache(_) => "Mustache failed to render the template",
+            Error::JsonDecoder(ref e) => e.description(),
+            Error::Mustache(ref e) => e.description(),
             Error::NullPtr(ref e) => e,
             Error::ParseFloat(ref e) => e.description(),
             Error::ParseInt(ref e) => e.description(),
+            Error::QueryParser(ref e) => e,
             Error::Regex(ref e) => e.description(),
             Error::SerdeJson(ref e) => e.description(),
             Error::StrFromUtf8(ref e) => e.description(),

@@ -17,8 +17,8 @@ mod condition;
 // pub mod ffi;
 
 use error::{Error, Result};
-use regex::Regex;
 use serde_json::{self, Value};
+use std::collections::BTreeMap;
 use std::fs;
 use std::path::Path;
 
@@ -33,9 +33,8 @@ impl DataParser {
     /// ```no_run
     /// ```
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Value> {
-        let mut file = try!(DataFile::new(path));
-        try!(file.merge(Value::Null));
-        Ok(file.into_inner())
+        let file = try!(DataFile::new(path));
+        Ok(try!(file.merge(Value::Null)))
     }
 }
 
@@ -57,10 +56,6 @@ impl DataFile {
         }
     }
 
-    fn into_inner(self) -> Value {
-        self.v
-    }
-
     fn dependencies(&self) -> Result<Vec<DataFile>> {
         let mut deps = Vec::new();
 
@@ -78,109 +73,93 @@ impl DataFile {
         Ok(deps)
     }
 
-    fn merge(&mut self, mut last_value: Value) -> Result<()> {
-        for mut dep in try!(self.dependencies()) {
-            try!(dep.merge(last_value));
-            last_value = dep.v;
+    fn merge(self, mut last_value: Value) -> Result<Value> {
+        for dep in try!(self.dependencies()) {
+            last_value = try!(dep.merge(last_value));
         }
 
-        try!(Self::merge_values(&mut self.v, last_value));
-
-        Ok(())
+        Ok(try!(Self::merge_values(self.v, last_value)))
     }
 
-    fn merge_values(into: &mut Value, mut from: Value) -> Result<()> {
-        match *into {
+    fn merge_values(into: Value, mut from: Value) -> Result<Value> {
+        match into {
             Value::Null |
             Value::Bool(_) |
             Value::I64(_) |
             Value::U64(_) |
             Value::F64(_) |
-            Value::String(_) => (),
-            Value::Array(ref mut a) => {
+            Value::String(_) => Ok(into),
+            Value::Array(mut a) => {
                 if from.is_array() {
                     a.append(from.as_array_mut().unwrap());
                 } else {
                     a.push(from);
                 }
+
+                Ok(Value::Array(a))
             },
-            Value::Object(ref mut o) => {
-                let mut overwrite_keys = Vec::new();
+            Value::Object(o) => {
+                let mut new: BTreeMap<String, Value> = BTreeMap::new();
 
-                for (key, value) in o.iter_mut() {
-                    let mut new_key = key.clone();
-
+                for (mut key, mut value) in o {
                     if key.ends_with("?") || key.ends_with("?!") {
-                        if new_key.pop().unwrap() == '!' {
-                            new_key.pop();
-                            new_key.push('!');
+                        if key.pop().unwrap() == '!' {
+                            key.pop();
+                            key.push('!');
                         }
 
-                        try!(Self::query_value(value));
+                        value = try!(Self::query_value(&from, value)).unwrap_or(Value::Null);
                     }
 
-                    if new_key.ends_with("!") {
-                        // Cache key for later removal
-                        let mut new_key = key.clone();
-                        new_key.pop();
-                        overwrite_keys.push(new_key);
+                    if key.ends_with("!") {
+                        key.pop();
                     }
-                    else if let Some(o1) = from.find(key) {
-                        try!(Self::merge_values(value, o1.clone()));
+                    else if let Some(o1) = from.find(&key) {
+                        value = try!(Self::merge_values(value, o1.clone()));
                     }
-                }
 
-                for key in overwrite_keys {
-                    // Insert new key+value
-                    let value = o.remove(&format!("{}!", key)).unwrap();
-                    o.insert(key, value);
+                    new.insert(key, value);
                 }
 
                 // Insert any missing values
                 if let Some(o1) = from.as_object() {
                     for (key, value) in o1 {
-                        if !o.contains_key(key) {
-                            o.insert(key.clone(), value.clone());
+                        if !new.contains_key(key) {
+                            new.insert(key.clone(), value.clone());
                         }
                     }
                 }
+
+                Ok(Value::Object(new))
             }
         }
-
-        Ok(())
     }
 
-    fn query_value(mut value: &mut Value) -> Result<bool> {
-        match *value {
+    fn query_value(data: &Value, value: Value) -> Result<Option<Value>> {
+        match value {
             Value::Array(a) => {
-                for opt in a.iter_mut() {
-                    if try!(Self::query_value(opt)) {
-                        value = opt;
-                        return Ok(true);
+                for opt in a {
+                    if let Some(v) = try!(Self::query_value(data, opt)) {
+                        return Ok(Some(v));
                     }
                 }
-
-                Ok(false)
             },
-            Value::Object(o) => {
-                if let Some(v) = o.get_mut("_") {
+            Value::Object(mut o) => {
+                if let Some(v) = o.remove("_") {
                     if let Some(q) = o.get("?") {
                         match *q {
-                            Value::String(ref s) => if !try!(condition::parse(s)) {
-                                return Ok(false);
-                            },
+                            Value::String(ref s) if !try!(condition::eval(data, s)) => return Ok(None),
                             _ => return Err(Error::Generic("Query must be string".into())),
                         };
                     }
 
-                    value = v;
-                    Ok(true)
-                } else {
-                    Ok(false)
+                    return Ok(Some(v));
                 }
             },
-            _ => Ok(true),
+            _ => return Ok(Some(value)),
         }
+
+        Ok(None)
     }
 }
 
@@ -213,7 +192,15 @@ mod tests {
             \"a\": 1,
             \"payload\": {{
                 \"b\": [ 1, 2 ],
-                \"c!\": [ 1, 2 ],
+                \"c?\": [
+                    {{
+                        \"_\": [ 6, 7 ],
+                        \"?\": \"/variable = false\"
+                    }},
+                    {{
+                        \"_\": [ 8, 9 ]
+                    }}
+                ],
                 \"d\": [ 123 ]
             }},
             \"variable\": {{
@@ -232,16 +219,6 @@ mod tests {
         fh.write_all(b"{
             \"payload\": {
                 \"b!\": [ 3, 4 ],
-                \"c?\": [
-                    {
-                        \"_\": [ 6, 7 ],
-                        \"?\": \"telemetry/os/family=linux\"
-                    },
-                    {
-                        \"_\": [ 8, 9 ],
-                        \"?\": \"\"
-                    }
-                ],
                 \"d\": [ 987 ]
             },
             \"variable\": false,
@@ -269,7 +246,7 @@ mod tests {
             \"moo\": \"cow\",
             \"payload\": {{
                 \"b\": [ 1, 2, 3, 4 ],
-                \"c\": [ 1, 2 ],
+                \"c\": [ 6, 7 ],
                 \"d\": [ 123, 987, 999 ]
             }},
             \"variable\": {{
