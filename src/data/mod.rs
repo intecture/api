@@ -78,10 +78,11 @@ impl DataFile {
             last_value = try!(dep.merge(last_value));
         }
 
-        Ok(try!(Self::merge_values(self.v, last_value)))
+        let lv_clone = last_value.clone();
+        Ok(try!(Self::merge_values(self.v, last_value, &lv_clone)))
     }
 
-    fn merge_values(into: Value, mut from: Value) -> Result<Value> {
+    fn merge_values(into: Value, mut from: Value, parent_from: &Value) -> Result<Value> {
         match into {
             Value::Null |
             Value::Bool(_) |
@@ -108,14 +109,14 @@ impl DataFile {
                             key.push('!');
                         }
 
-                        value = try!(Self::query_value(&from, value)).unwrap_or(Value::Null);
+                        value = try!(Self::query_value(&parent_from, value)).unwrap_or(Value::Null);
                     }
 
                     if key.ends_with("!") {
                         key.pop();
                     }
                     else if let Some(o1) = from.find(&key) {
-                        value = try!(Self::merge_values(value, o1.clone()));
+                        value = try!(Self::merge_values(value, o1.clone(), &parent_from));
                     }
 
                     new.insert(key, value);
@@ -148,7 +149,11 @@ impl DataFile {
                 if let Some(v) = o.remove("_") {
                     if let Some(q) = o.get("?") {
                         match *q {
-                            Value::String(ref s) if !try!(condition::eval(data, s)) => return Ok(None),
+                            Value::String(ref s) => {
+                                if try!(condition::eval(data, s)) {
+                                    return Ok(Some(v));
+                                }
+                            },
                             _ => return Err(Error::Generic("Query must be string".into())),
                         };
                     }
