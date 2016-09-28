@@ -97,7 +97,13 @@ impl DataFile {
                     a.push(from);
                 }
 
-                Ok(Value::Array(a))
+                let mut b = Vec::new();
+
+                for v in a {
+                    b.push(try!(Self::merge_values(v, Value::Null, parent_from)));
+                }
+
+                Ok(Value::Array(b))
             },
             Value::Object(o) => {
                 let mut new: BTreeMap<String, Value> = BTreeMap::new();
