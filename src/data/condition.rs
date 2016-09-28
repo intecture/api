@@ -305,7 +305,6 @@ fn parse(tokens: &mut Enumerate<IntoIter<Token>>, data: &Value) -> Result<bool> 
 }
 
 fn eval_condition(predicate: &Token, cop: &ComparisonOperator, criteria: &Token, data: &Value) -> Result<bool> {
-    println!("p: {}, c: {}, d: {}", predicate, criteria, data);
     let result = match *cop {
         ComparisonOperator::Equals =>
             try!(resolve_pointer(predicate, data)) == try!(resolve_pointer(criteria, data)),
