@@ -14,7 +14,22 @@
 //! # use inapi::{MapBuilder, Template};
 //! let template = Template::new("/path/to/template").unwrap();
 //! let data = MapBuilder::new().insert_str("key", "value").build();
-//! let file = template.render_data(&data).unwrap();
+//! let rendered_file = template.render_data(&data).unwrap();
+//! ```
+//!
+//! To upload the rendered file to your host, you can pass it
+//! straight into the File primitive:
+//!
+//! ```no_run
+//! # use inapi::{File, Host, MapBuilder, Template};
+//! # let template = Template::new("/path/to/template").unwrap();
+//! # let data = MapBuilder::new().insert_str("key", "value").build();
+//! # let rendered_file = template.render_data(&data).unwrap();
+//! let mut host = Host::new();
+#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102).unwrap();")]
+//!
+//! let file = File::new(&mut host, "/path/to/remote/file").unwrap();
+//! file.upload_file(&mut host, rendered_file, None).unwrap();
 //! ```
 
 pub mod ffi;
