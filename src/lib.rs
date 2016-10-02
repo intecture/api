@@ -44,6 +44,7 @@ extern crate zfilexfer;
 mod ffi_helpers;
 pub mod command;
 mod config;
+#[macro_use]
 mod data;
 pub mod directory;
 pub mod error;
@@ -59,6 +60,7 @@ pub mod template;
 
 pub use command::{Command, CommandResult};
 pub use data::DataParser;
+pub use data::ffi::{data_open, free_value, get_value};
 pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOwner};

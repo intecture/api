@@ -99,3 +99,17 @@ macro_rules! readptr {
         }
     });
 }
+
+macro_rules! boxptr {
+    ($p:expr, $e:expr) => ({
+        let r = $p; // Evaluate $p before consuming the result
+        if r.is_null() {
+            ::std::result::Result::Err(::error::Error::NullPtr($e))
+        } else {
+            match ::std::panic::catch_unwind(|| ::std::convert::Into::into(unsafe { ::std::boxed::Box::from_raw(r) })) {
+                ::std::result::Result::Ok(val) => ::std::result::Result::Ok(val),
+                ::std::result::Result::Err(e) => ::std::result::Result::Err(::std::convert::Into::into(e)),
+            }
+        }
+    });
+}

@@ -13,7 +13,7 @@ use mustache;
 use regex;
 use rustc_serialize::json;
 use serde_json;
-use std::{convert, error, fmt, io, num, ptr, result, str, string};
+use std::{convert, error, ffi, fmt, io, num, ptr, result, str, string};
 use std::any::Any;
 use std::ffi::CString;
 #[cfg(feature = "remote-run")]
@@ -25,7 +25,7 @@ pub type Result<T> = result::Result<T, Error>;
 pub static mut ERRMSG: *const c_char = 0 as *const c_char;
 
 pub fn seterr<E: Into<Error>>(err: E) {
-    unsafe { ERRMSG = CString::new(err.into().to_string()).unwrap().into_raw(); }
+    unsafe { ERRMSG = CString::new(err.into().to_string()).expect("Could not convert error string to CString").into_raw(); }
 }
 
 #[no_mangle]
@@ -66,6 +66,8 @@ pub enum Error {
     JsonDecoder(json::DecoderError),
     /// Mustache template error
     Mustache(mustache::Error),
+    /// FFI null error
+    NulError(ffi::NulError),
     /// FFI received null pointer
     NullPtr(&'static str),
     /// Cast str as float
@@ -108,6 +110,7 @@ impl fmt::Display for Error {
             Error::Io(ref e) => write!(f, "IO error: {}", e),
             Error::JsonDecoder(ref e) => write!(f, "JSON decoder error: {}", e),
             Error::Mustache(ref e) => write!(f, "Mustache error: {:?}", e),
+            Error::NulError(ref e) => write!(f, "Nul error: {}", e),
             Error::NullPtr(ref e) => write!(f, "Received null when we expected a {} pointer", e),
             Error::ParseFloat(ref e) => write!(f, "Parse error: {}", e),
             Error::ParseInt(ref e) => write!(f, "Parse error: {}", e),
@@ -141,6 +144,7 @@ impl error::Error for Error {
             Error::Io(ref e) => e.description(),
             Error::JsonDecoder(ref e) => e.description(),
             Error::Mustache(ref e) => e.description(),
+            Error::NulError(ref e) => e.description(),
             Error::NullPtr(ref e) => e,
             Error::ParseFloat(ref e) => e.description(),
             Error::ParseInt(ref e) => e.description(),
@@ -172,6 +176,12 @@ impl convert::From<Box<Any + Send>> for Error {
 impl convert::From<czmq::Error> for Error {
     fn from(err: czmq::Error) -> Error {
         Error::Czmq(err)
+    }
+}
+
+impl convert::From<ffi::NulError> for Error {
+    fn from(err: ffi::NulError) -> Error {
+        Error::NulError(err)
     }
 }
 
