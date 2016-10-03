@@ -18,9 +18,7 @@ pub struct Ffi__Array<T> {
 }
 
 impl <T>convert::From<Vec<T>> for Ffi__Array<T> {
-    fn from(item: Vec<T>) -> Ffi__Array<T> {
-        let mut item = item;
-
+    fn from(mut item: Vec<T>) -> Ffi__Array<T> {
         item.shrink_to_fit();
 
         let ffi_item = Ffi__Array {
