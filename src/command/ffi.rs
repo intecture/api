@@ -140,6 +140,8 @@ mod tests {
         ZSys::init();
 
         let (client, mut server) = ZSys::create_pipe().unwrap();
+        client.set_sndtimeo(Some(500));
+        server.set_rcvtimeo(Some(500));
 
         let agent_mock = thread::spawn(move || {
             let req = ZMsg::recv(&mut server).unwrap();
@@ -155,23 +157,19 @@ mod tests {
         });
 
         let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
-
         let mut ffi_command = Ffi__Command {
-            cmd: CString::new("moo").unwrap().as_ptr(),
+            cmd: CString::new("moo").unwrap().into_raw(),
         };
 
         let result = unsafe { ptr::read(command_exec(&mut ffi_command, &mut ffi_host)) };
 
         assert_eq!(host_close(&mut ffi_host), 0);
-
         assert_eq!(result.exit_code, 0);
 
-        let stdout_slice = unsafe { CStr::from_ptr(result.stdout) };
-        let stdout = str::from_utf8(stdout_slice.to_bytes()).unwrap();
+        let stdout = ptrtostr!(result.stdout, "stdout").unwrap();
         assert_eq!(stdout, "cow");
 
-        let stderr_slice = unsafe { CStr::from_ptr(result.stderr) };
-        let stderr = str::from_utf8(stderr_slice.to_bytes()).unwrap();
+        let stderr = ptrtostr!(result.stderr, "stderr").unwrap();
         assert_eq!(stderr, "err");
 
         agent_mock.join().unwrap();
