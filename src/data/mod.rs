@@ -7,14 +7,12 @@
 // modified, or distributed except according to those terms.
 
 //! Parser for Intecture data files.
-//!
-//! # Examples
-//!
-//! ```no_run
-//! ```
 
 macro_rules! want_macro {
     ($t:expr, $n:ident, $isf:ident, $asf:ident) => {
+        /// Helper that returns an Option<$t>.
+        /// You can optionally pass a JSON pointer to retrieve a
+        /// nested key.
         #[macro_export]
         macro_rules! $n {
             ($v:expr) => (if $v.$isf() {
@@ -42,6 +40,9 @@ want_macro!("object", wantobj, is_object, as_object);
 
 macro_rules! need_macro {
     ($t:expr, $n:ident, $isf:ident, $asf:ident) => {
+        /// Helper that returns a Result<$t>.
+        /// You can optionally pass a JSON pointer to retrieve a
+        /// nested key.
         #[macro_export]
         macro_rules! $n {
             ($v:expr) => (if $v.$isf() {
@@ -81,11 +82,6 @@ pub struct DataParser;
 
 impl DataParser {
     /// Open a new file and recursively parse its contents.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// ```
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Value> {
         let file = try!(DataFile::new(path));
         Ok(try!(file.merge(Value::Null)))

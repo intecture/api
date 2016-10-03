@@ -917,8 +917,15 @@ enum DataType {
     Object, /**< Hash map of string keys and `Value` values */
 };
 
+/**
+ * @brief Open a data file (and any included files).
+ * @param path Path to the top level data file.
+ * @return A Value pointer that can be passed to `get_value`.
+ */
 extern void *data_open(const char *path);
+
 extern void *get_value(void *value, enum DataType data_type, const char *pointer);
+
 extern int free_value(void *value);
 
 #endif
