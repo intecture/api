@@ -904,4 +904,21 @@ extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
  */
 extern int vec_push_map(VecBuilder *builder, MapBuilder *value);
 
+/**
+ * @brief Potential data types for a given `Value`
+ */
+enum DataType {
+    Bool, /**< Boolean */
+    Int64, /**< 64b signed integer */
+    Uint64, /**< 64b unsigned integer */
+    Float, /**< 64b floating point integer */
+    String, /**< Char array */
+    Array, /**< Array of `Value`s */
+    Object, /**< Hash map of string keys and `Value` values */
+};
+
+extern void *data_open(const char *path);
+extern void *get_value(void *value, enum DataType data_type, const char *pointer);
+extern int free_value(void *value);
+
 #endif

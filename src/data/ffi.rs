@@ -34,8 +34,8 @@ pub extern "C" fn data_open(path_ptr: *const c_char) -> *mut c_void {
 }
 
 #[no_mangle]
-pub extern "C" fn get_value(value_ptr: *mut Value, data_type: Ffi__DataType, pointer_ptr: *const c_char) -> *mut c_void {
-    let value: Value = trynull!(readptr!(value_ptr, "Value struct"));
+pub extern "C" fn get_value(value_ptr: *mut c_void, data_type: Ffi__DataType, pointer_ptr: *const c_char) -> *mut c_void {
+    let value: Value = trynull!(readptr!(value_ptr as *mut Value, "Value struct"));
     let pointer = if pointer_ptr.is_null() {
         None
     } else {
@@ -90,7 +90,17 @@ pub extern "C" fn get_value(value_ptr: *mut Value, data_type: Ffi__DataType, poi
 }
 
 #[no_mangle]
-pub extern "C" fn free_value(ffi_value_ptr: *mut c_void) -> uint8_t {
-    let _: Box<Value> = tryrc!(boxptr!(ffi_value_ptr as *mut Value, "Value struct"));
+pub extern "C" fn free_value(value_ptr: *mut c_void) -> uint8_t {
+    let _: Box<Value> = tryrc!(boxptr!(value_ptr as *mut Value, "Value struct"));
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_() {
+        
+    }
 }
