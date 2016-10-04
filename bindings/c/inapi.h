@@ -918,6 +918,15 @@ enum DataType {
 };
 
 /**
+ * @brief Array of `Value` pointers
+ */
+typedef struct _ValueArray {
+    void *ptr; /**< `Value`s */
+    size_t length; /**< Size of array */
+    size_t capacity; /**< Capacity of array */
+} ValueArray;
+
+/**
  * @brief Open a new file and recursively parse its contents.
  * @param path Path to the top level data file.
  * @return A `Value` pointer that can be passed to `get_value`, or null on error.
