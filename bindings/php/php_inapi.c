@@ -50,8 +50,8 @@ zend_module_entry inapi_module_entry = {
     STANDARD_MODULE_HEADER,
 #endif
     PHP_INAPI_EXTNAME,
-    NULL,                  /* Functions */
-    PHP_MINIT(inapi),
+    data_functions,        /* Functions */
+    PHP_MINIT(inapi),      /* Methods */
     NULL,                  /* MSHUTDOWN */
     NULL,                  /* RINIT */
     NULL,                  /* RSHUTDOWN */

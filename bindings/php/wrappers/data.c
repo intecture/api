@@ -24,6 +24,11 @@
     }
 #endif
 
+static zend_function_entry data_functions[] = {
+    PHP_FE(data_open, NULL)
+    {NULL, NULL, NULL}
+};
+
 /*
  * Value Class
  */
@@ -45,7 +50,7 @@ void inapi_init_value(TSRMLS_D) {
     zend_declare_class_constant_long(inapi_ce_value, "INT", 5, 1 TSRMLS_CC);
     zend_declare_class_constant_long(inapi_ce_value, "DOUBLE", 5, 3 TSRMLS_CC);
     zend_declare_class_constant_long(inapi_ce_value, "STRING", 6, 4 TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "ARRAY", 5, 5 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_value, "ARR", 3, 5 TSRMLS_CC);
     zend_declare_class_constant_long(inapi_ce_value, "OBJECT", 6, 6 TSRMLS_CC);
 }
 
@@ -170,7 +175,7 @@ PHP_METHOD(Value, get) {
 
         // Array
         case 5:
-            array_init(retval);
+            array_init(return_value);
 
             ValueArray *a = v;
 
@@ -179,10 +184,8 @@ PHP_METHOD(Value, get) {
                 object_init_ex(obj, inapi_ce_value);
                 pvalue = (php_value *)zend_object_store_get_object(obj TSRMLS_CC);
                 pvalue->value = &a->ptr[i];
-                add_next_index_zval(retval, obj);
+                add_next_index_zval(return_value, obj);
             }
-
-            RETURN_ZVAL(retval, 1, 0);
             break;
 
         // Object
