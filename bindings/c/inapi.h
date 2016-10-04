@@ -905,7 +905,7 @@ extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
 extern int vec_push_map(VecBuilder *builder, MapBuilder *value);
 
 /**
- * @brief Potential data types for a given `Value`
+ * @brief Potential data types for a given `Value`.
  */
 enum DataType {
     Bool, /**< Boolean */
@@ -914,18 +914,45 @@ enum DataType {
     Float, /**< 64b floating point integer */
     String, /**< Char array */
     Array, /**< Array of `Value`s */
-    Object, /**< Hash map of string keys and `Value` values */
+    Object, /**< A `Value` pointer to the object  */
 };
 
 /**
- * @brief Open a data file (and any included files).
+ * @brief Open a new file and recursively parse its contents.
  * @param path Path to the top level data file.
- * @return A Value pointer that can be passed to `get_value`.
+ * @return A `Value` pointer that can be passed to `get_value`, or null on error.
  */
 extern void *data_open(const char *path);
 
+/**
+ * @brief Get a concrete value from the `Value` pointer.
+ * @param value A `Value` pointer.
+ * @param data_type The concrete data type you want to transform the value into.
+ * @param pointer [Optional] A JSON pointer to a nested value.
+ * @return A void pointer containing the concrete data type, or null if no data/wrong data type.
+ *
+ * #### Usage Example
+ *
+ * @code
+ * void *value = data_open("data/nodes/myhost");
+ * assert(value);
+ *
+ * enum DataType dt;
+ * dt = String;
+ * char *hostname = get_value(value, dt, "/hostname");
+ * if (!hostname) {
+ *     printf("Could not find hostname in data!\n");
+ *     exit(1);
+ * }
+ * @endcode
+ */
 extern void *get_value(void *value, enum DataType data_type, const char *pointer);
 
+/**
+ * @brief Free a `Value` pointer. Do not attempt to free using `free` et. al.
+ * @param value A `Value` pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
 extern int free_value(void *value);
 
 #endif
