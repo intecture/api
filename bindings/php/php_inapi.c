@@ -10,6 +10,7 @@
 
 #include "php_inapi.h"
 #include "wrappers/command.h"
+#include "wrappers/data.h"
 #include "wrappers/directory.h"
 #include "wrappers/file.h"
 #include "wrappers/host.h"
@@ -39,6 +40,8 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_init_template_exception(TSRMLS_C);
     inapi_init_mapbuilder(TSRMLS_C);
     inapi_init_vecbuilder(TSRMLS_C);
+    inapi_init_value(TSRMLS_C);
+    inapi_init_value_exception(TSRMLS_C);
     return SUCCESS;
 }
 
