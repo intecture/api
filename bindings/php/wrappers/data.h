@@ -14,8 +14,6 @@
 #include <php.h>
 #include <inapi.h>
 
-static zend_function_entry data_functions[2];
-
 void inapi_init_value(TSRMLS_D);
 void inapi_init_value_exception(TSRMLS_D);
 

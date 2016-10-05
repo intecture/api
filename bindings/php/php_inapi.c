@@ -19,6 +19,11 @@
 #include "wrappers/telemetry.h"
 #include "wrappers/template.h"
 
+static zend_function_entry global_functions[] = {
+    PHP_FE(data_open, NULL)
+    {NULL, NULL, NULL}
+};
+
 PHP_MINIT_FUNCTION(inapi)
 {
     inapi_init_host(TSRMLS_C);
@@ -49,15 +54,15 @@ zend_module_entry inapi_module_entry = {
 #if ZEND_MODULE_API_NO >= 20010901
     STANDARD_MODULE_HEADER,
 #endif
-    PHP_INAPI_EXTNAME,
-    data_functions,        /* Functions */
+    PHP_INAPI_EXTNAME,     /* Extension name */
+    global_functions,      /* Functions */
     PHP_MINIT(inapi),      /* Methods */
     NULL,                  /* MSHUTDOWN */
     NULL,                  /* RINIT */
     NULL,                  /* RSHUTDOWN */
     NULL,                  /* MINFO */
 #if ZEND_MODULE_API_NO >= 20010901
-    PHP_INAPI_EXTVER,
+    PHP_INAPI_EXTVER,      /* Extension version */
 #endif
     STANDARD_MODULE_PROPERTIES
 };

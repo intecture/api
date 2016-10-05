@@ -8,11 +8,12 @@
 
 //! FFI interface for Data
 
+use error;
 use ffi_helpers::Ffi__Array;
 use libc::{c_char, c_void, uint8_t};
 use serde_json::Value;
 use std::ffi::CString;
-use std::{mem, ptr};
+use std::ptr;
 use super::*;
 
 #[repr(C)]
@@ -44,29 +45,39 @@ pub extern "C" fn get_value(mut value_ptr: *mut c_void, data_type: Ffi__DataType
 
     match data_type {
         Ffi__DataType::Bool => {
-            let b = if let Some(p) = pointer { trynull!(needbool!(value => p)) } else { trynull!(needbool!(value)) };
+            let b = if let Some(p) = pointer { needbool!(value => p) } else { needbool!(value) };
             unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
-            Box::into_raw(Box::new(if b { 1u8 } else { 0u8 })) as *mut c_void
+
+            Box::into_raw(Box::new(if trynull!(b) { 1u8 } else { 0u8 })) as *mut c_void
         },
         Ffi__DataType::Int64 => {
-            let i = if let Some(p) = pointer { trynull!(needi64!(value => p)) } else { trynull!(needi64!(value)) };
+            let i = if let Some(p) = pointer { needi64!(value => p) } else { needi64!(value) };
             unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
-            Box::into_raw(Box::new(i)) as *mut c_void
+
+            Box::into_raw(Box::new(trynull!(i))) as *mut c_void
         },
         Ffi__DataType::Uint64 => {
-            let i = if let Some(p) = pointer { trynull!(needu64!(value => p)) } else { trynull!(needu64!(value)) };
+            let i = if let Some(p) = pointer { needu64!(value => p) } else { needu64!(value) };
             unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
-            Box::into_raw(Box::new(i)) as *mut c_void
+
+            Box::into_raw(Box::new(trynull!(i))) as *mut c_void
         },
         Ffi__DataType::Float => {
-            let i = if let Some(p) = pointer { trynull!(needf64!(value => p)) } else { trynull!(needf64!(value)) };
+            let i = if let Some(p) = pointer { needf64!(value => p) } else { needf64!(value) };
             unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
-            Box::into_raw(Box::new(i)) as *mut c_void
+
+            Box::into_raw(Box::new(trynull!(i))) as *mut c_void
         },
         Ffi__DataType::String => {
             let retval = {
-                let s = if let Some(p) = pointer { trynull!(needstr!(value => p)) } else { trynull!(needstr!(value)) };
-                trynull!(CString::new(s)).into_raw() as *mut c_void
+                let s = if let Some(p) = pointer { needstr!(value => p) } else { needstr!(value) };
+                match s {
+                    Ok(s) => trynull!(CString::new(s)).into_raw() as *mut c_void,
+                    Err(e) => {
+                        error::seterr(e);
+                        ptr::null_mut()
+                    },
+                }
             };
 
             unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
@@ -74,16 +85,22 @@ pub extern "C" fn get_value(mut value_ptr: *mut c_void, data_type: Ffi__DataType
         },
         Ffi__DataType::Array => {
             let retval = {
-                let v = if let Some(p) = pointer { trynull!(needarray!(value => p)) } else { trynull!(needarray!(value)) };
-                let mut retval = Vec::new();
-                for val in v {
-                    retval.push(Box::into_raw(Box::new(val.clone())) as *mut c_void);
-                }
+                let v = if let Some(p) = pointer { needarray!(value => p) } else { needarray!(value) };
+                match v {
+                    Ok(v) => {
+                        let mut retval = Vec::new();
+                        for val in v {
+                            retval.push(Box::into_raw(Box::new(val.clone())) as *mut c_void);
+                        }
 
-                let ffi_a = Ffi__Array::from(retval);
-                let retval = &ffi_a as *const _ as *mut c_void;
-                mem::forget(ffi_a);
-                retval
+                        let ffi_a = Ffi__Array::from(retval);
+                        Box::into_raw(Box::new(ffi_a)) as *mut c_void
+                    },
+                    Err(e) => {
+                        error::seterr(e);
+                        ptr::null_mut()
+                    }
+                }
             };
 
             unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
@@ -92,7 +109,7 @@ pub extern "C" fn get_value(mut value_ptr: *mut c_void, data_type: Ffi__DataType
         Ffi__DataType::Object => {
             let retval = if let Some(p) = pointer {
                 if let Some(v) = value.pointer(p) {
-                    v as *const _ as *mut c_void
+                    Box::into_raw(Box::new(v.clone())) as *mut c_void
                 } else {
                     ptr::null_mut()
                 }

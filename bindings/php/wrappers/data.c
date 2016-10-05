@@ -24,11 +24,6 @@
     }
 #endif
 
-static zend_function_entry data_functions[] = {
-    PHP_FE(data_open, NULL)
-    {NULL, NULL, NULL}
-};
-
 /*
  * Value Class
  */
@@ -47,8 +42,8 @@ void inapi_init_value(TSRMLS_D) {
     ce.create_object = create_php_value;
     inapi_ce_value = zend_register_internal_class(&ce TSRMLS_CC);
     zend_declare_class_constant_long(inapi_ce_value, "BOOL", 4, 0 TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "INT", 5, 1 TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "DOUBLE", 5, 3 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_value, "INT", 3, 1 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_value, "DOUBLE", 6, 3 TSRMLS_CC);
     zend_declare_class_constant_long(inapi_ce_value, "STRING", 6, 4 TSRMLS_CC);
     zend_declare_class_constant_long(inapi_ce_value, "ARR", 3, 5 TSRMLS_CC);
     zend_declare_class_constant_long(inapi_ce_value, "OBJECT", 6, 6 TSRMLS_CC);
@@ -120,7 +115,6 @@ PHP_FUNCTION(data_open) {
 
 PHP_METHOD(Value, get) {
     php_value *intern, *pvalue;
-    // zend_object_value obj;
     zval *retval, *obj;
     long dtype;
     char *pointer;
@@ -146,53 +140,54 @@ PHP_METHOD(Value, get) {
 
     if (!v) {
         RETURN_NULL();
-    }
+    } else {
+        switch (dtype) {
+            // Boolean
+            case 0:
+                if (!!v) {
+                    RETURN_TRUE;
+                } else {
+                    RETURN_FALSE;
+                }
+                break;
 
-    switch (dtype) {
-        // Boolean
-        case 0:
-            if (!!v) {
-                RETURN_TRUE;
-            } else {
-                RETURN_FALSE;
-            }
-            break;
+            // Int64
+            case 1:
+                RETURN_LONG(*(long *)v);
+                break;
 
-        // Int64
-        case 1:
-            RETURN_LONG(*(long *)v);
-            break;
+            // Double
+            case 3:
+                RETURN_DOUBLE(*(double *)v);
+                break;
 
-        // Double
-        case 3:
-            RETURN_DOUBLE(*(double *)v);
-            break;
+            // String
+            case 4:
+                RETURN_STRING((char *)v, 1);
+                break;
 
-        // String
-        case 4:
-            RETURN_STRING((char *)v, 1);
-            break;
+            // Array
+            case 5:
+                array_init(return_value);
 
-        // Array
-        case 5:
-            array_init(return_value);
+                ValueArray *a = v;
 
-            ValueArray *a = v;
+                int i = 0;
+                for (i = 0; i < a->length; i++) {
+                    ALLOC_INIT_ZVAL(obj);
+                    object_init_ex(obj, inapi_ce_value);
+                    pvalue = (php_value *)zend_object_store_get_object(obj TSRMLS_CC);
+                    pvalue->value = &a->ptr[i];
+                    add_next_index_zval(return_value, obj);
+                }
+                break;
 
-            int i = 0;
-            for (i = 0; i < a->length; i++) {
-                object_init_ex(obj, inapi_ce_value);
-                pvalue = (php_value *)zend_object_store_get_object(obj TSRMLS_CC);
-                pvalue->value = &a->ptr[i];
-                add_next_index_zval(return_value, obj);
-            }
-            break;
-
-        // Object
-        case 6:
-            object_init_ex(return_value, inapi_ce_value);
-            pvalue = (php_value *)zend_object_store_get_object(return_value TSRMLS_CC);
-            pvalue->value = v;
-            break;
+            // Object
+            case 6:
+                object_init_ex(return_value, inapi_ce_value);
+                pvalue = (php_value *)zend_object_store_get_object(return_value TSRMLS_CC);
+                pvalue->value = v;
+                break;
+        }
     }
 }

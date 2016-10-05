@@ -24,7 +24,7 @@ fwrite($fh, '{
 fclose($fh);
 
 // Test open
-$value = Intecture\data_open($temp_file);
+$value = data_open($temp_file);
 
 // Test bool
 $bool = $value->get(Value::BOOL, '/bool');
@@ -53,7 +53,7 @@ assert($a[1]->get(Value::STRING) === 'def');
 
 // Test object
 $v = $value->get(Value::OBJECT, '/obj');
-assert($v->get(VALUE::STRING, '/a') === 'b');
+assert($v->get(Value::STRING, '/a') === 'b');
 
 unlink($temp_file);
 
