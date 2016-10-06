@@ -11,7 +11,7 @@ fclose($fh);
 $builder = new Intecture\MapBuilder();
 $builder->insert_str("key", "value");
 $template = new Intecture\Template($temp_file);
-$fd = $template->render_map($builder);
+$fd = $template->render($builder);
 $out_fh = fopen("php://fd/$fd", "r");
 $contents = fread($out_fh, 20);
 

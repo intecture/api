@@ -754,7 +754,7 @@ extern Service *service_new_map(ServiceAction *actions, size_t actions_len, Serv
 extern CommandResult *service_action(Service *service, Host *host, char *action);
 
 /**
- * @brief A File primitive wrapper for managing file templates.
+ * @brief The primitive for opening and rendering templates.
  */
 typedef struct _Template {
     void *inner; /**< Template internals */

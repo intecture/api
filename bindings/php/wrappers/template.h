@@ -20,8 +20,7 @@ void free_php_template(void *object TSRMLS_DC);
 zend_object_value create_php_template(zend_class_entry *class_type TSRMLS_DC);
 
 PHP_METHOD(Template, __construct);
-PHP_METHOD(Template, render_map);
-PHP_METHOD(Template, render_vec);
+PHP_METHOD(Template, render);
 
 typedef struct _php_template {
     zend_object std;

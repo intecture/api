@@ -516,3 +516,39 @@ class Telemetry
  * The exception class for Telemetry errors.
  */
 class TelemetryException {}
+
+/**
+ * The Template primitive for opening and rendering templates.
+ */
+class Template {
+    /**
+     * Create a new Template.
+     *
+     * @param string $path File path to your template.
+     */
+    public function __construct($path) {}
+
+    /**
+     * Render a Template using a Map/VecBuilder data structure.
+     *
+     * @param mixed $builder MapBuilder or VecBuilder object.
+     */
+    public function render($builder) {}
+}
+
+/**
+ * The exception class for Template errors.
+ */
+class TemplateException {}
+
+/**
+ */
+class MapBuilder {
+
+}
+
+/**
+ */
+class VecBuilder {
+
+}

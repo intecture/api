@@ -33,8 +33,7 @@ zend_class_entry *inapi_ce_template;
 
 static zend_function_entry template_methods[] = {
     PHP_ME(Template, __construct, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
-    PHP_ME(Template, render_map, NULL, ZEND_ACC_PUBLIC)
-    PHP_ME(Template, render_vec, NULL, ZEND_ACC_PUBLIC)
+    PHP_ME(Template, render, NULL, ZEND_ACC_PUBLIC)
     {NULL, NULL, NULL}
 };
 
@@ -211,10 +210,12 @@ PHP_METHOD(Template, __construct) {
     intern->template = template;
 }
 
-PHP_METHOD(Template, render_map) {
+PHP_METHOD(Template, render) {
     php_template *intern;
     zval *zbuilder;
-    php_mapbuilder *builder;
+    php_mapbuilder *mbuilder;
+    php_vecbuilder *vbuilder;
+    int fd;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zbuilder) == FAILURE) {
         return;
@@ -224,56 +225,23 @@ PHP_METHOD(Template, render_map) {
 
     switch (Z_TYPE_P(zbuilder)) {
         case IS_OBJECT:
-            if (!instanceof_function(Z_OBJCE_P(zbuilder), inapi_ce_mapbuilder TSRMLS_CC)) {
+            if (instanceof_function(Z_OBJCE_P(zbuilder), inapi_ce_mapbuilder TSRMLS_CC)) {
+                mbuilder = (php_mapbuilder*)zend_object_store_get_object(zbuilder TSRMLS_CC);
+                fd = template_render_map(intern->template, mbuilder->builder);
+            }
+            else if (instanceof_function(Z_OBJCE_P(zbuilder), inapi_ce_vecbuilder TSRMLS_CC)) {
+                vbuilder = (php_vecbuilder*)zend_object_store_get_object(zbuilder TSRMLS_CC);
+                fd = template_render_vec(intern->template, vbuilder->builder);
+            } else {
                 zend_throw_exception(inapi_ce_template_exception, "The first argument must be an instance of Intecture\\MapBuilder", 1001 TSRMLS_CC);
                 return;
             }
-
-            builder = (php_mapbuilder*)zend_object_store_get_object(zbuilder TSRMLS_CC);
             break;
 
         default:
             zend_throw_exception(inapi_ce_template_exception, "The first argument must be an instance of Intecture\\MapBuilder", 1001 TSRMLS_CC);
             return;
     }
-
-    int fd = template_render_map(intern->template, builder->builder);
-
-    if (fd == 0) {
-        zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);
-        return;
-    }
-
-    RETURN_LONG(fd);
-}
-
-PHP_METHOD(Template, render_vec) {
-    php_template *intern;
-    zval *zbuilder;
-    php_vecbuilder *builder;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &zbuilder) == FAILURE) {
-        return;
-    }
-
-    intern = (php_template*)zend_object_store_get_object(getThis() TSRMLS_CC);
-
-    switch (Z_TYPE_P(zbuilder)) {
-        case IS_OBJECT:
-            if (!instanceof_function(Z_OBJCE_P(zbuilder), inapi_ce_vecbuilder TSRMLS_CC)) {
-                zend_throw_exception(inapi_ce_template_exception, "The first argument must be an instance of Intecture\\VecBuilder", 1001 TSRMLS_CC);
-                return;
-            }
-
-            builder = (php_vecbuilder*)zend_object_store_get_object(zbuilder TSRMLS_CC);
-            break;
-
-        default:
-            zend_throw_exception(inapi_ce_template_exception, "The first argument must be an instance of Intecture\\VecBuilder", 1001 TSRMLS_CC);
-            return;
-    }
-
-    int fd = template_render_vec(intern->template, builder->builder);
 
     if (fd == 0) {
         zend_throw_exception(inapi_ce_template_exception, geterr(), 1000 TSRMLS_CC);

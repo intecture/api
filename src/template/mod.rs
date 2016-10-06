@@ -6,7 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! A File primitive wrapper for managing file templates.
+//! The primitive for opening and rendering templates.
 //!
 //! # Examples
 //!
