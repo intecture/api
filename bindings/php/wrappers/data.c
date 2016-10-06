@@ -177,7 +177,7 @@ PHP_METHOD(Value, get) {
                     ALLOC_INIT_ZVAL(obj);
                     object_init_ex(obj, inapi_ce_value);
                     pvalue = (php_value *)zend_object_store_get_object(obj TSRMLS_CC);
-                    pvalue->value = &a->ptr[i];
+                    pvalue->value = a->ptr[i];
                     add_next_index_zval(return_value, obj);
                 }
                 break;

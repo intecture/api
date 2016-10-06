@@ -921,7 +921,7 @@ enum DataType {
  * @brief Array of `Value` pointers
  */
 typedef struct _ValueArray {
-    void *ptr; /**< `Value`s */
+    void **ptr; /**< `Value`s */
     size_t length; /**< Size of array */
     size_t capacity; /**< Capacity of array */
 } ValueArray;
