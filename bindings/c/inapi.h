@@ -908,6 +908,7 @@ extern int vec_push_map(VecBuilder *builder, MapBuilder *value);
  * @brief Potential data types for a given `Value`.
  */
 enum DataType {
+    Null, /**< Null */
     Bool, /**< Boolean */
     Int64, /**< 64b signed integer */
     Uint64, /**< 64b unsigned integer */
@@ -956,6 +957,14 @@ extern void *data_open(const char *path);
  * @endcode
  */
 extern void *get_value(void *value, enum DataType data_type, const char *pointer);
+
+/**
+ * @brief Returns the data type for a `Value` pointer.
+ * @param value A `Value` pointer.
+ * @param pointer [Optional] A JSON pointer to a nested value.
+ * @return The `Value`'s data type, or null if no data.
+ */
+extern enum DataType *get_value_type(void *value, const char *pointer);
 
 /**
  * @brief Free a `Value` pointer. Do not attempt to free using `free` et. al.

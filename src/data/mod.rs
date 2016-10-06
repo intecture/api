@@ -30,6 +30,7 @@ macro_rules! want_macro {
     }
 }
 
+want_macro!("null", wantnull, is_null, as_null);
 want_macro!("bool", wantbool, is_boolean, as_bool);
 want_macro!("i64", wanti64, is_i64, as_i64);
 want_macro!("u64", wantu64, is_u64, as_u64);
@@ -60,6 +61,7 @@ macro_rules! need_macro {
     }
 }
 
+need_macro!("null", neednull, is_null, as_null);
 need_macro!("bool", needbool, is_boolean, as_bool);
 need_macro!("i64", needi64, is_i64, as_i64);
 need_macro!("u64", needu64, is_u64, as_u64);

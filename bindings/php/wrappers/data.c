@@ -28,33 +28,28 @@
  * Value Class
  */
 
-zend_class_entry *inapi_ce_value;
+zend_class_entry *inapi_ce_data;
 
-static zend_function_entry value_methods[] = {
-    PHP_ME(Value, get, NULL, ZEND_ACC_PUBLIC)
+static zend_function_entry data_methods[] = {
+    PHP_ME(Data, __construct, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
+    PHP_ME(Data, get, NULL, ZEND_ACC_PUBLIC)
     {NULL, NULL, NULL}
 };
 
-void inapi_init_value(TSRMLS_D) {
+void inapi_init_data(TSRMLS_D) {
     zend_class_entry ce;
 
-    INIT_CLASS_ENTRY(ce, "Intecture\\Value", value_methods);
-    ce.create_object = create_php_value;
-    inapi_ce_value = zend_register_internal_class(&ce TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "BOOL", 4, 0 TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "INT", 3, 1 TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "DOUBLE", 6, 3 TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "STRING", 6, 4 TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "ARR", 3, 5 TSRMLS_CC);
-    zend_declare_class_constant_long(inapi_ce_value, "OBJECT", 6, 6 TSRMLS_CC);
+    INIT_CLASS_ENTRY(ce, "Intecture\\Data", data_methods);
+    ce.create_object = create_php_data;
+    inapi_ce_data = zend_register_internal_class(&ce TSRMLS_CC);
 }
 
-zend_object_value create_php_value(zend_class_entry *class_type TSRMLS_DC) {
+zend_object_value create_php_data(zend_class_entry *class_type TSRMLS_DC) {
     zend_object_value retval;
-    php_value  *intern;
+    php_data  *intern;
 
-    intern = (php_value*)emalloc(sizeof(php_value));
-    memset(intern, 0, sizeof(php_value));
+    intern = (php_data*)emalloc(sizeof(php_data));
+    memset(intern, 0, sizeof(php_data));
 
     zend_object_std_init(&intern->std, class_type TSRMLS_CC);
     object_properties_init(&intern->std, class_type);
@@ -62,7 +57,7 @@ zend_object_value create_php_value(zend_class_entry *class_type TSRMLS_DC) {
     retval.handle = zend_objects_store_put(
         intern,
         (zend_objects_store_dtor_t) zend_objects_destroy_object,
-        free_php_value,
+        free_php_data,
         NULL TSRMLS_CC
     );
     retval.handlers = zend_get_std_object_handlers();
@@ -70,124 +65,144 @@ zend_object_value create_php_value(zend_class_entry *class_type TSRMLS_DC) {
     return retval;
 }
 
-void free_php_value(void *object TSRMLS_DC) {
-    php_value *value = (php_value*)object;
-    free_value(value->value);
+void free_php_data(void *object TSRMLS_DC) {
+    php_data *data = (php_data*)object;
+    free_value(data->value);
 }
 
 /*
  * Exception Class
  */
 
-zend_class_entry *inapi_ce_value_exception;
+zend_class_entry *inapi_ce_data_exception;
 
-void inapi_init_value_exception(TSRMLS_D) {
+void inapi_init_data_exception(TSRMLS_D) {
     zend_class_entry e;
 
-    INIT_CLASS_ENTRY(e, "Intecture\\ValueException", NULL);
-    inapi_ce_value_exception = zend_register_internal_class_ex(&e, (zend_class_entry*)zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
-}
-
-PHP_FUNCTION(data_open) {
-    php_value *intern;
-    char *path;
-    int path_len;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
-        return;
-    }
-
-    void *value = data_open(path);
-
-    if (!value) {
-        zend_throw_exception(inapi_ce_value_exception, geterr(), 1000 TSRMLS_CC);
-        return;
-    }
-
-    object_init_ex(return_value, inapi_ce_value);
-    intern = (php_value *)zend_object_store_get_object(return_value TSRMLS_CC);
-    intern->value = value;
+    INIT_CLASS_ENTRY(e, "Intecture\\DataException", NULL);
+    inapi_ce_data_exception = zend_register_internal_class_ex(&e, (zend_class_entry*)zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 }
 
 /*
- * Value Methods
+ * Data Methods
  */
 
-PHP_METHOD(Value, get) {
-    php_value *intern, *pvalue;
-    zval *retval, *obj;
-    long dtype;
+ PHP_METHOD(Data, __construct) {
+     php_data *intern;
+     char *path;
+     int path_len;
+
+     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
+         return;
+     }
+
+     intern = (php_data*)zend_object_store_get_object(getThis() TSRMLS_CC);
+
+     void *value = data_open(path);
+
+     if (!value) {
+         zend_throw_exception(inapi_ce_data_exception, geterr(), 1000 TSRMLS_CC);
+         return;
+     }
+
+     intern->value = value;
+ }
+
+PHP_METHOD(Data, get) {
+    php_data *intern;
     char *pointer;
     int pointer_len;
 
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "l|s", &dtype, &pointer, &pointer_len) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &pointer, &pointer_len) == FAILURE) {
         return;
     }
 
-    if (dtype < 0 || dtype > 6) {
-        zend_throw_exception(inapi_ce_value_exception, "The first argument must be a Value class constant", 1010 TSRMLS_CC);
+    intern = (php_data*)zend_object_store_get_object(getThis() TSRMLS_CC);
+
+    enum DataType *dtype = get_value_type(intern->value, pointer);
+
+    if (!dtype) {
+        zend_throw_exception(inapi_ce_data_exception, geterr(), 1000 TSRMLS_CC);
         return;
     }
 
-    intern = (php_value*)zend_object_store_get_object(getThis() TSRMLS_CC);
-
-    void *v = get_value(intern->value, dtype, pointer);
-
-    // Try uint if int not found
-    if (!v && dtype == 1) {
-        v = get_value(intern->value, 2, pointer);
-    }
+    void *v = get_value(intern->value, *dtype, pointer);
 
     if (!v) {
         RETURN_NULL();
     } else {
-        switch (dtype) {
-            // Boolean
-            case 0:
-                if (!!v) {
-                    RETURN_TRUE;
+        return_type(v, *dtype, return_value TSRMLS_CC);
+    }
+}
+
+void return_type(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {
+    php_data *pdata;
+    zval *retval, *val;
+
+    switch (dtype) {
+        // Null
+        case 0:
+            RETURN_NULL();
+            break;
+
+        // Boolean
+        case 1:
+            if (!!value) {
+                RETURN_TRUE;
+            } else {
+                RETURN_FALSE;
+            }
+            break;
+
+        // Int64
+        case 2:
+        // Uint64
+        case 3:
+            RETURN_LONG(*(long *)value);
+            break;
+
+        // Double
+        case 4:
+            RETURN_DOUBLE(*(double *)value);
+            break;
+
+        // String
+        case 5:
+            RETURN_STRING((char *)value, 1);
+            break;
+
+        // Array
+        case 6:
+            array_init(return_value);
+
+            ValueArray *a = value;
+
+            int i = 0;
+            for (i = 0; i < a->length; i++) {
+                enum DataType *dtype = get_value_type(a->ptr[i], NULL);
+
+                if (!dtype) {
+                    zend_throw_exception(inapi_ce_data_exception, geterr(), 1000 TSRMLS_CC);
+                    return;
+                }
+
+                void *v = get_value(a->ptr[i], *dtype, NULL);
+
+                if (!v) {
+                    add_next_index_null(return_value);
                 } else {
-                    RETURN_FALSE;
+                    ALLOC_INIT_ZVAL(val);
+                    return_type(v, *dtype, val TSRMLS_CC);
+                    add_next_index_zval(return_value, val);
                 }
-                break;
+            }
+            break;
 
-            // Int64
-            case 1:
-                RETURN_LONG(*(long *)v);
-                break;
-
-            // Double
-            case 3:
-                RETURN_DOUBLE(*(double *)v);
-                break;
-
-            // String
-            case 4:
-                RETURN_STRING((char *)v, 1);
-                break;
-
-            // Array
-            case 5:
-                array_init(return_value);
-
-                ValueArray *a = v;
-
-                int i = 0;
-                for (i = 0; i < a->length; i++) {
-                    ALLOC_INIT_ZVAL(obj);
-                    object_init_ex(obj, inapi_ce_value);
-                    pvalue = (php_value *)zend_object_store_get_object(obj TSRMLS_CC);
-                    pvalue->value = a->ptr[i];
-                    add_next_index_zval(return_value, obj);
-                }
-                break;
-
-            // Object
-            case 6:
-                object_init_ex(return_value, inapi_ce_value);
-                pvalue = (php_value *)zend_object_store_get_object(return_value TSRMLS_CC);
-                pvalue->value = v;
-                break;
-        }
+        // Object
+        case 7:
+            object_init_ex(return_value, inapi_ce_data);
+            pdata = (php_data *)zend_object_store_get_object(return_value TSRMLS_CC);
+            pdata->value = value;
+            break;
     }
 }

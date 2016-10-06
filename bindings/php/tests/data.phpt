@@ -3,7 +3,7 @@ Test reading data
 --FILE--
 <?php
 
-use Intecture\Value;
+use Intecture\Data;
 
 $temp_file = tempnam(sys_get_temp_dir(), 'data.');
 $fh = fopen($temp_file, "w");
@@ -24,36 +24,36 @@ fwrite($fh, '{
 fclose($fh);
 
 // Test open
-$value = data_open($temp_file);
+$data = new Data($temp_file);
 
 // Test bool
-$bool = $value->get(Value::BOOL, '/bool');
-assert($bool === true);
+$b = $data->get('/bool');
+assert($b === true);
 
 // Test i64
-$i = $value->get(Value::INT, '/i64');
+$i = $data->get('/i64');
 assert($i === -5);
 
 // Test u64
-$i = $value->get(Value::INT, '/u64');
+$i = $data->get('/u64');
 assert($i === 10);
 
 // Test f64
-$i = $value->get(Value::DOUBLE, '/f64');
+$i = $data->get('/f64');
 assert($i === 1.2);
 
 // Test string
-$s = $value->get(Value::STRING, '/string');
+$s = $data->get('/string');
 assert($s === 'abc');
 
 // Test array
-$a = $value->get(Value::ARR, '/array');
-assert($a[0]->get(Value::INT) === 123);
-assert($a[1]->get(Value::STRING) === 'def');
+$a = $data->get('/array');
+assert($a[0] === 123);
+assert($a[1] === 'def');
 
 // Test object
-$v = $value->get(Value::OBJECT, '/obj');
-assert($v->get(Value::STRING, '/a') === 'b');
+$o = $data->get('/obj');
+assert($o->get('/a') === 'b');
 
 unlink($temp_file);
 

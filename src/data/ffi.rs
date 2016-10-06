@@ -8,7 +8,7 @@
 
 //! FFI interface for Data
 
-use error;
+use error::{Error, self};
 use ffi_helpers::Ffi__Array;
 use libc::{c_char, c_void, uint8_t};
 use serde_json::Value;
@@ -17,7 +17,9 @@ use std::ptr;
 use super::*;
 
 #[repr(C)]
+#[derive(Debug, PartialEq)]
 pub enum Ffi__DataType {
+    Null,
     Bool,
     Int64,
     Uint64,
@@ -35,6 +37,39 @@ pub extern "C" fn data_open(path_ptr: *const c_char) -> *mut c_void {
 }
 
 #[no_mangle]
+pub extern "C" fn get_value_type(mut value_ptr: *mut c_void, pointer_ptr: *const c_char) -> *const Ffi__DataType {
+    let value: Box<Value> = trynull!(boxptr!(value_ptr as *mut Value, "Value struct"));
+    let retval = {
+        let mut v_ref = &*value;
+
+        if !pointer_ptr.is_null() {
+            let ptr = trynull!(ptrtostr!(pointer_ptr, ""));
+            match value.pointer(ptr) {
+                Some(v) => v_ref = v,
+                None => {
+                    error::seterr(Error::Generic(format!("Could not find {} in data", ptr)));
+                    return ptr::null();
+                },
+            }
+        }
+
+        match *v_ref {
+            Value::Null => Box::into_raw(Box::new(Ffi__DataType::Null)),
+            Value::Bool(_) => Box::into_raw(Box::new(Ffi__DataType::Bool)),
+            Value::I64(_) => Box::into_raw(Box::new(Ffi__DataType::Int64)),
+            Value::U64(_) => Box::into_raw(Box::new(Ffi__DataType::Uint64)),
+            Value::F64(_) => Box::into_raw(Box::new(Ffi__DataType::Float)),
+            Value::String(_) => Box::into_raw(Box::new(Ffi__DataType::String)),
+            Value::Array(_) => Box::into_raw(Box::new(Ffi__DataType::Array)),
+            Value::Object(_) => Box::into_raw(Box::new(Ffi__DataType::Object)),
+        }
+    };
+
+    unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
+    retval
+}
+
+#[no_mangle]
 pub extern "C" fn get_value(mut value_ptr: *mut c_void, data_type: Ffi__DataType, pointer_ptr: *const c_char) -> *mut c_void {
     let value: Box<Value> = trynull!(boxptr!(value_ptr as *mut Value, "Value struct"));
     let pointer = if pointer_ptr.is_null() {
@@ -44,6 +79,13 @@ pub extern "C" fn get_value(mut value_ptr: *mut c_void, data_type: Ffi__DataType
     };
 
     match data_type {
+        Ffi__DataType::Null => {
+            let n = if let Some(p) = pointer { neednull!(value => p) } else { neednull!(value) };
+            unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
+
+            trynull!(n);
+            ptr::null_mut()
+        },
         Ffi__DataType::Bool => {
             let b = if let Some(p) = pointer { needbool!(value => p) } else { needbool!(value) };
             unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
@@ -156,6 +198,9 @@ mod tests {
 
         // Test bool
         let json_ptr = CString::new("/bool").unwrap();
+        let dt = get_value_type(value_ptr, json_ptr.as_ptr());
+        assert!(!dt.is_null());
+        assert_eq!(unsafe { ptr::read(dt) }, Ffi__DataType::Bool);
         let ptr = get_value(value_ptr, Ffi__DataType::Bool, json_ptr.as_ptr());
         assert!(!ptr.is_null());
         let b = unsafe { ptr::read(ptr as *mut bool) };
@@ -163,6 +208,9 @@ mod tests {
 
         // Test i64
         let json_ptr = CString::new("/i64").unwrap();
+        let dt = get_value_type(value_ptr, json_ptr.as_ptr());
+        assert!(!dt.is_null());
+        assert_eq!(unsafe { ptr::read(dt) }, Ffi__DataType::Int64);
         let ptr = get_value(value_ptr, Ffi__DataType::Int64, json_ptr.as_ptr());
         assert!(!ptr.is_null());
         let i = unsafe { ptr::read(ptr as *mut i64) };
@@ -170,6 +218,9 @@ mod tests {
 
         // Test u64
         let json_ptr = CString::new("/u64").unwrap();
+        let dt = get_value_type(value_ptr, json_ptr.as_ptr());
+        assert!(!dt.is_null());
+        assert_eq!(unsafe { ptr::read(dt) }, Ffi__DataType::Uint64);
         let ptr = get_value(value_ptr, Ffi__DataType::Uint64, json_ptr.as_ptr());
         assert!(!ptr.is_null());
         let i = unsafe { ptr::read(ptr as *mut u64) };
@@ -177,6 +228,9 @@ mod tests {
 
         // Test f64
         let json_ptr = CString::new("/f64").unwrap();
+        let dt = get_value_type(value_ptr, json_ptr.as_ptr());
+        assert!(!dt.is_null());
+        assert_eq!(unsafe { ptr::read(dt) }, Ffi__DataType::Float);
         let ptr = get_value(value_ptr, Ffi__DataType::Float, json_ptr.as_ptr());
         assert!(!ptr.is_null());
         let i = unsafe { ptr::read(ptr as *mut f64) };
@@ -184,6 +238,9 @@ mod tests {
 
         // Test string
         let json_ptr = CString::new("/string").unwrap();
+        let dt = get_value_type(value_ptr, json_ptr.as_ptr());
+        assert!(!dt.is_null());
+        assert_eq!(unsafe { ptr::read(dt) }, Ffi__DataType::String);
         let ptr = get_value(value_ptr, Ffi__DataType::String, json_ptr.as_ptr());
         assert!(!ptr.is_null());
         let s = ptrtostr!(ptr as *const c_char, "string").unwrap();
@@ -191,6 +248,9 @@ mod tests {
 
         // Test array
         let json_ptr = CString::new("/array").unwrap();
+        let dt = get_value_type(value_ptr, json_ptr.as_ptr());
+        assert!(!dt.is_null());
+        assert_eq!(unsafe { ptr::read(dt) }, Ffi__DataType::Array);
         let ptr = get_value(value_ptr, Ffi__DataType::Array, json_ptr.as_ptr());
         assert!(!ptr.is_null());
         let a: Vec<*mut c_void> = readptr!(ptr as *mut Ffi__Array<*mut c_void>, "array").unwrap();
@@ -209,6 +269,9 @@ mod tests {
 
         // Test object
         let json_ptr = CString::new("/obj").unwrap();
+        let dt = get_value_type(value_ptr, json_ptr.as_ptr());
+        assert!(!dt.is_null());
+        assert_eq!(unsafe { ptr::read(dt) }, Ffi__DataType::Object);
         let o = get_value(value_ptr, Ffi__DataType::Object, json_ptr.as_ptr());
         assert!(!ptr.is_null());
 
