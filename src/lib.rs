@@ -60,7 +60,7 @@ pub mod template;
 
 pub use command::{Command, CommandResult};
 pub use data::DataParser;
-pub use data::ffi::{data_open, free_value, get_value, get_value_type};
+pub use data::ffi::{data_open, free_value, get_value, get_value_keys, get_value_type};
 pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOwner};

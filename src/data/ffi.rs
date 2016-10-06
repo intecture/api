@@ -70,6 +70,40 @@ pub extern "C" fn get_value_type(mut value_ptr: *mut c_void, pointer_ptr: *const
 }
 
 #[no_mangle]
+pub extern "C" fn get_value_keys(mut value_ptr: *mut c_void, pointer_ptr: *const c_char) -> *mut Ffi__Array<*mut c_char> {
+    let value: Box<Value> = trynull!(boxptr!(value_ptr as *mut Value, "Value struct"));
+    let retval = {
+        let mut v_ref = &*value;
+
+        if !pointer_ptr.is_null() {
+            let ptr = trynull!(ptrtostr!(pointer_ptr, ""));
+            match value.pointer(ptr) {
+                Some(v) => v_ref = v,
+                None => {
+                    error::seterr(Error::Generic(format!("Could not find {} in data", ptr)));
+                    return ptr::null_mut();
+                },
+            }
+        }
+
+        match *v_ref {
+            Value::Object(ref o) => {
+                let mut keys = Vec::new();
+                for key in o.keys().cloned() {
+                    keys.push(trynull!(CString::new(key)).into_raw());
+                }
+
+                Box::into_raw(Box::new(Ffi__Array::from(keys)))
+            },
+            _ => ptr::null_mut(),
+        }
+    };
+
+    unsafe { ptr::write(&mut value_ptr, Box::into_raw(Box::new(value)) as *mut c_void) };
+    retval
+}
+
+#[no_mangle]
 pub extern "C" fn get_value(mut value_ptr: *mut c_void, data_type: Ffi__DataType, pointer_ptr: *const c_char) -> *mut c_void {
     let value: Box<Value> = trynull!(boxptr!(value_ptr as *mut Value, "Value struct"));
     let pointer = if pointer_ptr.is_null() {
@@ -280,6 +314,32 @@ mod tests {
         assert!(!ptr.is_null());
         let s = ptrtostr!(ptr as *const c_char, "obj string").unwrap();
         assert_eq!(s, "b");
+    }
+
+    #[test]
+    fn test_get_value_keys() {
+        let (_td, path) = create_test_data();
+
+        let ps = path.to_str().unwrap();
+        let c_path = CString::new(ps).unwrap();
+        let value_ptr = data_open(c_path.as_ptr());
+        assert!(!value_ptr.is_null());
+
+        let ffi_a_ptr = get_value_keys(value_ptr, ptr::null());
+        assert!(!ffi_a_ptr.is_null());
+        let ffi_a: Ffi__Array<*mut c_char> = unsafe { ptr::read(ffi_a_ptr) };
+        let a: Vec<_> = ffi_a.into();
+        let a1: Vec<_> = a.into_iter().map(|ptr| ptrtostr!(ptr, "key string").unwrap()).collect();
+        let mut iter = a1.into_iter();
+
+        // Alphabetical order
+        assert_eq!(iter.next().unwrap(), "array");
+        assert_eq!(iter.next().unwrap(), "bool");
+        assert_eq!(iter.next().unwrap(), "f64");
+        assert_eq!(iter.next().unwrap(), "i64");
+        assert_eq!(iter.next().unwrap(), "obj");
+        assert_eq!(iter.next().unwrap(), "string");
+        assert_eq!(iter.next().unwrap(), "u64");
     }
 
     fn create_test_data() -> (TempDir, PathBuf) {

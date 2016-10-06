@@ -14,21 +14,9 @@
 #include <php.h>
 #include <inapi.h>
 
-void inapi_init_data(TSRMLS_D);
 void inapi_init_data_exception(TSRMLS_D);
+void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC);
 
-zend_object_value create_php_data(zend_class_entry *class_type TSRMLS_DC);
-void free_php_data(void *object TSRMLS_DC);
-
-void return_type(void *value, enum DataType dtype, zval *return_value TSRMLS_DC);
-
-PHP_METHOD(Data, __construct);
-PHP_METHOD(Data, get);
-
-typedef struct _php_data {
-    zend_object std;
-
-    void *value;
-} php_data;
+PHP_FUNCTION(data_open);
 
 #endif

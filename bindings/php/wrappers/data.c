@@ -11,6 +11,7 @@
 #include "data.h"
 #include "host.h"
 #include <zend_exceptions.h>
+#include <string.h>
 
 /* PHP 5.4 */
 #if PHP_VERSION_ID < 50399
@@ -25,52 +26,6 @@
 #endif
 
 /*
- * Value Class
- */
-
-zend_class_entry *inapi_ce_data;
-
-static zend_function_entry data_methods[] = {
-    PHP_ME(Data, __construct, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_CTOR)
-    PHP_ME(Data, get, NULL, ZEND_ACC_PUBLIC)
-    {NULL, NULL, NULL}
-};
-
-void inapi_init_data(TSRMLS_D) {
-    zend_class_entry ce;
-
-    INIT_CLASS_ENTRY(ce, "Intecture\\Data", data_methods);
-    ce.create_object = create_php_data;
-    inapi_ce_data = zend_register_internal_class(&ce TSRMLS_CC);
-}
-
-zend_object_value create_php_data(zend_class_entry *class_type TSRMLS_DC) {
-    zend_object_value retval;
-    php_data  *intern;
-
-    intern = (php_data*)emalloc(sizeof(php_data));
-    memset(intern, 0, sizeof(php_data));
-
-    zend_object_std_init(&intern->std, class_type TSRMLS_CC);
-    object_properties_init(&intern->std, class_type);
-
-    retval.handle = zend_objects_store_put(
-        intern,
-        (zend_objects_store_dtor_t) zend_objects_destroy_object,
-        free_php_data,
-        NULL TSRMLS_CC
-    );
-    retval.handlers = zend_get_std_object_handlers();
-
-    return retval;
-}
-
-void free_php_data(void *object TSRMLS_DC) {
-    php_data *data = (php_data*)object;
-    free_value(data->value);
-}
-
-/*
  * Exception Class
  */
 
@@ -83,60 +38,25 @@ void inapi_init_data_exception(TSRMLS_D) {
     inapi_ce_data_exception = zend_register_internal_class_ex(&e, (zend_class_entry*)zend_exception_get_default(TSRMLS_C), NULL TSRMLS_CC);
 }
 
-/*
- * Data Methods
- */
+PHP_FUNCTION(data_open) {
+    char *path;
+    int path_len;
 
- PHP_METHOD(Data, __construct) {
-     php_data *intern;
-     char *path;
-     int path_len;
-
-     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
-         return;
-     }
-
-     intern = (php_data*)zend_object_store_get_object(getThis() TSRMLS_CC);
-
-     void *value = data_open(path);
-
-     if (!value) {
-         zend_throw_exception(inapi_ce_data_exception, geterr(), 1000 TSRMLS_CC);
-         return;
-     }
-
-     intern->value = value;
- }
-
-PHP_METHOD(Data, get) {
-    php_data *intern;
-    char *pointer;
-    int pointer_len;
-
-    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &pointer, &pointer_len) == FAILURE) {
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
         return;
     }
 
-    intern = (php_data*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    void *value = data_open(path);
 
-    enum DataType *dtype = get_value_type(intern->value, pointer);
-
-    if (!dtype) {
+    if (!value) {
         zend_throw_exception(inapi_ce_data_exception, geterr(), 1000 TSRMLS_CC);
         return;
     }
 
-    void *v = get_value(intern->value, *dtype, pointer);
-
-    if (!v) {
-        RETURN_NULL();
-    } else {
-        return_type(v, *dtype, return_value TSRMLS_CC);
-    }
+    unwrap_value(value, 7, return_value TSRMLS_CC); // 7 = Object
 }
 
-void return_type(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {
-    php_data *pdata;
+void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {
     zval *retval, *val;
 
     switch (dtype) {
@@ -192,7 +112,7 @@ void return_type(void *value, enum DataType dtype, zval *return_value TSRMLS_DC)
                     add_next_index_null(return_value);
                 } else {
                     ALLOC_INIT_ZVAL(val);
-                    return_type(v, *dtype, val TSRMLS_CC);
+                    unwrap_value(v, *dtype, val TSRMLS_CC);
                     add_next_index_zval(return_value, val);
                 }
             }
@@ -200,9 +120,23 @@ void return_type(void *value, enum DataType dtype, zval *return_value TSRMLS_DC)
 
         // Object
         case 7:
-            object_init_ex(return_value, inapi_ce_data);
-            pdata = (php_data *)zend_object_store_get_object(return_value TSRMLS_CC);
-            pdata->value = value;
+            array_init(return_value);
+
+            ValueKeysArray *k = get_value_keys(value, NULL);
+
+            i = 0;
+            for (i = 0; i < k->length; i++) {
+                char json_p[256] = "/";
+                strncat(json_p, k->ptr[i], 255);
+                enum DataType *dtype = get_value_type(value, json_p);
+                assert(dtype);
+                void *v = get_value(value, *dtype, json_p);
+                assert(v);
+
+                ALLOC_INIT_ZVAL(val);
+                unwrap_value(v, *dtype, val TSRMLS_CC);
+                add_assoc_zval(return_value, k->ptr[i], val);
+            }
             break;
     }
 }

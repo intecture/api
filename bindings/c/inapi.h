@@ -928,6 +928,15 @@ typedef struct _ValueArray {
 } ValueArray;
 
 /**
+ * @brief Array of `Value` pointers
+ */
+typedef struct _ValueKeysArray {
+    char **ptr; /**< Keys */
+    size_t length; /**< Size of array */
+    size_t capacity; /**< Capacity of array */
+} ValueKeysArray;
+
+/**
  * @brief Open a new file and recursively parse its contents.
  * @param path Path to the top level data file.
  * @return A `Value` pointer that can be passed to `get_value`, or null on error.
@@ -957,6 +966,14 @@ extern void *data_open(const char *path);
  * @endcode
  */
 extern void *get_value(void *value, enum DataType data_type, const char *pointer);
+
+/**
+ * @brief Returns the keys for an object-type `Value` pointer.
+ * @param value A `Value` pointer.
+ * @param pointer [Optional] A JSON pointer to a nested value.
+ * @return An array of the `Value`'s keys, or null if no data or `Value` not an object.
+ */
+extern ValueKeysArray *get_value_keys(void *value, const char *pointer);
 
 /**
  * @brief Returns the data type for a `Value` pointer.
