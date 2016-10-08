@@ -937,7 +937,7 @@ typedef struct _ValueKeysArray {
 } ValueKeysArray;
 
 /**
- * @brief Open a new file and recursively parse its contents.
+ * @brief Open a JSON data file and recursively parse its contents.
  * @param path Path to the top level data file.
  * @return A `Value` pointer that can be passed to `get_value`, or null on error.
  */

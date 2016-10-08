@@ -83,7 +83,7 @@ use std::path::Path;
 pub struct DataParser;
 
 impl DataParser {
-    /// Open a new file and recursively parse its contents.
+    /// Open a JSON data file and recursively parse its contents.
     pub fn open<P: AsRef<Path>>(path: P) -> Result<Value> {
         let file = try!(DataFile::new(path));
         Ok(try!(file.merge(Value::Null)))

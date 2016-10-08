@@ -542,3 +542,12 @@ class Template {
  * The exception class for Template errors.
  */
 class TemplateException {}
+
+/**
+ * Open a new data file and recursively parse its contents.
+ *
+ * @param string $path The file path to the top level data file.
+ *
+ * @return array An array representing the data file.
+ */
+function data_open($path) {}
