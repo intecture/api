@@ -19,6 +19,10 @@ void inapi_init_template_exception(TSRMLS_D);
 void free_php_template(void *object TSRMLS_DC);
 zend_object_value create_php_template(zend_class_entry *class_type TSRMLS_DC);
 
+bool array_is_hash(HashTable *arr_hash TSRMLS_DC);
+int build_map(HashTable *arr_hash, MapBuilder *builder TSRMLS_DC);
+int build_vec(HashTable *arr_hash, VecBuilder *builder TSRMLS_DC);
+
 PHP_METHOD(Template, __construct);
 PHP_METHOD(Template, render);
 
@@ -26,35 +30,5 @@ typedef struct _php_template {
     zend_object std;
     Template *template;
 } php_template;
-
-void inapi_init_mapbuilder(TSRMLS_D);
-void free_php_mapbuilder(void *object TSRMLS_DC);
-zend_object_value create_php_mapbuilder(zend_class_entry *class_type TSRMLS_DC);
-
-PHP_METHOD(MapBuilder, __construct);
-PHP_METHOD(MapBuilder, insert_str);
-PHP_METHOD(MapBuilder, insert_bool);
-PHP_METHOD(MapBuilder, insert_vec);
-PHP_METHOD(MapBuilder, insert_map);
-
-typedef struct _php_mapbuilder {
-    zend_object std;
-    void *builder;
-} php_mapbuilder;
-
-void inapi_init_vecbuilder(TSRMLS_D);
-void free_php_vecbuilder(void *object TSRMLS_DC);
-zend_object_value create_php_vecbuilder(zend_class_entry *class_type TSRMLS_DC);
-
-PHP_METHOD(VecBuilder, __construct);
-PHP_METHOD(VecBuilder, push_str);
-PHP_METHOD(VecBuilder, push_bool);
-PHP_METHOD(VecBuilder, push_vec);
-PHP_METHOD(VecBuilder, push_map);
-
-typedef struct _php_vecbuilder {
-    zend_object std;
-    void *builder;
-} php_vecbuilder;
 
 #endif
