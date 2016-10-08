@@ -519,6 +519,8 @@ class TelemetryException {}
 
 /**
  * The Template primitive for opening and rendering templates.
+ *
+ * @example stub_examples.php 225 8 Basic usage
  */
 class Template {
     /**
@@ -529,26 +531,14 @@ class Template {
     public function __construct($path) {}
 
     /**
-     * Render a Template using a Map/VecBuilder data structure.
+     * Render a Template with the associated data.
      *
-     * @param mixed $builder MapBuilder or VecBuilder object.
+     * @param array $data Array of data to pass to template.
      */
-    public function render($builder) {}
+    public function render($array) {}
 }
 
 /**
  * The exception class for Template errors.
  */
 class TemplateException {}
-
-/**
- */
-class MapBuilder {
-
-}
-
-/**
- */
-class VecBuilder {
-
-}

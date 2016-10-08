@@ -217,3 +217,16 @@ $web_data = Telemetry::load($web);
 $db = new Host();
 $db->connect('db.example.com', 7101, 7102);
 $db_data = Telemetry::load($db);
+
+/*
+ * Template
+ * Basic usage
+ */
+$host = new Host();
+$host->connect('example.com', 7101, 7102);
+
+$template = new Template("payloads/nginx/nginx.conf");
+$fd = $template->render(array("name" => "Cyril Figgis"));
+
+$file = new File($host, "/usr/local/etc/nginx/nginx.conf");
+$file->upload_file($host, $fd);
