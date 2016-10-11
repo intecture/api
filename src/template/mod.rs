@@ -25,8 +25,8 @@
 //! # let template = Template::new("/path/to/template").unwrap();
 //! # let data = MapBuilder::new().insert_str("key", "value").build();
 //! # let rendered_file = template.render_data(&data).unwrap();
-//! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //!
 //! let file = File::new(&mut host, "/path/to/remote/file").unwrap();
 //! file.upload_file(&mut host, rendered_file, None).unwrap();

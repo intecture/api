@@ -16,15 +16,15 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-//! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
 //!
 //! ```no_run
 //! # use inapi::{Command, Host};
-//! # let mut host = Host::new();
+//! # let mut host = Host::local(None);
 //! let cmd = Command::new("whoami");
 //! let result = cmd.exec(&mut host).unwrap();
 //! println!("Exit: {}, Stdout: {}, Stderr: {}", result.exit_code, result.stdout, result.stderr);
@@ -84,12 +84,12 @@ impl Command {
     /// # use inapi::{Command, Host};
     /// let cmd = Command::new("whoami");
     ///
-    /// let mut web1 = Host::new();
-    #[cfg_attr(feature = "remote-run", doc = "web1.connect(\"web1.example.com\", 7101, 7102).unwrap();")]
+    #[cfg_attr(feature = "local-run", doc = "let mut web1 = Host::local(None);")]
+    #[cfg_attr(feature = "remote-run", doc = "let mut web1 = Host::connect(\"data/nodes/web1.json\").unwrap();")]
     /// let w1_result = cmd.exec(&mut web1).unwrap();
     ///
-    /// let mut web2 = Host::new();
-    #[cfg_attr(feature = "remote-run", doc = "web2.connect(\"web2.example.com\", 7101, 7102).unwrap();")]
+    #[cfg_attr(feature = "local-run", doc = "let mut web2 = Host::local(None);")]
+    #[cfg_attr(feature = "remote-run", doc = "let mut web2 = Host::connect(\"data/nodes/web2.json\").unwrap();")]
     /// let w2_result = cmd.exec(&mut web2).unwrap();
     /// ```
     #[allow(unused_variables)]
@@ -116,7 +116,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_exec() {
-        let mut host = Host::new();
+        let mut host = Host::local(None);
         let cmd = Command::new("whoami");
         let result = cmd.exec(&mut host).unwrap();
 
@@ -147,7 +147,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let cmd = Command::new("moo");
         let result = cmd.exec(&mut host).unwrap();

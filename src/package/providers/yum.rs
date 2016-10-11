@@ -13,7 +13,6 @@ use error::{Error, Result};
 use host::Host;
 use regex::Regex;
 use super::*;
-use telemetry::Telemetry;
 
 pub struct Yum;
 
@@ -36,9 +35,9 @@ impl Provider for Yum {
             return Err(Error::Agent(result.stderr));
         }
 
-        let telemetry = try!(Telemetry::init(host));
+        let arch = try!(needstr!(host.data() => "/telemetry/os/arch"));
 
-        let re = try!(Regex::new(&format!("(?m)^{}\\.({}|noarch)\\s+", name, telemetry.os.arch)));
+        let re = try!(Regex::new(&format!("(?m)^{}\\.({}|noarch)\\s+", name, arch)));
         Ok(re.is_match(&result.stdout))
     }
 

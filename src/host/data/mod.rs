@@ -71,7 +71,7 @@ need_macro!("array", needarray, is_array, as_array);
 need_macro!("object", needobj, is_object, as_object);
 
 mod condition;
-pub mod ffi;
+// pub mod ffi;
 
 use error::{Error, Result};
 use serde_json::{self, Value};
@@ -92,11 +92,11 @@ pub fn open<P: AsRef<Path>>(path: P) -> Result<Value> {
 
 pub fn merge(me: Value, mut last_value: Value) -> Result<Value> {
     for dep in try!(dependencies(&me)) {
-        last_value = try!(merge(last_value));
+        last_value = try!(merge(dep, last_value));
     }
 
     let lv_clone = last_value.clone();
-    Ok(try!(Self::merge_values(self.v, last_value, &lv_clone)))
+    Ok(try!(merge_values(me, last_value, &lv_clone)))
 }
 
 fn dependencies(me: &Value) -> Result<Vec<Value>> {
@@ -134,7 +134,7 @@ fn merge_values(into: Value, mut from: Value, parent_from: &Value) -> Result<Val
             let mut b = Vec::new();
 
             for v in a {
-                b.push(try!(Self::merge_values(v, Value::Null, parent_from)));
+                b.push(try!(merge_values(v, Value::Null, parent_from)));
             }
 
             Ok(Value::Array(b))
@@ -149,14 +149,14 @@ fn merge_values(into: Value, mut from: Value, parent_from: &Value) -> Result<Val
                         key.push('!');
                     }
 
-                    value = try!(Self::query_value(&parent_from, value)).unwrap_or(Value::Null);
+                    value = try!(query_value(&parent_from, value)).unwrap_or(Value::Null);
                 }
 
                 if key.ends_with("!") {
                     key.pop();
                 }
                 else if let Some(o1) = from.find(&key) {
-                    value = try!(Self::merge_values(value, o1.clone(), &parent_from));
+                    value = try!(merge_values(value, o1.clone(), &parent_from));
                 }
 
                 new.insert(key, value);
@@ -180,7 +180,7 @@ fn query_value(data: &Value, value: Value) -> Result<Option<Value>> {
     match value {
         Value::Array(a) => {
             for opt in a {
-                if let Some(v) = try!(Self::query_value(data, opt)) {
+                if let Some(v) = try!(query_value(data, opt)) {
                     return Ok(Some(v));
                 }
             }
@@ -224,6 +224,7 @@ mod tests {
 
         path.push("top.json");
         let value = open(&path).unwrap();
+        let value = merge(value, Value::Null).unwrap();
 
         assert_eq!(value, expected_value);
     }

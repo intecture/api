@@ -151,8 +151,6 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use Host;
     use host::ffi::Ffi__Host;
-    #[cfg(feature = "remote-run")]
-    use host::ffi::host_close;
     use libc::uint8_t;
     use Package;
     use package::providers::Homebrew;
@@ -228,13 +226,12 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let name = CString::new("nginx").unwrap().into_raw();
         let pkg: Package = readptr!(package_new(&ffi_host, name, Ffi__Providers::Default), "Package struct").unwrap();
         assert_eq!(pkg.name, "nginx");
 
-        assert_eq!(host_close(&mut ffi_host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -299,14 +296,13 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let name = CString::new("nginx").unwrap().into_raw();
         let pkg: Package = readptr!(package_new(&ffi_host, name, Ffi__Providers::Homebrew), "Package struct").unwrap();
         assert_eq!(pkg.name, "nginx");
         assert!(!pkg.is_installed());
 
-        assert_eq!(host_close(&mut ffi_host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -353,7 +349,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,
@@ -365,7 +361,6 @@ mod tests {
         let result = unsafe { ptr::read(result_ptr) };
         assert_eq!(result.exit_code, 0);
 
-        assert_eq!(host_close(&mut ffi_host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -402,7 +397,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,
@@ -414,7 +409,6 @@ mod tests {
         let result = unsafe { ptr::read(result_ptr) };
         assert_eq!(result.exit_code, 0);
 
-        assert_eq!(host_close(&mut ffi_host), 0);
         agent_mock.join().unwrap();
     }
 }

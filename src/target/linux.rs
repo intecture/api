@@ -330,14 +330,14 @@ mod tests {
 
     #[test]
     fn test_package_default_provider() {
-        let mut host = Host::new();
+        let mut host = Host::local(None);
         let result = Target::default_provider(&mut host);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_telemetry_init() {
-        let mut host = Host::new();
+        let mut host = Host::local(None);
         let result = Target::telemetry_init(&mut host);
         assert!(result.is_ok());
     }

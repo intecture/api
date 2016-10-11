@@ -16,15 +16,15 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-//! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
 //! Now install the package `nginx` using the default provider:
 //!
 //! ```no_run
 //! # use inapi::{Host, Package};
-//! # let mut host = Host::new();
+//! # let mut host = Host::local(None);
 //! let mut package = Package::new(&mut host, "nginx", None).unwrap();
 //! package.install(&mut host);
 //! ```
@@ -35,7 +35,7 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Package, Providers};
-//! # let mut host = Host::new();
+//! # let mut host = Host::local(None);
 //! let mut package = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
 //! package.install(&mut host);
 //! ```
@@ -68,7 +68,7 @@ impl Package {
     ///
     /// ```no_run
     /// # use inapi::{Host, Package, Providers};
-    /// # let mut host = Host::new();
+    /// # let mut host = Host::local(None);
     /// let pkg = Package::new(&mut host, "nginx", Some(Providers::Yum));
     /// ```
     pub fn new(host: &mut Host, name: &str, providers: Option<Providers>) -> Result<Package> {
@@ -166,7 +166,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
         let pkg = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
 
         assert_eq!(pkg.name, "nginx");
@@ -178,7 +178,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_new_default() {
-        let mut host = Host::new();
+        let mut host = Host::local(None);
         let pkg = Package::new(&mut host, "nginx", None);
         assert!(pkg.is_ok());
     }
@@ -223,7 +223,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
         let pkg = Package::new(&mut host, "nginx", None);
         assert!(pkg.is_ok());
 

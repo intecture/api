@@ -15,15 +15,15 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-//! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
 //! Now you can manage a file on your managed host.
 //!
 //! ```no_run
 //! # use inapi::{Host, File, FileOptions};
-//! # let mut host = Host::new();
+//! # let mut host = Host::local(None);
 //! let file = File::new(&mut host, "/path/to/destination_file").unwrap();
 #![cfg_attr(feature = "remote-run", doc = " file.upload(&mut host, \"/path/to/local_file\", None);")]
 //! file.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
@@ -39,7 +39,7 @@
 pub mod ffi;
 
 use error::Result;
-use host::Host;
+use host::{Host, HostSendRecv};
 use error::Error;
 #[cfg(feature = "remote-run")]
 use std::fs;
@@ -74,7 +74,7 @@ impl File {
     ///
     /// ```no_run
     /// # use inapi::{File, Host};
-    /// let mut host = Host::new();
+    /// let mut host = Host::local(None);
     /// let file = File::new(&mut host, "/path/to/file");
     /// ```
     pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<File> {
@@ -170,7 +170,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_new_ok() {
-        let mut host = Host::new();
+        let mut host = Host::local(None);
         let file = File::new(&mut host, "/path/to/file");
         assert!(file.is_ok());
     }
@@ -200,7 +200,7 @@ mod tests {
             reply.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/tmp/test");
         assert!(file.is_ok());
@@ -238,7 +238,7 @@ mod tests {
             reply.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/tmp/test").unwrap();
         assert!(file.exists(&mut host).unwrap());
@@ -270,7 +270,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/tmp/test").unwrap();
         assert!(file.delete(&mut host).is_ok());
@@ -303,7 +303,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let mut file = File::new(&mut host, "/tmp/old").unwrap();
         assert!(file.mv(&mut host, "/tmp/new").is_ok());
@@ -336,7 +336,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/tmp/existing").unwrap();
         assert!(file.copy(&mut host, "/tmp/new").is_ok());
@@ -374,7 +374,7 @@ mod tests {
             reply.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/tmp/test").unwrap();
         let owner = file.get_owner(&mut host).unwrap();
@@ -412,7 +412,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/tmp/test").unwrap();
         assert!(file.set_owner(&mut host, "user", "group").is_ok());
@@ -447,7 +447,7 @@ mod tests {
             reply.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/tmp/test").unwrap();
         assert_eq!(file.get_mode(&mut host).unwrap(), 755);
@@ -480,7 +480,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/tmp/test").unwrap();
         assert!(file.set_mode(&mut host, 644).is_ok());

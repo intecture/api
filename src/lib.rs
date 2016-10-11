@@ -1,4 +1,3 @@
-// Copyright 2015-2016 Intecture Developers. See the COPYRIGHT file at the
 // top-level directory of this distribution and at
 // https://intecture.io/COPYRIGHT.
 //
@@ -44,33 +43,31 @@ extern crate zfilexfer;
 mod ffi_helpers;
 pub mod command;
 mod config;
-#[macro_use]
-mod data;
 pub mod directory;
 pub mod error;
 pub mod file;
-pub mod host;
+#[macro_use]
+mod host;
 #[cfg(all(test, feature = "remote-run"))]
 mod mock_env;
 pub mod package;
 pub mod service;
 mod target;
-pub mod telemetry;
 pub mod template;
 
 pub use command::{Command, CommandResult};
-pub use data::DataParser;
-pub use data::ffi::{data_open, free_value, get_value, get_value_keys, get_value_type};
 pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOwner};
 pub use host::Host;
+pub use host::ffi::host_local;
+#[cfg(feature = "remote-run")]
+pub use host::ffi::{host_connect, host_connect_endpoint};
 pub use mustache::{MapBuilder, VecBuilder};
 pub use package::Package;
 pub use package::providers::{Provider, ProviderFactory, Providers};
 pub use serde_json::Value;
 pub use service::{Service, ServiceRunnable};
-pub use telemetry::{Cpu, FsMount, Netif, NetifStatus, NetifIPv4, NetifIPv6, Os, Telemetry};
 pub use template::Template;
 pub use zfilexfer::FileOptions;
 

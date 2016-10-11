@@ -11,14 +11,13 @@ use czmq::ZMsg;
 use directory::DirectoryTarget;
 use error::{Error, Result};
 use file::{FileTarget, FileOwner};
-use host::Host;
+use host::{Host, HostSendRecv, TelemetryTarget};
 use package::PackageTarget;
 use package::providers::Providers;
-use rustc_serialize::json;
+use serde_json::{self, Value};
 use service::ServiceTarget;
 use std::path::Path;
 use super::Target;
-use telemetry::{Telemetry, TelemetryTarget};
 
 //
 // Command
@@ -299,13 +298,13 @@ impl ServiceTarget for Target {
 //
 
 impl TelemetryTarget for Target {
-    fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
+    fn telemetry_init(host: &mut Host) -> Result<Value> {
         let msg = ZMsg::new();
         try!(msg.addstr("telemetry"));
         try!(host.send(msg));
 
         let msg = try!(host.recv(1, Some(1)));
         let telemetry = try!(msg.popstr().unwrap().or(Err(Error::HostResponse)));
-        Ok(try!(json::decode(&telemetry)))
+        Ok(try!(serde_json::from_str(&telemetry)))
     }
 }

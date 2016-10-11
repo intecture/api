@@ -247,7 +247,7 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
     #[cfg(feature = "remote-run")]
-    use host::ffi::{Ffi__Host, host_close};
+    use host::ffi::Ffi__Host;
     #[cfg(feature = "remote-run")]
     use libc::{uint8_t, uint16_t};
     use std::ffi::{CStr, CString};
@@ -262,7 +262,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_convert_file() {
-        let mut host = Host::new();
+        let mut host = Host::local(None);
         // XXX Without FS mocking this could potentially fail where
         // /path/to/file is a real path to a directory.
         let file = File::new(&mut host, "/path/to/file").unwrap();
@@ -287,7 +287,7 @@ mod tests {
             msg.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let file = File::new(&mut host, "/path/to/file").unwrap();
         let ffi_file = Ffi__File::from(file);
@@ -371,13 +371,12 @@ mod tests {
             msg.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file: File = readptr!(file_new(&host, path), "File struct").unwrap();
         assert_eq!(file.path, Path::new("/path/to/file"));
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -397,12 +396,11 @@ mod tests {
             msg.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         assert!(file_new(&host, path).is_null());
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -429,7 +427,7 @@ mod tests {
             msg.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host, path);
@@ -437,7 +435,6 @@ mod tests {
         let exists: uint8_t = readptr!(file_exists(file, &host), "bool").unwrap();
         assert_eq!(exists, 0);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -460,14 +457,13 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host, path);
         assert!(!file.is_null());
         assert_eq!(file_delete(file, &host), 0);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -497,7 +493,7 @@ mod tests {
             reply.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host, path);
@@ -509,7 +505,6 @@ mod tests {
         assert_eq!(owner.group_name, "group");
         assert_eq!(owner.group_gid, 123);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -537,7 +532,7 @@ mod tests {
             server.send_str("Ok").unwrap()
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host as *const Ffi__Host, path);
@@ -546,7 +541,6 @@ mod tests {
         let group = CString::new("group").unwrap().into_raw();
         assert_eq!(file_set_owner(file, &host, user, group), 0);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -573,7 +567,7 @@ mod tests {
             reply.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host as *const Ffi__Host, path);
@@ -581,7 +575,6 @@ mod tests {
         let mode: uint16_t = readptr!(file_get_mode(file, &host), "mode string").unwrap();
         assert_eq!(mode, 755);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -608,14 +601,13 @@ mod tests {
             server.send_str("Ok").unwrap()
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(&host as *const Ffi__Host, path);
         assert!(!file.is_null());
         assert_eq!(file_set_mode(file, &host, 644), 0);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 }

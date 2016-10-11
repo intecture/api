@@ -81,8 +81,6 @@ mod tests {
     use error::ERRMSG;
     use host::ffi::Ffi__Host;
     #[cfg(feature = "remote-run")]
-    use host::ffi::host_close;
-    #[cfg(feature = "remote-run")]
     use std::{str, thread};
     use std::ffi::CStr;
     use std::ffi::CString;
@@ -156,14 +154,13 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
         let mut ffi_command = Ffi__Command {
             cmd: CString::new("moo").unwrap().into_raw(),
         };
 
         let result = unsafe { ptr::read(command_exec(&mut ffi_command, &mut ffi_host)) };
 
-        assert_eq!(host_close(&mut ffi_host), 0);
         assert_eq!(result.exit_code, 0);
 
         let stdout = ptrtostr!(result.stdout, "stdout").unwrap();

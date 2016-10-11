@@ -15,15 +15,15 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-//! let mut host = Host::new();
-#![cfg_attr(feature = "remote-run", doc = "host.connect(\"myhost.example.com\", 7101, 7102).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
 //! Now you can manage a directory on your managed host.
 //!
 //! ```no_run
 //! # use inapi::{Host, Directory, DirectoryOpts};
-//! # let mut host = Host::new();
+//! # let mut host = Host::local(None);
 //! let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
 //! dir.create(&mut host, Some(&vec![DirectoryOpts::DoRecursive])).unwrap();
 //! dir.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
@@ -57,7 +57,7 @@ impl Directory {
     ///
     /// ```no_run
     /// # use inapi::{Directory, Host};
-    /// let mut host = Host::new();
+    /// let mut host = Host::local(None);
     /// let directory = Directory::new(&mut host, "/path/to/dir");
     /// ```
     pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<Directory> {
@@ -160,7 +160,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_new_ok() {
-        let mut host = Host::new();
+        let mut host = Host::local(None);
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());
     }
@@ -192,7 +192,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());
@@ -230,7 +230,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
         assert!(!dir.exists(&mut host).unwrap());
@@ -263,7 +263,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
         assert!(dir.create(&mut host, Some(&vec![DirectoryOpts::DoRecursive])).is_ok());
@@ -296,7 +296,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
         assert!(dir.delete(&mut host, None).is_ok());
@@ -329,7 +329,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let mut dir = Directory::new(&mut host, "/path/to/old").unwrap();
         assert!(dir.mv(&mut host, "/path/to/new").is_ok());
@@ -367,7 +367,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());
@@ -407,7 +407,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());
@@ -443,7 +443,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());
@@ -477,7 +477,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());

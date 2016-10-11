@@ -188,7 +188,7 @@ mod tests {
     use czmq::{ZMsg, ZSys};
     use file::ffi::Ffi__FileOwner;
     #[cfg(feature = "remote-run")]
-    use host::ffi::{Ffi__Host, host_close};
+    use host::ffi::Ffi__Host;
     use std::ffi::{CStr, CString};
     #[cfg(feature = "remote-run")]
     use std::ptr;
@@ -207,7 +207,7 @@ mod tests {
         let mut path = tempdir.path().to_owned();
         path.push("path/to/dir");
 
-        let mut host = Host::new();
+        let mut host = Host::local(None);
         let directory = Directory::new(&mut host, &path).unwrap();
         let ffi_directory = Ffi__Directory::from(directory);
 
@@ -232,7 +232,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Host::test_new(None, Some(client), None);
+        let mut host = Host::test_new(None, Some(client), None, None);
 
         let directory = Directory::new(&mut host, "/path/to/dir").unwrap();
         let ffi_directory = Ffi__Directory::from(directory);
@@ -325,13 +325,12 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = unsafe { ptr::read(directory_new(&host as *const Ffi__Host, path)) };
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(directory.path).to_bytes()).unwrap() }, "/path/to/dir");
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -351,12 +350,11 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         assert!(directory_new(&host, path).is_null());
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -383,14 +381,13 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = unsafe { ptr::read(directory_new(&host as *const Ffi__Host, path)) };
         let exists = unsafe { ptr::read(directory_exists(&directory as *const Ffi__Directory, &host as *const Ffi__Host)) };
         assert_eq!(exists, 0);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -413,7 +410,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host, path);
@@ -422,7 +419,6 @@ mod tests {
         };
         directory_create(directory, &host, &opts);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -445,13 +441,12 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host, path);
         directory_delete(directory, &host, ptr::null());
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -481,7 +476,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host as *const Ffi__Host, path);
@@ -492,7 +487,6 @@ mod tests {
         assert_eq!(owner.group_name, "group");
         assert_eq!(owner.group_gid, 123);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -515,7 +509,7 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host, path);
@@ -524,7 +518,6 @@ mod tests {
         let result = directory_set_owner(directory, &host, user, group);
         assert_eq!(result, 0);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -551,7 +544,7 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host, path);
@@ -559,7 +552,6 @@ mod tests {
         assert!(!mode.is_null());
         assert_eq!(unsafe { ptr::read(mode) }, 755);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -582,13 +574,12 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None));
+        let host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
         let directory = directory_new(&host, path);
         directory_set_mode(directory, &host, 644);
 
-        assert_eq!(host_close(&mut host), 0);
         agent_mock.join().unwrap();
     }
 }
