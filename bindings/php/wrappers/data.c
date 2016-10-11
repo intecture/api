@@ -54,6 +54,7 @@ PHP_FUNCTION(data_open) {
     }
 
     unwrap_value(value, 7, return_value TSRMLS_CC); // 7 = Object
+    free_value(value);
 }
 
 void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {
