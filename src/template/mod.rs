@@ -16,21 +16,20 @@
 //! let data = MapBuilder::new().insert_str("key", "value").build();
 //! let rendered_file = template.render_data(&data).unwrap();
 //! ```
-//!
-//! To upload the rendered file to your host, you can pass it
-//! straight into the File primitive:
-//!
-//! ```no_run
-//! # use inapi::{File, Host, MapBuilder, Template};
-//! # let template = Template::new("/path/to/template").unwrap();
-//! # let data = MapBuilder::new().insert_str("key", "value").build();
-//! # let rendered_file = template.render_data(&data).unwrap();
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "remote-run", doc = "")]
+#![cfg_attr(feature = "remote-run", doc = "To upload the rendered file to your host, you can pass it")]
+#![cfg_attr(feature = "remote-run", doc = "straight into the File primitive:")]
+#![cfg_attr(feature = "remote-run", doc = "")]
+#![cfg_attr(feature = "remote-run", doc = "```no_run")]
+#![cfg_attr(feature = "remote-run", doc = "# use inapi::{File, Host, MapBuilder, Template};")]
+#![cfg_attr(feature = "remote-run", doc = "# let template = Template::new(\"/path/to/template\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let data = MapBuilder::new().insert_str(\"key\", \"value\").build();")]
+#![cfg_attr(feature = "remote-run", doc = "# let rendered_file = template.render_data(&data).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
-//!
-//! let file = File::new(&mut host, "/path/to/remote/file").unwrap();
-//! file.upload_file(&mut host, rendered_file, None).unwrap();
-//! ```
+#![cfg_attr(feature = "remote-run", doc = "")]
+#![cfg_attr(feature = "remote-run", doc = "let file = File::new(&mut host, \"/path/to/remote/file\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "file.upload_file(&mut host, rendered_file, None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "```")]
 
 pub mod ffi;
 

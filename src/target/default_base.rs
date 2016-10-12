@@ -14,7 +14,7 @@ use regex::Regex;
 use std::{fs, process, str};
 use std::path::Path;
 use target::bin_resolver::BinResolver;
-use telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
+use host::telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
 
 pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Providers> {
     for p in providers {
@@ -200,9 +200,6 @@ pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
                 used: try!(cap.name("used").unwrap().parse::<u64>()),
                 available: try!(cap.name("available").unwrap().parse::<u64>()),
                 capacity: try!(cap.name("capacity").unwrap().parse::<f32>())/100.0,
-                // inodes_used: try!(cap.name("iused").unwrap().parse::<u64>()),
-                // inodes_available: try!(cap.name("iavailable").unwrap().parse::<u64>()),
-                // inodes_capacity: try!(cap.name("icapacity").unwrap().parse::<f32>())/100.0,
             });
         }
     };

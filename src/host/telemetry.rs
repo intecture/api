@@ -6,29 +6,6 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Data structures containing information about your managed host.
-//!
-//! The Telemetry struct stores metadata about a host, such as its
-//! network interfaces, disk mounts, CPU stats and hostname.
-//!
-//! # Examples
-//!
-//! Initialise a new Host:
-//!
-//! ```no_run
-//! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
-//! ```
-//!
-//! Now run your command and get the result:
-//!
-//! ```no_run
-//! # use inapi::{Host, Telemetry};
-//! # let mut host = Host::local(None);
-//! let telemetry = Telemetry::init(&mut host);
-//! ```
-
 use error::Result;
 use host::Host;
 use serde_json::Value;
@@ -63,15 +40,6 @@ impl Telemetry {
         }
     }
 
-    /// Initialise a new Telemetry struct for the given Host.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use inapi::{Host, Telemetry};
-    /// # let mut host = Host::local(None);
-    /// let telemetry = Telemetry::init(&mut host);
-    /// ```
     pub fn init(host: &mut Host) -> Result<Value> {
         Target::telemetry_init(host)
     }
@@ -174,20 +142,6 @@ pub struct FsMount {
 }
 
 #[cfg(feature = "local-run")]
-impl FsMount {
-    pub fn new(filesystem: &str, mountpoint: &str, size: u64, used: u64, available: u64, capacity: f32) -> FsMount {
-        FsMount {
-            filesystem: filesystem.to_string(),
-            mountpoint: mountpoint.to_string(),
-            size: size,
-            used: used,
-            available: available,
-            capacity: capacity,
-        }
-    }
-}
-
-#[cfg(feature = "local-run")]
 #[derive(Debug, RustcEncodable)]
 pub struct Netif {
     pub interface: String,
@@ -195,23 +149,6 @@ pub struct Netif {
     pub inet: Option<NetifIPv4>,
     pub inet6: Option<NetifIPv6>,
     pub status: Option<NetifStatus>,
-}
-
-#[cfg(feature = "local-run")]
-impl Netif {
-    pub fn new(interface: &str, mac: Option<&str>, inet: Option<NetifIPv4>, inet6: Option<NetifIPv6>, status: Option<NetifStatus>) -> Netif {
-        Netif {
-            interface: interface.to_string(),
-            mac: if mac.is_some() {
-                Some(mac.unwrap().to_string())
-            } else {
-                None
-            },
-            inet: inet,
-            inet6: inet6,
-            status: status,
-        }
-    }
 }
 
 #[cfg(feature = "local-run")]
@@ -229,36 +166,11 @@ pub struct NetifIPv4 {
 }
 
 #[cfg(feature = "local-run")]
-impl NetifIPv4 {
-    pub fn new(address: &str, netmask: &str) -> NetifIPv4 {
-        NetifIPv4 {
-            address: address.to_string(),
-            netmask: netmask.to_string(),
-        }
-    }
-}
-
-#[cfg(feature = "local-run")]
 #[derive(Debug, RustcEncodable)]
 pub struct NetifIPv6 {
     pub address: String,
     pub prefixlen: u8,
     pub scopeid: Option<String>,
-}
-
-#[cfg(feature = "local-run")]
-impl NetifIPv6 {
-    pub fn new(address: &str, prefixlen: u8, scopeid: Option<&str>) -> NetifIPv6 {
-        NetifIPv6 {
-            address: address.to_string(),
-            prefixlen: prefixlen,
-            scopeid: if scopeid.is_some() {
-                Some(scopeid.unwrap().to_string())
-            } else {
-                None
-            }
-        }
-    }
 }
 
 #[cfg(feature = "local-run")]
@@ -292,7 +204,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_telemetry_init() {
-        let mut host = Host::local(None);
+        let mut host = Host::local(None).unwrap();
         assert!(Telemetry::init(&mut host).is_ok());
     }
 }

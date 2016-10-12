@@ -15,7 +15,7 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
@@ -23,7 +23,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Directory, DirectoryOpts};
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
 //! dir.create(&mut host, Some(&vec![DirectoryOpts::DoRecursive])).unwrap();
 //! dir.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
@@ -57,7 +58,8 @@ impl Directory {
     ///
     /// ```no_run
     /// # use inapi::{Directory, Host};
-    /// let mut host = Host::local(None);
+    #[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
     /// let directory = Directory::new(&mut host, "/path/to/dir");
     /// ```
     pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<Directory> {
@@ -155,12 +157,10 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use std::thread;
 
-    // XXX local-run tests require FS mocking
-
     #[cfg(feature = "local-run")]
     #[test]
     fn test_new_ok() {
-        let mut host = Host::local(None);
+        let mut host = Host::local(None).unwrap();
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());
     }

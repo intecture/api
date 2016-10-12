@@ -15,7 +15,7 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
@@ -23,7 +23,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, File, FileOptions};
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let file = File::new(&mut host, "/path/to/destination_file").unwrap();
 #![cfg_attr(feature = "remote-run", doc = " file.upload(&mut host, \"/path/to/local_file\", None);")]
 //! file.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
@@ -39,7 +40,9 @@
 pub mod ffi;
 
 use error::Result;
-use host::{Host, HostSendRecv};
+use host::Host;
+#[cfg(feature = "remote-run")]
+use host::HostSendRecv;
 use error::Error;
 #[cfg(feature = "remote-run")]
 use std::fs;
@@ -74,7 +77,8 @@ impl File {
     ///
     /// ```no_run
     /// # use inapi::{File, Host};
-    /// let mut host = Host::local(None);
+    #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
     /// let file = File::new(&mut host, "/path/to/file");
     /// ```
     pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<File> {
@@ -170,7 +174,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_new_ok() {
-        let mut host = Host::local(None);
+        let mut host = Host::local(None).unwrap();
         let file = File::new(&mut host, "/path/to/file");
         assert!(file.is_ok());
     }

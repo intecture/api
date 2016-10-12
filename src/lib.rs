@@ -60,9 +60,10 @@ pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOwner};
 pub use host::Host;
+#[cfg(feature = "local-run")]
 pub use host::ffi::host_local;
 #[cfg(feature = "remote-run")]
-pub use host::ffi::{host_connect, host_connect_endpoint};
+pub use host::ffi::{host_connect, host_connect_endpoint, host_close};
 pub use mustache::{MapBuilder, VecBuilder};
 pub use package::Package;
 pub use package::providers::{Provider, ProviderFactory, Providers};

@@ -13,11 +13,12 @@ use file::{FileTarget, FileOwner};
 use host::Host;
 use package::PackageTarget;
 use package::providers::Providers;
+use serde_json::Value;
 use service::ServiceTarget;
 use std::{env, process, str};
 use std::path::Path;
 use super::{default_base as default, Target, unix_base as unix};
-use telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
+use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 
 // This implementation is legacy. More work is required to support
 // modern launchd implementations.
@@ -196,13 +197,13 @@ impl ServiceTarget for Target {
 
 impl TelemetryTarget for Target {
     #[allow(unused_variables)]
-    fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
+    fn telemetry_init(host: &mut Host) -> Result<Value> {
         let cpu_vendor = try!(unix::get_sysctl_item("machdep\\.cpu\\.vendor"));
         let cpu_brand = try!(unix::get_sysctl_item("machdep\\.cpu\\.brand_string"));
         let hostname = try!(default::hostname());
         let telemetry_version = try!(telemetry_version());
 
-        Ok(Telemetry::new(
+        let telemetry = Telemetry::new(
             Cpu::new(
                 &cpu_vendor,
                 &cpu_brand,
@@ -223,7 +224,9 @@ impl TelemetryTarget for Target {
             try!(try!(unix::get_sysctl_item("hw\\.memsize")).parse::<u64>()),
             try!(unix::net()),
             Os::new(env::consts::ARCH, "unix", "macos", &telemetry_version),
-        ))
+        );
+
+        Ok(telemetry.into_value())
     }
 }
 
@@ -242,18 +245,18 @@ mod tests {
     use Host;
     use package::PackageTarget;
     use target::Target;
-    use telemetry::TelemetryTarget;
+    use host::telemetry::TelemetryTarget;
 
     #[test]
     fn test_package_default_provider() {
-        let mut host = Host::local(None);
+        let mut host = Host::local(None).unwrap();
         let result = Target::default_provider(&mut host);
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_telemetry_init() {
-        let mut host = Host::local(None);
+        let mut host = Host::local(None).unwrap();
         let result = Target::telemetry_init(&mut host);
         assert!(result.is_ok());
     }

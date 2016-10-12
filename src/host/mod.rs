@@ -12,7 +12,7 @@
 //!
 //! ```no_run
 //! # use inapi::{Command, Host};
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //!
 //! let cmd = Command::new("whoami");
@@ -22,18 +22,31 @@
 #[macro_use]
 mod data;
 pub mod ffi;
-mod telemetry;
-
-#[cfg(feature = "remote-run")]
-use czmq::{ZCert, ZMsg, ZSock, ZSockType};
-use error::{Error, Result};
-use serde_json::Value;
-use std::mem;
-use std::path::Path;
-use zfilexfer;
+pub mod telemetry;
 
 pub use self::telemetry::TelemetryTarget;
 
+#[cfg(feature = "remote-run")]
+use czmq::{ZCert, ZMsg, ZSock, ZSockType};
+#[cfg(feature = "remote-run")]
+use error::Error;
+use error::Result;
+use serde_json::Value;
+#[cfg(feature = "remote-run")]
+use std::mem;
+#[cfg(feature = "remote-run")]
+use std::path::Path;
+#[cfg(feature = "remote-run")]
+use zfilexfer;
+
+#[cfg(feature = "local-run")]
+/// Representation of a managed host.
+pub struct Host {
+    /// Data for host, comprising data files and telemetry
+    data: Value,
+}
+
+#[cfg(feature = "remote-run")]
 /// Representation of a managed host.
 pub struct Host {
     /// Hostname or IP of managed host
@@ -47,12 +60,10 @@ pub struct Host {
 }
 
 impl Host {
+    #[cfg(feature = "local-run")]
     /// Create a new Host connected to localhost.
     pub fn local(path: Option<&str>) -> Result<Host> {
         let mut me = Host {
-            hostname: "127.0.0.1".into(),
-            api_sock: None,
-            file_sock: None,
             data: Value::Null,
         };
 
@@ -156,7 +167,7 @@ impl Host {
         }
     }
 
-    #[cfg(test)]
+    #[cfg(all(test, feature = "remote-run"))]
     pub fn test_new(hostname: Option<String>, api_sock: Option<ZSock>, file_sock: Option<ZSock>, data: Option<Value>) -> Host {
         let host = Host {
             hostname: hostname.unwrap_or(String::new()),
@@ -231,38 +242,16 @@ impl HostSendRecv for Host {
     }
 }
 
+#[cfg(feature = "remote-run")]
 #[cfg(test)]
 mod tests {
     use czmq::{ZMsg, ZSys};
     use std::fs;
-    use std::io::Write;
-    use std::thread::spawn;
+    use std::thread;
     use super::*;
     use tempdir::TempDir;
     use zfilexfer::File;
 
-    #[test]
-    fn test_local() {
-        let _ = ::_MOCK_ENV.init();
-        let (_td, path) = create_data();
-
-        let host = Host::local(Some(&path)).unwrap();
-        let platform = needstr!(host.data => "/telemetry/os/platform").unwrap();
-        assert_eq!(wantbool!(host.data => "/is_macos"), Some(platform == "macos"));
-    }
-
-    #[cfg(feature = "remote-run")]
-    #[test]
-    fn test_connect() {
-        let _ = ::_MOCK_ENV.init();
-        let (_td, path) = create_data();
-
-        let host = Host::connect(&path).unwrap();
-        let platform = needstr!(host.data => "/telemetry/os/platform").unwrap();
-        assert_eq!(wantbool!(host.data => "/is_macos"), Some(platform == "macos"));
-    }
-
-    #[cfg(feature = "remote-run")]
     #[test]
     fn test_send_recv() {
         let _ = ::_MOCK_ENV.init();
@@ -294,7 +283,6 @@ mod tests {
         assert!(host2.recv(0, None).is_err());
     }
 
-    #[cfg(feature = "remote-run")]
     #[test]
     fn test_send_file() {
         let _ = ::_MOCK_ENV.init();
@@ -308,7 +296,7 @@ mod tests {
         client.set_rcvtimeo(Some(500));
         server.set_rcvtimeo(Some(500));
 
-        let handle = spawn(move|| {
+        let handle = thread::spawn(move|| {
             let msg = ZMsg::recv(&mut server).unwrap();
             assert_eq!(msg.popstr().unwrap().unwrap(), "NEW");
 
@@ -320,24 +308,5 @@ mod tests {
         assert!(host.send_file(&mut file, &path).is_ok());
 
         handle.join().unwrap();
-    }
-
-    fn create_data() -> (TempDir, String) {
-        let tempdir = TempDir::new("test_host").unwrap();
-        let path = format!("{}/web.json", tempdir.path().to_str().unwrap());
-        let mut fh = fs::File::create(&path).unwrap();
-        fh.write_all(b"{
-            \"is_macos?\": [
-                {
-                    \"_\": true,
-                    \"?\": \"/telemetry/os/platform = macos\"
-                },
-                {
-                    \"_\": false
-                }
-            ]
-        }").unwrap();
-
-        (tempdir, path)
     }
 }

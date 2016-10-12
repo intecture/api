@@ -16,7 +16,7 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
@@ -24,7 +24,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Command, Host};
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let cmd = Command::new("whoami");
 //! let result = cmd.exec(&mut host).unwrap();
 //! println!("Exit: {}, Stdout: {}, Stderr: {}", result.exit_code, result.stdout, result.stderr);
@@ -84,11 +85,11 @@ impl Command {
     /// # use inapi::{Command, Host};
     /// let cmd = Command::new("whoami");
     ///
-    #[cfg_attr(feature = "local-run", doc = "let mut web1 = Host::local(None);")]
+    #[cfg_attr(feature = "local-run", doc = "let mut web1 = Host::local(None).unwrap();")]
     #[cfg_attr(feature = "remote-run", doc = "let mut web1 = Host::connect(\"data/nodes/web1.json\").unwrap();")]
     /// let w1_result = cmd.exec(&mut web1).unwrap();
     ///
-    #[cfg_attr(feature = "local-run", doc = "let mut web2 = Host::local(None);")]
+    #[cfg_attr(feature = "local-run", doc = "let mut web2 = Host::local(None).unwrap();")]
     #[cfg_attr(feature = "remote-run", doc = "let mut web2 = Host::connect(\"data/nodes/web2.json\").unwrap();")]
     /// let w2_result = cmd.exec(&mut web2).unwrap();
     /// ```
@@ -116,7 +117,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_exec() {
-        let mut host = Host::local(None);
+        let mut host = Host::local(None).unwrap();
         let cmd = Command::new("whoami");
         let result = cmd.exec(&mut host).unwrap();
 

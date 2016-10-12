@@ -15,7 +15,7 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None);")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
@@ -23,7 +23,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let service = Service::new_service(ServiceRunnable::Service("nginx"), None);
 //! ```
 //!
@@ -32,7 +33,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let service = Service::new_service(ServiceRunnable::Command("/usr/bin/apachectl"), None);
 //! ```
 //!
@@ -42,7 +44,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! # let service = Service::new_service(ServiceRunnable::Service(""), None);
 //! let result = service.action(&mut host, "start").unwrap();
 //! if let Some(r) = result {
@@ -74,7 +77,8 @@
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
 //! # use std::collections::HashMap;
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let mut map = HashMap::new();
 //! map.insert("start", ServiceRunnable::Command("/usr/local/bin/svc_start"));
 //! map.insert("stop", ServiceRunnable::Command("/usr/local/bin/svc_stop"));
@@ -90,7 +94,8 @@
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
 //! # use std::collections::HashMap;
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let mut map = HashMap::new();
 //! map.insert("_", ServiceRunnable::Service("my_svc")); // <-- Note that "_" (underscore) is the default key used by the Service map
 //! map.insert("status", ServiceRunnable::Command("/usr/bin/my_svc_status"));
@@ -104,7 +109,8 @@
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
 //! # use std::collections::HashMap;
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let mut map = HashMap::new();
 //! map.insert("start", ServiceRunnable::Command("/usr/bin/start_svc"));
 //! map.insert("kill", ServiceRunnable::Command("killall my_svc"));
@@ -127,7 +133,8 @@
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
 //! # use std::collections::HashMap;
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let mut map = HashMap::new();
 //! map.insert("start", "-s"); // <-- Map action "start" to "-s"
 //! map.insert("stop", "-t");
@@ -141,7 +148,8 @@
 //! ```no_run
 //! # use inapi::{Host, Service, ServiceRunnable};
 //! # use std::collections::HashMap;
-//! # let mut host = Host::local(None);
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let mut map = HashMap::new();
 //! map.insert("start", "-c /usr/local/etc/my_svc.conf");
 //! let service = Service::new_service(ServiceRunnable::Command("/usr/local/bin/my_svc"), Some(map));
@@ -219,7 +227,8 @@ impl <'a>Service<'a> {
     ///
     /// ```no_run
     /// # use inapi::{Host, Service, ServiceRunnable};
-    /// # let mut host = Host::local(None);
+    #[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
     /// let service = Service::new_service(ServiceRunnable::Command("/usr/bin/nginx"), None);
     /// service.action(&mut host, "start").unwrap();
     /// ```

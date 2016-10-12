@@ -74,12 +74,13 @@ pub extern "C" fn command_exec(ffi_cmd_ptr: *mut Ffi__Command, ffi_host_ptr: *mu
 #[cfg(test)]
 mod tests {
     use {Command, CommandResult};
-    #[cfg(feature = "remote-run")]
     use Host;
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
     use error::ERRMSG;
     use host::ffi::Ffi__Host;
+    #[cfg(feature = "remote-run")]
+    use host::ffi::host_close;
     #[cfg(feature = "remote-run")]
     use std::{str, thread};
     use std::ffi::CStr;
@@ -126,7 +127,7 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_command_exec() {
-        let mut host = Ffi__Host;
+        let mut host = Ffi__Host::from(Host::local(None).unwrap());
         let cmd = command_new(CString::new("whoami").unwrap().as_ptr());
         let result = unsafe { ptr::read(command_exec(cmd, &mut host)) };
         assert_eq!(result.exit_code, 0);
@@ -169,6 +170,7 @@ mod tests {
         let stderr = ptrtostr!(result.stderr, "stderr").unwrap();
         assert_eq!(stderr, "err");
 
+        assert_eq!(host_close(&mut ffi_host), 0);
         agent_mock.join().unwrap();
     }
 }

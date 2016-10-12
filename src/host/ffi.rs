@@ -10,22 +10,24 @@
 
 #[cfg(feature = "remote-run")]
 use czmq::{RawInterface, ZSock};
+use libc::c_char;
 #[cfg(feature = "remote-run")]
-use libc::{c_char, uint32_t};
+use libc::{uint8_t, uint32_t};
 use serde_json::Value;
 use std::convert;
 #[cfg(feature = "remote-run")]
 use std::ptr;
 #[cfg(feature = "remote-run")]
 use std::ffi::CString;
-#[cfg(feature = "remote-run")]
 use std::os::raw::c_void;
 use std::panic::catch_unwind;
 use super::*;
 
 #[cfg(feature = "local-run")]
 #[repr(C)]
-pub struct Ffi__Host;
+pub struct Ffi__Host {
+    data: *mut c_void,
+}
 
 #[cfg(feature = "remote-run")]
 #[repr(C)]
@@ -37,6 +39,16 @@ pub struct Ffi__Host {
     data: *mut c_void,
 }
 
+#[cfg(feature = "local-run")]
+impl convert::From<Host> for Ffi__Host {
+    fn from(host: Host) -> Ffi__Host {
+        Ffi__Host {
+            data: Box::into_raw(Box::new(host.data)) as *mut c_void,
+        }
+    }
+}
+
+#[cfg(feature = "remote-run")]
 impl convert::From<Host> for Ffi__Host {
     fn from(host: Host) -> Ffi__Host {
         Ffi__Host {
@@ -54,6 +66,16 @@ impl convert::From<Host> for Ffi__Host {
     }
 }
 
+#[cfg(feature = "local-run")]
+impl convert::Into<Host> for Ffi__Host {
+    fn into(self) -> Host {
+        Host {
+            data: trypanic!(readptr!(self.data as *mut Value, "Value pointer")),
+        }
+    }
+}
+
+#[cfg(feature = "remote-run")]
 impl convert::Into<Host> for Ffi__Host {
     fn into(self) -> Host {
         Host {
@@ -73,6 +95,7 @@ impl convert::Into<Host> for Ffi__Host {
     }
 }
 
+#[cfg(feature = "local-run")]
 #[no_mangle]
 pub extern "C" fn host_local(path_ptr: *const c_char) -> *mut Ffi__Host {
     let path = if path_ptr.is_null() {
@@ -86,6 +109,7 @@ pub extern "C" fn host_local(path_ptr: *const c_char) -> *mut Ffi__Host {
     Box::into_raw(Box::new(ffi_host))
 }
 
+#[cfg(feature = "remote-run")]
 #[no_mangle]
 pub extern "C" fn host_connect(path_ptr: *const c_char) -> *mut Ffi__Host {
     let path = trynull!(ptrtostr!(path_ptr, "path string"));
@@ -105,14 +129,29 @@ pub extern "C" fn host_connect_endpoint(hostname_ptr: *const c_char,
     Box::into_raw(Box::new(ffi_host))
 }
 
+#[cfg(feature = "remote-run")]
+#[no_mangle]
+pub extern "C" fn host_close(host_ptr: *mut Ffi__Host) -> uint8_t {
+    // Don't use the convert trait as we want owned ZSocks
+    let ffi_host: Ffi__Host = tryrc!(readptr!(host_ptr, "Host struct"));
+
+    if !ffi_host.api_sock.is_null() {
+        unsafe { ZSock::from_raw(ffi_host.api_sock, true) };
+    }
+    if !ffi_host.file_sock.is_null() {
+        unsafe { ZSock::from_raw(ffi_host.file_sock, true) };
+    }
+
+    let _: Box<Value> = tryrc!(boxptr!(ffi_host.data as *mut Value, "Value struct"));
+    0
+}
+
 #[cfg(test)]
 mod tests {
     use host::Host;
-    #[cfg(feature = "remote-run")]
-    use std::ffi::CString;
-    use std::ptr;
     use super::*;
 
+    #[cfg(feature = "local-run")]
     #[test]
     fn test_convert_host() {
         let host = Host::local(None).unwrap();
@@ -122,16 +161,9 @@ mod tests {
 
     #[cfg(feature = "remote-run")]
     #[test]
-    fn test_host_fns() {
-        let _ = ::_MOCK_ENV.init();
-
-        let host = host_local(ptr::null());
-        assert!(!host.is_null());
-
-        let host = host_connect(ptr::null());
-        assert!(!host.is_null());
-
-        let host = host_connect_endpoint(CString::new("localhost").unwrap().as_ptr(), 7101, 7102);
-        assert!(!host.is_null());
+    fn test_convert_host() {
+        let host = Host::test_new(None, None, None, None);
+        let ffi: Ffi__Host = host.into();
+        let _: Host = ffi.into();
     }
 }
