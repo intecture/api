@@ -38,26 +38,28 @@ typedef struct _Host {
     const char *hostname; /**< Hostname or IP of managed host */
     void *api_sock; /**< API socket */
     void *file_sock; /**< File upload socket */
+    void *data; /**< Data for host, comprising data files and telemetry */
 } Host;
 
 /**
- * @brief Create a new Host to represent your managed host.
+ * @brief Create a new Host connected to the endpoint specified in the
+ *        data file. This function expects to find the following keys
+ *        in the root namespace: "hostname", "api_port", "file_port".
+ * @param path Path to the data file for this host.
  * @return A new Host struct.
  *
  * #### Usage Example
  *
- * Create a new Host struct to connect to your managed host:
- *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
  * @endcode
  */
-extern Host *host_new();
+extern Host *host_connect(const char *path);
 
 /**
- * @brief Connects a Host to a remote agent.
- * @param host The Host struct you wish to connect.
+ * @brief Create a new Host connected to the specified endpoint. Note
+ *        that this function does not load any user data.
  * @param hostname The IP address or hostname of your managed host.
  * @param api_port The port number that the Agent API service is listening on.
  * @param upload_port The port number that the Agent File Upload service is listening on.
@@ -65,16 +67,12 @@ extern Host *host_new();
  *
  * #### Usage Example
  *
- * Connect your Host struct to your managed host.
- *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect_endpoint("example.com", 7101, 7102);
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  * @endcode
  */
-extern int host_connect(Host *host, const char *hostname, uint32_t api_port, uint32_t upload_port);
+extern Host *host_connect_endpoint(const char *hostname, uint32_t api_port, uint32_t upload_port);
 
 /**
  * @brief Close the connection to your managed host.
@@ -82,6 +80,78 @@ extern int host_connect(Host *host, const char *hostname, uint32_t api_port, uin
  * @return Return code - zero on success, non-zero on error.
  */
 extern int host_close(Host *host);
+
+/**
+ * @brief Potential data types for a given `Value`.
+ */
+enum DataType {
+    Null, /**< Null */
+    Bool, /**< Boolean */
+    Int64, /**< 64b signed integer */
+    Uint64, /**< 64b unsigned integer */
+    Float, /**< 64b floating point integer */
+    String, /**< Char array */
+    Array, /**< Array of `Value`s */
+    Object, /**< A `Value` pointer to the object  */
+};
+
+/**
+ * @brief Array of `Value` pointers
+ */
+typedef struct _ValueArray {
+    void **ptr; /**< `Value`s */
+    size_t length; /**< Size of array */
+    size_t capacity; /**< Capacity of array */
+} ValueArray;
+
+/**
+ * @brief Array of `Value` pointers
+ */
+typedef struct _ValueKeysArray {
+    char **ptr; /**< Keys */
+    size_t length; /**< Size of array */
+    size_t capacity; /**< Capacity of array */
+} ValueKeysArray;
+
+/**
+ * @brief Get a concrete value from the `Value` pointer.
+ * @param value A `Value` pointer.
+ * @param data_type The concrete data type you want to transform the value into.
+ * @param pointer [Optional] A JSON pointer to a nested value.
+ * @return A void pointer containing the concrete data type, or null if no data/wrong data type.
+ *
+ * #### Usage Example
+ *
+ * @code
+ * Host *host = host_connect("data/nodes/mynode.json");
+ *
+ * enum DataType dt;
+ * dt = String;
+ * char *hostname = get_value(host->data, dt, "/hostname");
+ *
+ * if (!hostname) {
+ *     printf("Could not find hostname in data!\n");
+ *     exit(1);
+ * }
+ * @endcode
+ */
+extern void *get_value(void *value, enum DataType data_type, const char *pointer);
+
+/**
+ * @brief Returns the keys for an object-type `Value` pointer.
+ * @param value A `Value` pointer.
+ * @param pointer [Optional] A JSON pointer to a nested value.
+ * @return An array of the `Value`'s keys, or null if no data or `Value` not an object.
+ */
+extern ValueKeysArray *get_value_keys(void *value, const char *pointer);
+
+/**
+ * @brief Returns the data type for a `Value` pointer.
+ * @param value A `Value` pointer.
+ * @param pointer [Optional] A JSON pointer to a nested value.
+ * @return The `Value`'s data type, or null if no data.
+ */
+extern enum DataType *get_value_type(void *value, const char *pointer);
 
 /**
  * @brief The shell command primitive for running commands on a
@@ -136,134 +206,6 @@ extern Command *command_new(const char *cmd_str);
  * @return A struct containing the execution results.
  */
 extern CommandResult *command_exec(Command *cmd, Host *host);
-
-/**
- * @brief CPU information for the telemetry primitive.
- */
-typedef struct _Cpu {
-    char *vendor; /**< CPU vendor */
-    char *brand_string; /**< Full description of CPU */
-    uint32_t cores; /**< Total number of cores */
-} Cpu;
-
-/**
- * @brief File system information for the telemetry primitive.
- */
-typedef struct _FsMount {
-    char *filesystem; /**< File system being mounted */
-    char *mountpoint; /**< Location of mount */
-    uint64_t size; /**< Size on disk (in kb) */
-    uint64_t used; /**< Disk space used (in kb) */
-    uint64_t available; /**< Disk space available (in kb) */
-    float capacity; /**< Percentage capacity available */
-//    uint64_t inodes_used; /**< Inodes used */
-//    uint64_t inodes_available; /**< Inodes available */
-//    float inodes_capacity; /**< Percentage capacity available */
-} FsMount;
-
-/**
- * @brief Array of file systems for the telemetry primitive.
- */
-typedef struct _FsArray {
-    FsMount *ptr; /**< File system mounts */
-    size_t length; /**< Size of array */
-    size_t capacity; /**< Capacity of array */
-} FsArray;
-
-/**
- * @brief IPv4 address information for the network interface.
- */
-typedef struct _NetifIPv4 {
-    char *address; /**< IPv4 address */
-    char *netmask; /**< Netmask */
-} NetifIPv4;
-
-/**
- * @brief IPv6 address information for the network interface.
- */
-typedef struct _NetifIPv6 {
-    char *address; /**< IPv6 address */
-    uint32_t prefixlen; /**< Prefix length */
-    char *scopeid; /**< Scope ID */
-} NetifIPv6;
-
-/**
- * @brief Network interface information for the telemetry primitive.
- */
-typedef struct _Netif {
-    char *interface; /**< Name of the interface */
-    char *mac; /**< (Optional) MAC address */
-    NetifIPv4 *inet; /**< (Optional) IPv4 address */
-    NetifIPv6 *inet6; /**< (Optional) IPv6 address */
-    char *status; /**< (Optional) Interface status: Active|Inactive */
-} Netif;
-
-/**
- * @brief Array of network interfaces for the telemetry primitive.
- */
-typedef struct _NetifArray {
-    Netif *ptr; /**< File system mounts */
-    size_t length; /**< Size of array */
-    size_t capacity; /**< Capacity of array */
-} NetifArray;
-
-/**
- * @brief Operating system information for the telemetry primitive.
- */
-typedef struct _Os {
-    char *arch; /**< OS architecture (e.g. x86_64) */
-    char *family; /**< OS family (e.g. unix) */
-    char *platform; /**< OS platform (e.g. freebsd) */
-    char *version; /**< 10.1 */
-} Os;
-
-/**
- * @brief The telemetry primitive for gathering system information on
- * a managed host.
- */
-typedef struct _Telemetry {
-    Cpu cpu; /**< CPU info */
-    FsArray fs; /**< Array of file system mounts */
-    char *hostname; /**< Hostname of the machine */
-    uint64_t memory; /**< Total memory (in kb) */
-    NetifArray net; /**< Network interfaces */
-    Os os; /**< Operating system info */
-} Telemetry;
-
-/**
- * @brief Create a new Telemetry to hold information about your
- * managed host.
- * @param host The Host struct you wish to gather telemetry on.
- * @return A new Telemetry struct.
- *
- * #### Usage Example
- *
- * Initialize a new Telemetry struct to connect to your managed host:
- *
- * @code
- * Host *host = host_new();
- * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
- *
- * Telemetry *telemetry = telemetry_init(host);
- * assert(telemetry);
- * @endcode
- */
-extern Telemetry *telemetry_init(Host *host);
-
-/**
- * @brief Destroy the Telemetry struct and free its memory.
- * @param telemetry The telemetry object you wish to destroy.
- * @return Return code - zero on success, non-zero on error.
- *
- * #### Warning!
- *
- * Do not attempt to free the Telemetry struct using free(), as
- * memory is allocated idiomatically by Rust and is incompatible with
- * C free().
- */
-extern int telemetry_free(Telemetry *telemetry);
 
 /**
  * @brief Container for operating on a file.
@@ -903,91 +845,5 @@ extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
  * @return Return code - zero on success, non-zero on error.
  */
 extern int vec_push_map(VecBuilder *builder, MapBuilder *value);
-
-/**
- * @brief Potential data types for a given `Value`.
- */
-enum DataType {
-    Null, /**< Null */
-    Bool, /**< Boolean */
-    Int64, /**< 64b signed integer */
-    Uint64, /**< 64b unsigned integer */
-    Float, /**< 64b floating point integer */
-    String, /**< Char array */
-    Array, /**< Array of `Value`s */
-    Object, /**< A `Value` pointer to the object  */
-};
-
-/**
- * @brief Array of `Value` pointers
- */
-typedef struct _ValueArray {
-    void **ptr; /**< `Value`s */
-    size_t length; /**< Size of array */
-    size_t capacity; /**< Capacity of array */
-} ValueArray;
-
-/**
- * @brief Array of `Value` pointers
- */
-typedef struct _ValueKeysArray {
-    char **ptr; /**< Keys */
-    size_t length; /**< Size of array */
-    size_t capacity; /**< Capacity of array */
-} ValueKeysArray;
-
-/**
- * @brief Open a JSON data file and recursively parse its contents.
- * @param path Path to the top level data file.
- * @return A `Value` pointer that can be passed to `get_value`, or null on error.
- */
-extern void *data_open(const char *path);
-
-/**
- * @brief Get a concrete value from the `Value` pointer.
- * @param value A `Value` pointer.
- * @param data_type The concrete data type you want to transform the value into.
- * @param pointer [Optional] A JSON pointer to a nested value.
- * @return A void pointer containing the concrete data type, or null if no data/wrong data type.
- *
- * #### Usage Example
- *
- * @code
- * void *value = data_open("data/nodes/myhost");
- * assert(value);
- *
- * enum DataType dt;
- * dt = String;
- * char *hostname = get_value(value, dt, "/hostname");
- * if (!hostname) {
- *     printf("Could not find hostname in data!\n");
- *     exit(1);
- * }
- * @endcode
- */
-extern void *get_value(void *value, enum DataType data_type, const char *pointer);
-
-/**
- * @brief Returns the keys for an object-type `Value` pointer.
- * @param value A `Value` pointer.
- * @param pointer [Optional] A JSON pointer to a nested value.
- * @return An array of the `Value`'s keys, or null if no data or `Value` not an object.
- */
-extern ValueKeysArray *get_value_keys(void *value, const char *pointer);
-
-/**
- * @brief Returns the data type for a `Value` pointer.
- * @param value A `Value` pointer.
- * @param pointer [Optional] A JSON pointer to a nested value.
- * @return The `Value`'s data type, or null if no data.
- */
-extern enum DataType *get_value_type(void *value, const char *pointer);
-
-/**
- * @brief Free a `Value` pointer. Do not attempt to free using `free` et. al.
- * @param value A `Value` pointer.
- * @return Return code - zero on success, non-zero on error.
- */
-extern int free_value(void *value);
 
 #endif

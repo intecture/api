@@ -10,19 +10,12 @@
 
 #include "php_inapi.h"
 #include "wrappers/command.h"
-#include "wrappers/data.h"
 #include "wrappers/directory.h"
 #include "wrappers/file.h"
 #include "wrappers/host.h"
 #include "wrappers/package.h"
 #include "wrappers/service.h"
-#include "wrappers/telemetry.h"
 #include "wrappers/template.h"
-
-static zend_function_entry global_functions[] = {
-    PHP_FE(data_open, NULL)
-    {NULL, NULL, NULL}
-};
 
 PHP_MINIT_FUNCTION(inapi)
 {
@@ -30,7 +23,6 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_init_host_exception(TSRMLS_C);
     inapi_init_command(TSRMLS_C);
     inapi_init_command_exception(TSRMLS_C);
-    inapi_init_data_exception(TSRMLS_C);
     inapi_init_directory(TSRMLS_C);
     inapi_init_directory_exception(TSRMLS_C);
     inapi_init_file(TSRMLS_C);
@@ -40,8 +32,6 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_init_service(TSRMLS_C);
     inapi_init_service_exception(TSRMLS_C);
     inapi_init_service_runnable(TSRMLS_C);
-    inapi_init_telemetry(TSRMLS_C);
-    inapi_init_telemetry_exception(TSRMLS_C);
     inapi_init_template(TSRMLS_C);
     inapi_init_template_exception(TSRMLS_C);
     return SUCCESS;
@@ -52,7 +42,7 @@ zend_module_entry inapi_module_entry = {
     STANDARD_MODULE_HEADER,
 #endif
     PHP_INAPI_EXTNAME,     /* Extension name */
-    global_functions,      /* Functions */
+    NULL,                  /* Functions */
     PHP_MINIT(inapi),      /* Methods */
     NULL,                  /* MSHUTDOWN */
     NULL,                  /* RINIT */

@@ -22,6 +22,8 @@ void free_php_host(void *object TSRMLS_DC);
 
 PHP_METHOD(Host, __construct);
 PHP_METHOD(Host, connect);
+PHP_METHOD(Host, connect_endpoint);
+PHP_METHOD(Host, data);
 
 typedef struct _php_host {
     zend_object std;
@@ -29,6 +31,7 @@ typedef struct _php_host {
     Host *host;
 } php_host;
 
+void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC);
 int get_check_host(zval *phost, php_host **host TSRMLS_DC);
 
 #endif
