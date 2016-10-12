@@ -19,7 +19,7 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 use super::{debian_base as debian, default_base as default, linux_base as linux};
-use telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
+use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 
 pub struct DebianTarget;
 

@@ -23,7 +23,7 @@ use super::debian::DebianTarget;
 use super::fedora::FedoraTarget;
 use super::redhat::RedhatTarget;
 use super::ubuntu::UbuntuTarget;
-use telemetry::{Telemetry, TelemetryTarget};
+use host::telemetry::{Telemetry, TelemetryTarget};
 
 static mut LINUX_PLATFORM: LinuxPlatform = LinuxPlatform::Centos;
 static INIT_FINGERPRINT: Once = ONCE_INIT;
@@ -326,7 +326,7 @@ mod tests {
     use Host;
     use package::PackageTarget;
     use target::Target;
-    use telemetry::TelemetryTarget;
+    use host::telemetry::TelemetryTarget;
 
     #[test]
     fn test_package_default_provider() {

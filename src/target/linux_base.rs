@@ -16,7 +16,7 @@ use std::io::prelude::*;
 use std::path::Path;
 use target::bin_resolver::BinResolver;
 use target::default_base as default;
-use telemetry::Netif;
+use host::telemetry::Netif;
 
 pub fn file_get_owner<P: AsRef<Path>>(path: P) -> Result<FileOwner> {
     Ok(FileOwner {

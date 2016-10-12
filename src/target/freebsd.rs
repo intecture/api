@@ -20,7 +20,7 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use super::{default_base as default, Target, unix_base as unix};
-use telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
+use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 
 //
 // Command
@@ -244,7 +244,7 @@ mod tests {
     use Host;
     use package::PackageTarget;
     use target::Target;
-    use telemetry::TelemetryTarget;
+    use host::telemetry::TelemetryTarget;
 
     #[test]
     fn test_package_default_provider() {
