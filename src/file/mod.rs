@@ -15,7 +15,8 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
@@ -23,7 +24,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, File, FileOptions};
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let file = File::new(&mut host, "/path/to/destination_file").unwrap();
 #![cfg_attr(feature = "remote-run", doc = " file.upload(&mut host, \"/path/to/local_file\", None);")]
@@ -77,7 +79,8 @@ impl File {
     ///
     /// ```no_run
     /// # use inapi::{File, Host};
-    #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
+    #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+    #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
     #[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
     /// let file = File::new(&mut host, "/path/to/file");
     /// ```
@@ -174,7 +177,8 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_new_ok() {
-        let mut host = Host::local(None).unwrap();
+        let path: Option<String> = None;
+        let mut host = Host::local(path).unwrap();
         let file = File::new(&mut host, "/path/to/file");
         assert!(file.is_ok());
     }

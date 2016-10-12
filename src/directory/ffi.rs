@@ -209,7 +209,8 @@ mod tests {
         let mut path = tempdir.path().to_owned();
         path.push("path/to/dir");
 
-        let mut host = Host::local(None).unwrap();
+        let data_path: Option<String> = None;
+        let mut host = Host::local(data_path).unwrap();
         let directory = Directory::new(&mut host, &path).unwrap();
         let ffi_directory = Ffi__Directory::from(directory);
 

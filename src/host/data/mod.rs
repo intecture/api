@@ -71,7 +71,6 @@ need_macro!("array", needarray, is_array, as_array);
 need_macro!("object", needobj, is_object, as_object);
 
 mod condition;
-// pub mod ffi;
 
 use error::{Error, Result};
 use serde_json::{self, Value};

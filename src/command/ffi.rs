@@ -127,7 +127,8 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_command_exec() {
-        let mut host = Ffi__Host::from(Host::local(None).unwrap());
+        let path: Option<String> = None;
+        let mut host = Ffi__Host::from(Host::local(path).unwrap());
         let cmd = command_new(CString::new("whoami").unwrap().as_ptr());
         let result = unsafe { ptr::read(command_exec(cmd, &mut host)) };
         assert_eq!(result.exit_code, 0);

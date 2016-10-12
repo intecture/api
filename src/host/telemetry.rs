@@ -204,7 +204,8 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_telemetry_init() {
-        let mut host = Host::local(None).unwrap();
+        let path: Option<String> = None;
+        let mut host = Host::local(path).unwrap();
         assert!(Telemetry::init(&mut host).is_ok());
     }
 }

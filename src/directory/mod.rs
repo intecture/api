@@ -15,7 +15,8 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
@@ -23,7 +24,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Directory, DirectoryOpts};
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
 //! dir.create(&mut host, Some(&vec![DirectoryOpts::DoRecursive])).unwrap();
@@ -58,7 +60,8 @@ impl Directory {
     ///
     /// ```no_run
     /// # use inapi::{Directory, Host};
-    #[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+    #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+    #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
     #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
     /// let directory = Directory::new(&mut host, "/path/to/dir");
     /// ```
@@ -160,7 +163,8 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_new_ok() {
-        let mut host = Host::local(None).unwrap();
+        let path: Option<String> = None;
+        let mut host = Host::local(path).unwrap();
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());
     }

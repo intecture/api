@@ -262,7 +262,8 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_convert_file() {
-        let mut host = Host::local(None).unwrap();
+        let path: Option<String> = None;
+        let mut host = Host::local(path).unwrap();
         // XXX Without FS mocking this could potentially fail where
         // /path/to/file is a real path to a directory.
         let file = File::new(&mut host, "/path/to/file").unwrap();

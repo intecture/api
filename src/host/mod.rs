@@ -12,7 +12,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Command, Host};
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //!
 //! let cmd = Command::new("whoami");
@@ -34,7 +35,6 @@ use error::Result;
 use serde_json::Value;
 #[cfg(feature = "remote-run")]
 use std::mem;
-#[cfg(feature = "remote-run")]
 use std::path::Path;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
@@ -62,7 +62,7 @@ pub struct Host {
 impl Host {
     #[cfg(feature = "local-run")]
     /// Create a new Host connected to localhost.
-    pub fn local(path: Option<&str>) -> Result<Host> {
+    pub fn local<P: AsRef<Path>>(path: Option<P>) -> Result<Host> {
         let mut me = Host {
             data: Value::Null,
         };

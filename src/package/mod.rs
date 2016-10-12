@@ -16,7 +16,8 @@
 //!
 //! ```no_run
 //! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! ```
 //!
@@ -24,7 +25,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Package};
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let mut package = Package::new(&mut host, "nginx", None).unwrap();
 //! package.install(&mut host);
@@ -36,7 +38,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Package, Providers};
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
 //! let mut package = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
 //! package.install(&mut host);
@@ -70,7 +73,8 @@ impl Package {
     ///
     /// ```no_run
     /// # use inapi::{Host, Package, Providers};
-    #[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(None).unwrap();")]
+    #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+    #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
     #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
     /// let pkg = Package::new(&mut host, "nginx", Some(Providers::Yum));
     /// ```
@@ -181,7 +185,8 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_new_default() {
-        let mut host = Host::local(None).unwrap();
+        let path: Option<String> = None;
+        let mut host = Host::local(path).unwrap();
         let pkg = Package::new(&mut host, "nginx", None);
         assert!(pkg.is_ok());
     }

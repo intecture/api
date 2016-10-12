@@ -185,7 +185,8 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_package_new_default() {
-        let host = Ffi__Host::from(Host::local(None).unwrap());
+        let path: Option<String> = None;
+        let host = Ffi__Host::from(Host::local(path).unwrap());
         let name = CString::new("nginx").unwrap().into_raw();
 
         let pkg: Package = readptr!(package_new(&host, name, Ffi__Providers::Default), "Package struct").unwrap();
@@ -240,7 +241,8 @@ mod tests {
     #[cfg(feature = "local-run")]
     #[test]
     fn test_package_new_specific() {
-        let host = Ffi__Host::from(Host::local(None).unwrap());
+        let path: Option<String> = None;
+        let host = Ffi__Host::from(Host::local(path).unwrap());
         let name = CString::new("nginx").unwrap().into_raw();
         let mut providers = Ffi__Providers::Default;
 
