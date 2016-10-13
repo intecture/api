@@ -12,8 +12,8 @@ namespace Intecture;
  * The shell command primitive for running commands on a managed
  * host.
  *
- * @example stub_examples.php 7 17 Basic usage
- * @example stub_examples.php 29 12 Reuse across multiple hosts
+ * @example stub_examples.php 7 16 Basic usage
+ * @example stub_examples.php 28 10 Reuse across multiple hosts
  */
 class Command
 {
@@ -46,7 +46,7 @@ class CommandException {}
 /**
  * The Directory primitive for managing dirs on a managed host.
  *
- * @example stub_examples.php 46 11 Basic usage
+ * @example stub_examples.php 43 10 Basic usage
  */
 class Directory
 {
@@ -154,8 +154,8 @@ class DirectoryException {}
 /**
  * The File primitive for managing files on a managed host.
  *
- * @example stub_examples.php 62 11 Basic usage
- * @example stub_examples.php 78 9 Uploading a file
+ * @example stub_examples.php 58 10 Basic usage
+ * @example stub_examples.php 73 9 Uploading a file
  */
 class File
 {
@@ -283,17 +283,25 @@ class FileException {}
  * The Host object will automatically connect to your host and will
  * maintain the connection until it is destroyed.
  *
- * @example stub_examples.php 92 3 Basic usage
+ * @example stub_examples.php 87 5 Basic usage
+ * @example stub_examples.php 97 2 Retrieve data
  */
 class Host
 {
     /**
-     * Create a new Host to communicate with a managed host.
+     * Create a new Host connected to the endpoint specified in the
+     * data file. This function expects to find the following keys in
+     * the root namespace: "hostname", "api_port", "file_port".
+     *
+     * @param string $path Path to the data file for this host.
+     *
+     * @return Host A new Host object.
      */
-    public function __construct() {}
+    public static function connect($path) {}
 
     /**
-     * Connect Host to a managed host.
+     * Create a new Host connected to the specified endpoint. Note
+     * that this function does not load any user data.
      *
      * @param string $hostname The hostname or IP address of your managed
      *     host.
@@ -301,8 +309,17 @@ class Host
      *     $hostname.
      * @param int $upload_port The port number of the Agent file transfer
      *     service on $hostname.
+     *
+     * @return Host A new Host object.
      */
-    public function connect($hostname, $api_port, $upload_port) {}
+    public static function connect_endpoint($hostname, $api_port, $upload_port) {}
+
+    /**
+     * Return data for Host, comprising data files and telemetry.
+     *
+     * @return array Host data.
+     */
+    public function data() {}
 }
 
 /**
@@ -314,8 +331,8 @@ class HostException {}
  * The wrapper for installing and managing software packages on a
  * managed host.
  *
- * @example stub_examples.php 100 11 Basic usage
- * @example stub_examples.php 116 3 Specify provider
+ * @example stub_examples.php 104 10 Basic usage
+ * @example stub_examples.php 119 3 Specify provider
  */
 class Package
 {
@@ -407,8 +424,8 @@ class PackageException {}
 /**
  * The wrapper for managing services on a managed host.
  *
- * @example stub_examples.php 125 13 Basic Service usage
- * @example stub_examples.php 143 12 Basic Command usage
+ * @example stub_examples.php 127 12 Basic Service usage
+ * @example stub_examples.php 144 11 Basic Command usage
  * @example stub_examples.php 160 10 Multiple Runnables
  * @example stub_examples.php 175 3 Mapped actions
  */
@@ -480,47 +497,9 @@ class ServiceRunnable
 class ServiceException {}
 
 /**
- * Data structures containing information about your managed host.
- *
- * The Telemetry object stores metadata about a host, such as its
- * network interfaces, disk mounts, CPU stats and hostname.
- *
- * @example stub_examples.php 194 14 Basic usage
- * @example stub_examples.php 213 7 Load data for multiple hosts
- */
-class Telemetry
-{
-    /**
-     * Load the telemetry data for a managed host.
-     *
-     * @param Host $host The Host object connected to the managed
-     *     host you want to run the command on.
-     *
-     * @throws TelemetryException if $host is not an instance of Host.
-     *
-     * @return Telemetry An object holding the telemetry data for
-     *     your managed host.
-     */
-    public static function load($host) {}
-
-    /**
-     * Retrieve the telemetry data from the object.
-     *
-     * @return array An array containing all the telemetry data
-     *     returned by the managed host.
-     */
-    public function get() {}
-}
-
-/**
- * The exception class for Telemetry errors.
- */
-class TelemetryException {}
-
-/**
  * The Template primitive for opening and rendering templates.
  *
- * @example stub_examples.php 225 8 Basic usage
+ * @example stub_examples.php 193 7 Basic usage
  */
 class Template {
     /**
@@ -542,12 +521,3 @@ class Template {
  * The exception class for Template errors.
  */
 class TemplateException {}
-
-/**
- * Open a new data file and recursively parse its contents.
- *
- * @param string $path The file path to the top level data file.
- *
- * @return array An array representing the data file.
- */
-function data_open($path) {}

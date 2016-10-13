@@ -5,8 +5,7 @@
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
+$host = Host::connect('data/nodes/mynode.json');
 
 // Create a new command and send it to the managed host
 $cmd = new Intecture\Command('whoami');
@@ -27,12 +26,10 @@ Array
  * Reuse across multiple hosts
  */
 // Web server
-$web = new Host();
-$web->connect('web.example.com', 7101, 7102);
+$web = Host::connect('data/nodes/web.json');
 
 // Database server
-$db = new Host();
-$db->connect('db.example.com', 7101, 7102);
+$db = Host::connect('data/nodes/db.json');
 
 $cmd = new Intecture\Command('whoami');
 
@@ -44,8 +41,7 @@ $db_result = $cmd->exec($db);
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
+$host = Host::connect('data/nodes/mynode.json');
 
 // Create a new Directory object to manage a specific directory
 $dir = new Directory($host, '/path/to/dir');
@@ -60,8 +56,7 @@ if ($dir->exists($host)) {
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
+$host = Host::connect('data/nodes/mynode.json');
 
 // Create a new File object to manage a specific file
 $file = new File($host, '/path/to/file');
@@ -90,16 +85,24 @@ $file->upload($host, 'my_local_file.txt', array(
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
+$host = Host::connect('data/nodes/mynode.json');
+
+// You can also connect to a managed host without a data file
+$host = Host::connect_endpoint('myhost.com', 7101, 7102);
+
+/*
+ * Host
+ * Retrieve data
+ */
+$host = Host::connect('data/nodes/mynode.json');
+print_r($host->data());
 
 /*
  * Package
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
+$host = Host::connect('data/nodes/mynode.json');
 
 // Create Package object to install a package from the default source
 $package = new Package($host, 'nginx');
@@ -117,14 +120,12 @@ if ($result['exit_code'] != 0) {
 // Host's OS
 $package = new Package($host, 'nginx', Package::PROVIDER_MACPORTS);
 
-
 /*
  * Service
  * Basic Service usage
  */
 // Setup Host object to communicate with managed host
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
+$host = Host::connect('data/nodes/mynode.json');
 
 // Setup a new Service with a Service type Runnable
 $runnable = new ServiceRunnable('nginx', ServiceRunnable::SERVICE);
@@ -141,8 +142,7 @@ if ($result['exit_code'] != 0) {
  * Basic Command usage
  */
 // Setup Host object to communicate with managed host
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
+$host = Host::connect('data/nodes/mynode.json');
 
 // Setup a new Service with a Command type Runnable
 $runnable = new ServiceRunnable('/usr/local/bin/nginx', ServiceRunnable::COMMAND);
@@ -186,44 +186,11 @@ $runnable = new ServiceRunnable('/usr/local/bin/nginx', ServiceRunnable::COMMAND
 // Or a Service type Runnable
 $runnable = new ServiceRunnable('nginx', ServiceRunnable::SERVICE);
 
-
-/*
- * Telemetry
- * Basic usage
- */
-// Setup Host object to communicate with managed host
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
-
-// Load a new Telemetry object to hold your host's telemetry data
-$telemetry = Telemetry::load($host);
-print_r($telemetry->get());
-
-Output:
-
-Array
-(
-    ...lots of data about a host
-)
-
-/*
- * Telemetry
- * Load data for multiple hosts
- */
-$web = new Host();
-$web->connect('web.example.com', 7101, 7102);
-$web_data = Telemetry::load($web);
-
-$db = new Host();
-$db->connect('db.example.com', 7101, 7102);
-$db_data = Telemetry::load($db);
-
 /*
  * Template
  * Basic usage
  */
-$host = new Host();
-$host->connect('example.com', 7101, 7102);
+$host = Host::connect('data/nodes/mynode.json');
 
 $template = new Template("payloads/nginx/nginx.conf");
 $fd = $template->render(array("name" => "Cyril Figgis"));
