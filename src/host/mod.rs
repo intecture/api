@@ -36,6 +36,7 @@ use serde_json::Value;
 #[cfg(feature = "remote-run")]
 use std::mem;
 use std::path::Path;
+use std::rc::Rc;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
 
@@ -43,7 +44,7 @@ use zfilexfer;
 /// Representation of a managed host.
 pub struct Host {
     /// Data for host, comprising data files and telemetry
-    data: Value,
+    data: Rc<Value>,
 }
 
 #[cfg(feature = "remote-run")]
@@ -56,7 +57,7 @@ pub struct Host {
     /// File transfer socket
     file_sock: Option<ZSock>,
     /// Data for host, comprising data files and telemetry
-    data: Value,
+    data: Rc<Value>,
 }
 
 impl Host {
@@ -64,7 +65,7 @@ impl Host {
     /// Create a new Host connected to localhost.
     pub fn local<P: AsRef<Path>>(path: Option<P>) -> Result<Host> {
         let mut me = Host {
-            data: Value::Null,
+            data: Rc::new(Value::Null),
         };
 
         let telemetry = try!(telemetry::Telemetry::init(&mut me));
@@ -72,9 +73,9 @@ impl Host {
         match path {
             Some(p) => {
                 let value = try!(data::open(p));
-                me.data = try!(data::merge(value, telemetry));
+                me.data = Rc::new(try!(data::merge(value, telemetry)));
             },
-            None => me.data = telemetry,
+            None => me.data = Rc::new(telemetry),
         }
 
         Ok(me)
@@ -90,9 +91,11 @@ impl Host {
                                                  try!(needu64!(value => "/api_port")) as u32,
                                                  try!(needu64!(value => "/file_port")) as u32));
 
-        let mut telemetry = Value::Null;
+        let mut telemetry = Rc::new(Value::Null);
         mem::swap(&mut telemetry, &mut me.data);
-        me.data = try!(data::merge(value, telemetry));
+        // We can use unwrap() here safely as we can guarantee that
+        // there is only one strong reference to telemetry.
+        me.data = Rc::new(try!(data::merge(value, Rc::try_unwrap(telemetry).unwrap())));
 
         Ok(me)
     }
@@ -122,9 +125,9 @@ impl Host {
             hostname: hostname.into(),
             api_sock: Some(api_sock),
             file_sock: Some(file_sock),
-            data: Value::Null,
+            data: Rc::new(Value::Null),
         };
-        me.data = try!(telemetry::Telemetry::init(&mut me));
+        me.data = Rc::new(try!(telemetry::Telemetry::init(&mut me)));
 
         Ok(me)
     }
@@ -132,6 +135,11 @@ impl Host {
     /// Get data for Host.
     pub fn data(&self) -> &Value {
         &self.data
+    }
+
+    /// Get a reference counted version of data for Host.
+    pub fn data_owned(&self) -> Rc<Value> {
+        self.data.clone()
     }
 
     #[cfg(feature = "remote-run")]
@@ -174,8 +182,8 @@ impl Host {
             api_sock: api_sock,
             file_sock: file_sock,
             data: match data {
-                Some(d) => d,
-                None => Value::Null,
+                Some(d) => Rc::new(d),
+                None => Rc::new(Value::Null),
             },
         };
 

@@ -21,6 +21,7 @@ use std::ptr;
 use std::ffi::CString;
 use std::panic::catch_unwind;
 use std::os::raw::c_void;
+use std::rc::Rc;
 use super::*;
 
 #[cfg(feature = "local-run")]
@@ -42,8 +43,10 @@ pub struct Ffi__Host {
 #[cfg(feature = "local-run")]
 impl convert::From<Host> for Ffi__Host {
     fn from(host: Host) -> Ffi__Host {
+        let data = Rc::try_unwrap(host.data).unwrap();
+
         Ffi__Host {
-            data: Box::into_raw(Box::new(host.data)) as *mut c_void,
+            data: Box::into_raw(Box::new(data)) as *mut c_void,
         }
     }
 }
@@ -51,6 +54,8 @@ impl convert::From<Host> for Ffi__Host {
 #[cfg(feature = "remote-run")]
 impl convert::From<Host> for Ffi__Host {
     fn from(host: Host) -> Ffi__Host {
+        let data = Rc::try_unwrap(host.data).unwrap();
+
         Ffi__Host {
             hostname: CString::new(host.hostname).unwrap().into_raw(),
             api_sock: match host.api_sock {
@@ -61,7 +66,7 @@ impl convert::From<Host> for Ffi__Host {
                 Some(sock) => sock.into_raw(),
                 None => ptr::null_mut(),
             },
-            data: Box::into_raw(Box::new(host.data)) as *mut c_void,
+            data: Box::into_raw(Box::new(data)) as *mut c_void,
         }
     }
 }
@@ -69,8 +74,10 @@ impl convert::From<Host> for Ffi__Host {
 #[cfg(feature = "local-run")]
 impl convert::Into<Host> for Ffi__Host {
     fn into(self) -> Host {
+        let value = trypanic!(readptr!(self.data as *mut Value, "Value pointer"));
+
         Host {
-            data: trypanic!(readptr!(self.data as *mut Value, "Value pointer")),
+            data: Rc::new(value),
         }
     }
 }
@@ -78,6 +85,8 @@ impl convert::Into<Host> for Ffi__Host {
 #[cfg(feature = "remote-run")]
 impl convert::Into<Host> for Ffi__Host {
     fn into(self) -> Host {
+        let value = trypanic!(readptr!(self.data as *mut Value, "Value pointer"));
+
         Host {
             hostname: trypanic!(ptrtostr!(self.hostname, "hostname string")).into(),
             api_sock: if self.api_sock.is_null() {
@@ -90,7 +99,7 @@ impl convert::Into<Host> for Ffi__Host {
             } else {
                 Some(unsafe { ZSock::from_raw(self.file_sock, false) })
             },
-            data: trypanic!(readptr!(self.data as *mut Value, "Value pointer")),
+            data: Rc::new(value),
         }
     }
 }
