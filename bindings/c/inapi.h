@@ -124,6 +124,7 @@ typedef struct _ValueKeysArray {
  *
  * @code
  * Host *host = host_connect("data/nodes/mynode.json");
+ * assert(host);
  *
  * enum DataType dt;
  * dt = String;
@@ -180,10 +181,8 @@ typedef struct _CommandResult {
  * First, create a new Host struct to connect to your managed host:
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  * @endcode
  *
  * Then, create a new Command and send it to the managed host:
@@ -241,10 +240,8 @@ typedef struct _FileOwner {
  * #### Usage Example
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  *
  * File *file = file_new(host, "/path/to/file");
  * assert(file);
@@ -271,10 +268,8 @@ extern bool *file_exists(File *file, Host *host);
  * #### Usage Example
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  *
  * File *file = file_new(host, "/path/to/remote/file");
  * assert(file);
@@ -307,10 +302,8 @@ extern int file_upload(File *file, Host *host, const char *local_path, FileOptio
  * #### Usage Example
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  *
  * File *file = file_new(host, "/path/to/remote/file");
  * assert(file);
@@ -407,10 +400,8 @@ typedef struct _DirectoryOpts {
  * #### Usage Example
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  *
  * Directory *dir = directory_new(host, "/path/to/dir");
  * @endcode
@@ -523,10 +514,8 @@ typedef struct _Package {
  * #### Usage Example
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  *
  * enum Providers providers;
  * providers = Default;
@@ -640,10 +629,8 @@ typedef struct _Service {
  * #### Usage Example
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  *
  * ServiceRunnable runnable = { .service = "nginx" };
  *
@@ -667,10 +654,8 @@ extern Service *service_new_service(ServiceRunnable runnable, ServiceMappedActio
  * #### Usage Example
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  *
  * ServiceRunnable start_runnable = { .command = "/usr/local/bin/nginx" };
  * ServiceAction start_action = { .action = "start", .runnable = start_runnable };
@@ -724,10 +709,8 @@ typedef struct _VecBuilder {
  * #### Usage Example
  *
  * @code
- * Host *host = host_new();
+ * Host *host = host_connect("data/nodes/mynode.json");
  * assert(host);
- * int rc = host->connect("example.com", 7101, 7102);
- * assert(rc == 0);
  *
  * Template *template = template_new("payloads/nginx/nginx.conf");
  * assert(template);
