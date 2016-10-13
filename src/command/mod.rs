@@ -18,7 +18,7 @@
 //! # use inapi::Host;
 #![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
@@ -27,7 +27,7 @@
 //! # use inapi::{Command, Host};
 #![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
 //! let cmd = Command::new("whoami");
 //! let result = cmd.exec(&mut host).unwrap();
 //! println!("Exit: {}, Stdout: {}, Stderr: {}", result.exit_code, result.stdout, result.stderr);

@@ -16,10 +16,13 @@ use error::{Error, Result};
 use serde_json::{self, Value};
 use std::collections::BTreeMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 pub fn open<P: AsRef<Path>>(path: P) -> Result<Value> {
-    let mut fh = try!(fs::File::open(path.as_ref()));
+    let mut p = PathBuf::from("data");
+    p.push(path);
+
+    let mut fh = try!(fs::File::open(&p));
     let data: Value = try!(serde_json::from_reader(&mut fh));
 
     if !data.is_object() {

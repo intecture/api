@@ -17,7 +17,7 @@
 //! # use inapi::Host;
 #![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
 //! ```
 //!
 //! Now you can manage a file on your managed host.
@@ -26,7 +26,7 @@
 //! # use inapi::{Host, File, FileOptions};
 #![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
 //! let file = File::new(&mut host, "/path/to/destination_file").unwrap();
 #![cfg_attr(feature = "remote-run", doc = " file.upload(&mut host, \"/path/to/local_file\", None);")]
 //! file.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
@@ -81,7 +81,7 @@ impl File {
     /// # use inapi::{File, Host};
     #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
     #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
     /// let file = File::new(&mut host, "/path/to/file");
     /// ```
     pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<File> {

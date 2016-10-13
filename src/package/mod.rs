@@ -18,7 +18,7 @@
 //! # use inapi::Host;
 #![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
 //! ```
 //!
 //! Now install the package `nginx` using the default provider:
@@ -27,7 +27,7 @@
 //! # use inapi::{Host, Package};
 #![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
 //! let mut package = Package::new(&mut host, "nginx", None).unwrap();
 //! package.install(&mut host);
 //! ```
@@ -40,7 +40,7 @@
 //! # use inapi::{Host, Package, Providers};
 #![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
 //! let mut package = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
 //! package.install(&mut host);
 //! ```
@@ -75,7 +75,7 @@ impl Package {
     /// # use inapi::{Host, Package, Providers};
     #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
     #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"data/nodes/mynode.json\").unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
     /// let pkg = Package::new(&mut host, "nginx", Some(Providers::Yum));
     /// ```
     pub fn new(host: &mut Host, name: &str, providers: Option<Providers>) -> Result<Package> {
