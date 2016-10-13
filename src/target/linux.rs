@@ -13,6 +13,7 @@ use file::{FileTarget, FileOwner};
 use host::Host;
 use package::PackageTarget;
 use package::providers::Providers;
+use serde_json::Value;
 use service::ServiceTarget;
 use std::fs;
 use std::path::Path;
@@ -281,7 +282,7 @@ impl ServiceTarget for Target {
 //
 
 impl TelemetryTarget for Target {
-    fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
+    fn telemetry_init(host: &mut Host) -> Result<Value> {
         match fingerprint_os() {
             &LinuxPlatform::Centos => CentosTarget::telemetry_init(host),
             &LinuxPlatform::Debian => DebianTarget::telemetry_init(host),

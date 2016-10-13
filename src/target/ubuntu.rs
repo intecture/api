@@ -14,6 +14,7 @@ use host::Host;
 use package::PackageTarget;
 use package::providers::Providers;
 use regex::Regex;
+use serde_json::Value;
 use service::ServiceTarget;
 use std::env;
 use std::fs::File;
@@ -168,13 +169,13 @@ impl ServiceTarget for UbuntuTarget {
 
 impl TelemetryTarget for UbuntuTarget {
     #[allow(unused_variables)]
-    fn telemetry_init(host: &mut Host) -> Result<Telemetry> {
+    fn telemetry_init(host: &mut Host) -> Result<Value> {
         let cpu_vendor = try!(linux::cpu_vendor());
         let cpu_brand = try!(linux::cpu_brand_string());
         let hostname = try!(default::hostname());
         let os_version = try!(telemetry_version());
 
-        Ok(Telemetry::new(
+        let telemetry = Telemetry::new(
             Cpu::new(
                 &cpu_vendor,
                 &cpu_brand,
@@ -185,7 +186,9 @@ impl TelemetryTarget for UbuntuTarget {
             try!(linux::memory()),
             try!(linux::net()),
             Os::new(env::consts::ARCH, "debian", "ubuntu", &os_version),
-        ))
+        );
+
+        Ok(telemetry.into_value())
     }
 }
 
