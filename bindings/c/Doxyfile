@@ -1,5 +1,5 @@
 DOXYFILE_ENCODING      = UTF-8
-PROJECT_NAME           = "intecture-api-c"
+PROJECT_NAME           = "intecture-api"
 PROJECT_NUMBER         = 0.2.1
 PROJECT_BRIEF          = "Intecture API C headers"
 PROJECT_LOGO           =
