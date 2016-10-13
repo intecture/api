@@ -8,68 +8,8 @@
 
 //! Parser for Intecture data files.
 
-macro_rules! want_macro {
-    ($t:expr, $n:ident, $isf:ident, $asf:ident) => {
-        /// Helper that returns an Option<$t>.
-        /// You can optionally pass a JSON pointer to retrieve a
-        /// nested key.
-        #[macro_export]
-        macro_rules! $n {
-            ($v:expr) => (if $v.$isf() {
-                Some($v.$asf().unwrap())
-            } else {
-                None
-            });
-
-            ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
-                $n!(v)
-            } else {
-                None
-            });
-        }
-    }
-}
-
-want_macro!("null", wantnull, is_null, as_null);
-want_macro!("bool", wantbool, is_boolean, as_bool);
-want_macro!("i64", wanti64, is_i64, as_i64);
-want_macro!("u64", wantu64, is_u64, as_u64);
-want_macro!("f64", wantf64, is_f64, as_f64);
-want_macro!("string", wantstr, is_string, as_str);
-want_macro!("array", wantarray, is_array, as_array);
-want_macro!("object", wantobj, is_object, as_object);
-
-macro_rules! need_macro {
-    ($t:expr, $n:ident, $isf:ident, $asf:ident) => {
-        /// Helper that returns a Result<$t>.
-        /// You can optionally pass a JSON pointer to retrieve a
-        /// nested key.
-        #[macro_export]
-        macro_rules! $n {
-            ($v:expr) => (if $v.$isf() {
-                Ok($v.$asf().unwrap())
-            } else {
-                Err($crate::error::Error::Generic(format!("Value is not $t")))
-            });
-
-            ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
-                $n!(v)
-            } else {
-                Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
-            });
-        }
-    }
-}
-
-need_macro!("null", neednull, is_null, as_null);
-need_macro!("bool", needbool, is_boolean, as_bool);
-need_macro!("i64", needi64, is_i64, as_i64);
-need_macro!("u64", needu64, is_u64, as_u64);
-need_macro!("f64", needf64, is_f64, as_f64);
-need_macro!("string", needstr, is_string, as_str);
-need_macro!("array", needarray, is_array, as_array);
-need_macro!("object", needobj, is_object, as_object);
-
+#[macro_use]
+mod macros;
 mod condition;
 
 use error::{Error, Result};
