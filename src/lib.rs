@@ -52,6 +52,7 @@ mod host;
 #[cfg(all(test, feature = "remote-run"))]
 mod mock_env;
 pub mod package;
+mod payload;
 pub mod service;
 mod target;
 pub mod template;
@@ -69,6 +70,7 @@ pub use host::ffi::{host_connect, host_connect_endpoint, host_close};
 pub use mustache::{MapBuilder, VecBuilder};
 pub use package::Package;
 pub use package::providers::{Provider, ProviderFactory, Providers};
+pub use payload::Payload;
 pub use serde_json::Value;
 pub use service::{Service, ServiceRunnable};
 pub use template::Template;

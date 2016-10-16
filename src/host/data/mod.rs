@@ -21,8 +21,11 @@ use std::path::{Path, PathBuf};
 pub fn open<P: AsRef<Path>>(path: P) -> Result<Value> {
     let mut p = PathBuf::from("data");
     p.push(path);
+    open_raw(&p)
+}
 
-    let mut fh = try!(fs::File::open(&p));
+fn open_raw<P: AsRef<Path>>(path: P) -> Result<Value> {
+    let mut fh = try!(fs::File::open(path.as_ref()));
     let data: Value = try!(serde_json::from_reader(&mut fh));
 
     if !data.is_object() {
@@ -32,8 +35,8 @@ pub fn open<P: AsRef<Path>>(path: P) -> Result<Value> {
     }
 }
 
-pub fn merge(me: Value, mut last_value: Value) -> Result<Value> {
-    for dep in try!(dependencies(&me)) {
+pub fn merge(mut me: Value, mut last_value: Value) -> Result<Value> {
+    for dep in try!(dependencies(&mut me)) {
         last_value = try!(merge(dep, last_value));
     }
 
@@ -41,8 +44,9 @@ pub fn merge(me: Value, mut last_value: Value) -> Result<Value> {
     Ok(try!(merge_values(me, last_value, &lv_clone)))
 }
 
-fn dependencies(me: &Value) -> Result<Vec<Value>> {
+fn dependencies(me: &mut Value) -> Result<Vec<Value>> {
     let mut deps = Vec::new();
+    let mut payloads: Vec<String> = Vec::new();
 
     if let Some(inc) = me.find("_include") {
         if !inc.is_array() {
@@ -51,8 +55,31 @@ fn dependencies(me: &Value) -> Result<Vec<Value>> {
 
         // Loop in reverse order to get lowest importance first
         for i in inc.as_array().unwrap().iter().rev() {
-            deps.push(try!(open(i.as_str().unwrap())));
+            if let Some(s) = i.as_str() {
+                if s.starts_with("payload:") {
+                    let (_, payload) = s.split_at(8);
+                    let payload = payload.trim();
+                    let parts: Vec<&str> = payload.split("::").collect();
+
+                    let mut buf = PathBuf::from("payloads");
+                    buf.push(try!(parts.get(0).ok_or(Error::Generic("Empty payload in `_include`".into()))));
+                    buf.push("data");
+                    buf.push(parts.get(1).unwrap_or(&"default"));
+                    buf.set_extension("json");
+
+                    deps.push(try!(open_raw(&buf)));
+                    payloads.insert(0, payload.into());
+                } else {
+                    deps.push(try!(open(s)));
+                }
+            } else {
+                return Err(Error::Generic("Non-string value in `_include`".into()));
+            }
         }
+    }
+
+    if let Some(map) = me.as_object_mut() {
+        map.insert("_payloads".into(), serde_json::to_value(payloads));
     }
 
     Ok(deps)
@@ -152,7 +179,7 @@ fn query_value(data: &Value, value: Value) -> Result<Option<Value>> {
 #[cfg(test)]
 mod tests {
     use serde_json::{self, Value};
-    use std::fs::File;
+    use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
     use super::*;
@@ -162,9 +189,20 @@ mod tests {
     fn test_parser() {
         let tempdir = TempDir::new("parser_test").unwrap();
         let mut path = tempdir.path().to_owned();
+
+        path.push("data");
+        fs::create_dir(&path).unwrap();
+        path.pop();
+        path.push("payloads/payload/data");
+
+        fs::create_dir_all(&path).unwrap();
+        path.pop();
+        path.pop();
+        path.pop();
+
         let expected_value = create_data(&mut path);
 
-        path.push("top.json");
+        path.push("data/top.json");
         let value = open(&path).unwrap();
         let value = merge(value, Value::Null).unwrap();
 
@@ -172,8 +210,47 @@ mod tests {
     }
 
     fn create_data(path: &mut PathBuf) -> Value {
-        path.push("top.json");
-        let mut fh = File::create(&path).unwrap();
+        path.push("data/middle.json");
+        let mut fh = fs::File::create(&path).unwrap();
+        path.pop();
+        path.pop();
+        fh.write_all(format!("{{
+            \"payload\": {{
+                \"b!\": [ 3, 4 ],
+                \"d\": [ 987 ]
+            }},
+            \"variable\": false,
+            \"d\": 4,
+            \"_include\": [
+                \"payload: {}/payloads/payload::default\"
+            ]
+        }}", path.to_str().unwrap()).as_bytes()).unwrap();
+
+        path.push("data/bottom.json");
+        let mut fh = fs::File::create(&path).unwrap();
+        path.pop();
+        path.pop();
+        fh.write_all(b"{
+            \"moo\": \"cow\",
+            \"payload\": {
+                \"b\": [ 5 ],
+                \"d\": [ 999 ]
+            }
+        }").unwrap();
+
+        path.push("payloads/payload/data/default.json");
+        let mut fh = fs::File::create(&path).unwrap();
+        path.pop();
+        path.pop();
+        path.pop();
+        path.pop();
+        fh.write_all(b"{
+            \"pvalue\": \"payload\"
+        }").unwrap();
+
+        path.push("data/top.json");
+        let mut fh = fs::File::create(&path).unwrap();
+        path.pop();
         path.pop();
         fh.write_all(format!("{{
             \"a\": 1,
@@ -195,38 +272,19 @@ mod tests {
                 \"two\": false
             }},
             \"_include\": [
-                \"{0}/middle.json\",
-                \"{0}/bottom.json\"
+                \"{}/data/middle.json\",
+                \"{0}/data/bottom.json\"
             ]
-        }}", &path.to_str().unwrap()).as_bytes()).unwrap();
-
-        path.push("middle.json");
-        let mut fh = File::create(&path).unwrap();
-        path.pop();
-        fh.write_all(b"{
-            \"payload\": {
-                \"b!\": [ 3, 4 ],
-                \"d\": [ 987 ]
-            },
-            \"variable\": false,
-            \"d\": 4
-        }").unwrap();
-
-        path.push("bottom.json");
-        let mut fh = File::create(&path).unwrap();
-        path.pop();
-        fh.write_all(b"{
-            \"moo\": \"cow\",
-            \"payload\": {
-                \"b\": [ 5 ],
-                \"d\": [ 999 ]
-            }
-        }").unwrap();
+        }}", path.to_str().unwrap()).as_bytes()).unwrap();
 
         serde_json::from_str(&format!("{{
             \"_include\": [
-                \"{0}/middle.json\",
-                \"{0}/bottom.json\"
+                \"{}/data/middle.json\",
+                \"{0}/data/bottom.json\",
+                \"payload: {0}/payloads/payload::default\"
+            ],
+            \"_payloads\": [
+                \"{0}/payloads/payload::default\"
             ],
             \"a\": 1,
             \"d\": 4,
@@ -236,10 +294,11 @@ mod tests {
                 \"c\": [ 6, 7 ],
                 \"d\": [ 123, 987, 999 ]
             }},
+            \"pvalue\": \"payload\",
             \"variable\": {{
                 \"one\": true,
                 \"two\": false
             }}
-        }}", &path.to_str().unwrap())).unwrap()
+        }}", path.to_str().unwrap())).unwrap()
     }
 }

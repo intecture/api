@@ -32,7 +32,7 @@ use czmq::{ZCert, ZMsg, ZSock, ZSockType};
 #[cfg(feature = "remote-run")]
 use error::Error;
 use error::Result;
-use serde_json::Value;
+use serde_json::{self, Value};
 #[cfg(feature = "remote-run")]
 use std::mem;
 use std::path::Path;
@@ -130,6 +130,21 @@ impl Host {
         me.data = Rc::new(try!(telemetry::Telemetry::init(&mut me)));
 
         Ok(me)
+    }
+
+    #[cfg(feature = "remote-run")]
+    /// Create a new Host specifically for use inside a payload.
+    pub fn connect_payload(api_endpoint: &str, file_endpoint: &str) -> Result<Host> {
+        let api_sock = try!(ZSock::new_pair(api_endpoint));
+        let data_json = try!(api_sock.recv_str()).unwrap();
+        let data = try!(serde_json::from_str(&data_json));
+
+        Ok(Host {
+            hostname: "payload".into(),
+            api_sock: Some(api_sock),
+            file_sock: Some(try!(ZSock::new_pair(file_endpoint))),
+            data: Rc::new(data),
+        })
     }
 
     /// Get data for Host.
@@ -253,12 +268,37 @@ impl HostSendRecv for Host {
 #[cfg(feature = "remote-run")]
 #[cfg(test)]
 mod tests {
-    use czmq::{ZMsg, ZSys};
+    use czmq::{ZMsg, ZSock, ZSockType, ZSys};
+    use serde_json;
     use std::fs;
     use std::thread;
     use super::*;
     use tempdir::TempDir;
     use zfilexfer::File;
+
+    #[test]
+    fn test_connect_payload() {
+        let api = ZSock::new(ZSockType::PAIR);
+        let port = api.bind("tcp://127.0.0.1:*").unwrap();
+        let api_endpoint = format!("tcp://127.0.0.1:{}", port);
+
+        let handle = thread::spawn(move || {
+            api.send_str("{
+                \"key\": \"value\"
+            }").unwrap();
+
+            api.recv_str().unwrap().unwrap();
+        });
+
+        let mut host = Host::connect_payload(&api_endpoint, "inproc://file_endpoint").unwrap();
+        assert_eq!(host.data().find("key"), Some(&serde_json::to_value("value")));
+
+        let msg = ZMsg::new();
+        msg.addstr("test").unwrap();
+        host.send(msg).unwrap();
+
+        handle.join().unwrap();
+    }
 
     #[test]
     fn test_send_recv() {

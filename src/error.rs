@@ -16,6 +16,7 @@ use serde_json;
 use std::{convert, error, ffi, fmt, io, num, ptr, result, str, string};
 use std::any::Any;
 use std::ffi::CString;
+use zdaemon;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
 
@@ -44,6 +45,8 @@ pub enum Error {
     #[cfg(feature = "remote-run")]
     /// An error string returned from the host's Intecture Auth
     Auth(String),
+    /// Payload build failure
+    BuildFailed(String),
     #[cfg(feature = "remote-run")]
     /// CZMQ error
     Czmq(czmq::Error),
@@ -84,6 +87,8 @@ pub enum Error {
     StrFromUtf8(str::Utf8Error),
     /// Cast String
     StringFromUtf8(string::FromUtf8Error),
+    // ZDaemon error
+    ZDaemon(zdaemon::Error),
     #[cfg(feature = "remote-run")]
     /// ZFileXfer error
     ZFileXfer(zfilexfer::Error),
@@ -97,6 +102,7 @@ impl fmt::Display for Error {
             Error::Agent(ref e) => write!(f, "Agent error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Auth(ref e) => write!(f, "Auth error: {}", e),
+            Error::BuildFailed(ref e) => write!(f, "Failed to build payload: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => write!(f, "CZMQ error: {}", e),
             #[cfg(feature = "remote-run")]
@@ -119,6 +125,7 @@ impl fmt::Display for Error {
             Error::SerdeJson(ref e) => write!(f, "Serde JSON error: {}", e),
             Error::StrFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to str error: {}", e),
             Error::StringFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to String error: {}", e),
+            Error::ZDaemon(ref e) => write!(f, "ZDaemon error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::ZFileXfer(ref e) => write!(f, "ZFileXfer error: {}", e),
         }
@@ -131,6 +138,7 @@ impl error::Error for Error {
             Error::Agent(ref e) => e,
             #[cfg(feature = "remote-run")]
             Error::Auth(ref e) => e,
+            Error::BuildFailed(ref e) => e,
             #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
@@ -153,6 +161,7 @@ impl error::Error for Error {
             Error::SerdeJson(ref e) => e.description(),
             Error::StrFromUtf8(ref e) => e.description(),
             Error::StringFromUtf8(ref e) => e.description(),
+            Error::ZDaemon(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
             Error::ZFileXfer(ref e) => e.description(),
         }
@@ -243,6 +252,12 @@ impl convert::From<num::ParseFloatError> for Error {
 impl convert::From<num::ParseIntError> for Error {
     fn from(err: num::ParseIntError) -> Error {
         Error::ParseInt(err)
+    }
+}
+
+impl convert::From<zdaemon::Error> for Error {
+    fn from(err: zdaemon::Error) -> Error {
+        Error::ZDaemon(err)
     }
 }
 
