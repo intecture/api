@@ -876,7 +876,7 @@ extern Payload *payload_new(const char *payload_artifact);
  * @param payload The payload you wish to build.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int *payload_build(Payload *payload);
+extern int payload_build(Payload *payload);
 
 /**
  * @brief Execute the payload's artifact. For compiled languages, the
@@ -889,6 +889,6 @@ extern int *payload_build(Payload *payload);
  * @param user_args_len Size of user_args array.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int *payload_run(Payload *payload, Host *host, const char *user_args, size_t user_args_len);
+extern int payload_run(Payload *payload, Host *host, const char **user_args, size_t user_args_len);
 
 #endif

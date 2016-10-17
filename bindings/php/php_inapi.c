@@ -29,6 +29,8 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_init_file_exception(TSRMLS_C);
     inapi_init_package(TSRMLS_C);
     inapi_init_package_exception(TSRMLS_C);
+    inapi_init_payload(TSRMLS_C);
+    inapi_init_payload_exception(TSRMLS_C);
     inapi_init_service(TSRMLS_C);
     inapi_init_service_exception(TSRMLS_C);
     inapi_init_service_runnable(TSRMLS_C);
