@@ -226,10 +226,12 @@ fn tokenize_buf(tokens: &mut Vec<Token>, buf: Vec<char>, value: bool, quotes: bo
                 }
             } else {
                 let s: String = buf.into_iter().collect();
-                if !quotes && s == "true" {
+                if !quotes && s.to_lowercase() == "true" {
                     tokens.push(Token::Value(Value::Bool(true)));
-                } else if !quotes && s == "false" {
+                } else if !quotes && s.to_lowercase() == "false" {
                     tokens.push(Token::Value(Value::Bool(false)));
+                } else if !quotes && s.to_lowercase() == "null" {
+                    tokens.push(Token::Value(Value::Null));
                 } else {
                     tokens.push(Token::Value(Value::String(s)));
                 }
@@ -363,7 +365,10 @@ fn resolve_pointer(token: &Token, data: &Value) -> Result<Value> {
     match *token {
         Token::Pointer(ref p) => match data.pointer(p) {
             Some(v) => Ok(v.clone()),
-            None => Err(Error::QueryParser(format!("JSON pointer \"{}\" does not exist in data", p)))
+            // Currently favouring Null value over error. Experience
+            // might suggest that a warning/error is more appropriate.
+            None => Ok(Value::Null),
+            // None => Err(Error::QueryParser(format!("JSON pointer \"{}\" does not exist in data", p)))
         },
         Token::Value(ref v) => Ok(v.clone()),
         _ => Err(Error::QueryParser("Token must be Pointer or Value token".into())),
@@ -387,7 +392,7 @@ mod tests {
         map.insert("f".into(), Value::I64(1));
 
         let data = Value::Object(map);
-        assert!(eval(&data, "((/a=/b && /c!='e') || 0<=/d) || /e > /f").expect("Query result bool"));
+        assert!(eval(&data, "(((/a=/b && /c!='e') || /d <= 0) || /e > /f) && /fake = NULL").expect("Query result bool"));
     }
 
     #[test]
