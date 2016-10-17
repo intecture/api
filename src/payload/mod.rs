@@ -60,7 +60,7 @@ pub struct Payload {
 }
 
 impl Payload {
-    /// Create a new Payload using the payload/artifact notation.
+    /// Create a new Payload using the payload::artifact notation.
     /// This notation is simply "payload" + separator ("::") +
     /// "executable/source file". For example: "nginx::install".
     ///
