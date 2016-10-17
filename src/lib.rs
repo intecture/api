@@ -68,7 +68,7 @@ pub use host::ffi::{get_value, get_value_keys, get_value_type};
 #[cfg(feature = "local-run")]
 pub use host::ffi::host_local;
 #[cfg(feature = "remote-run")]
-pub use host::ffi::{host_connect, host_connect_endpoint, host_close};
+pub use host::ffi::{host_connect, host_connect_endpoint, host_connect_payload, host_close};
 pub use mustache::{MapBuilder, VecBuilder};
 pub use package::Package;
 pub use package::providers::{Provider, ProviderFactory, Providers};

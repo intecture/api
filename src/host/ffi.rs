@@ -153,6 +153,16 @@ pub extern "C" fn host_connect_endpoint(hostname_ptr: *const c_char,
 
 #[cfg(feature = "remote-run")]
 #[no_mangle]
+pub extern "C" fn host_connect_payload(api_endpoint_ptr: *const c_char, file_endpoint_ptr: *const c_char) -> *mut Ffi__Host {
+    let api_endpoint = trynull!(ptrtostr!(api_endpoint_ptr, "api endpoint string"));
+    let file_endpoint = trynull!(ptrtostr!(file_endpoint_ptr, "file endpoint string"));
+    let host = trynull!(Host::connect_payload(api_endpoint, file_endpoint));
+    let ffi_host: Ffi__Host = trynull!(catch_unwind(|| host.into()));
+    Box::into_raw(Box::new(ffi_host))
+}
+
+#[cfg(feature = "remote-run")]
+#[no_mangle]
 pub extern "C" fn host_close(host_ptr: *mut Ffi__Host) -> uint8_t {
     // Don't use the convert trait as we want owned ZSocks
     let ffi_host: Ffi__Host = tryrc!(readptr!(host_ptr, "Host struct"));

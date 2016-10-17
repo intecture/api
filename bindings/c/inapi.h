@@ -46,7 +46,7 @@ typedef struct _Host {
  *        data file. This function expects to find the following keys
  *        in the root namespace: "hostname", "api_port", "file_port".
  * @param path Path to the data file for this host.
- * @return A new Host struct.
+ * @return A new Host struct, or null on error.
  *
  * #### Usage Example
  *
@@ -63,7 +63,7 @@ extern Host *host_connect(const char *path);
  * @param hostname The IP address or hostname of your managed host.
  * @param api_port The port number that the Agent API service is listening on.
  * @param upload_port The port number that the Agent File Upload service is listening on.
- * @return Return code - zero on success, non-zero on error.
+ * @return A new Host struct, or null on error.
  *
  * #### Usage Example
  *
@@ -73,6 +73,14 @@ extern Host *host_connect(const char *path);
  * @endcode
  */
 extern Host *host_connect_endpoint(const char *hostname, uint32_t api_port, uint32_t upload_port);
+
+/**
+ * @brief Create a new Host specifically for use inside a payload.
+ * @param api_endpoint The API endpoint provided by stdin.
+ * @param file_endpoint The file endpoint provided by stdin.
+ * @return A new Host struct, or null on error.
+ */
+extern Host *host_connect_payload(const char *api_endpoint, const char *file_endpoint);
 
 /**
  * @brief Close the connection to your managed host.
