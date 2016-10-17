@@ -45,8 +45,12 @@ pub enum Error {
     #[cfg(feature = "remote-run")]
     /// An error string returned from the host's Intecture Auth
     Auth(String),
+    #[cfg(feature = "remote-run")]
     /// Payload build failure
     BuildFailed(String),
+    #[cfg(feature = "remote-run")]
+    /// Payload run failure
+    RunFailed(String),
     #[cfg(feature = "remote-run")]
     /// CZMQ error
     Czmq(czmq::Error),
@@ -102,7 +106,10 @@ impl fmt::Display for Error {
             Error::Agent(ref e) => write!(f, "Agent error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Auth(ref e) => write!(f, "Auth error: {}", e),
+            #[cfg(feature = "remote-run")]
             Error::BuildFailed(ref e) => write!(f, "Failed to build payload: {}", e),
+            #[cfg(feature = "remote-run")]
+            Error::RunFailed(ref e) => write!(f, "Failed to run payload: {}", e),
             #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => write!(f, "CZMQ error: {}", e),
             #[cfg(feature = "remote-run")]
@@ -138,7 +145,10 @@ impl error::Error for Error {
             Error::Agent(ref e) => e,
             #[cfg(feature = "remote-run")]
             Error::Auth(ref e) => e,
+            #[cfg(feature = "remote-run")]
             Error::BuildFailed(ref e) => e,
+            #[cfg(feature = "remote-run")]
+            Error::RunFailed(ref e) => e,
             #[cfg(feature = "remote-run")]
             Error::Czmq(ref e) => e.description(),
             #[cfg(feature = "remote-run")]

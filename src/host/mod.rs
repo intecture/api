@@ -32,7 +32,9 @@ use czmq::{ZCert, ZMsg, ZSock, ZSockType};
 #[cfg(feature = "remote-run")]
 use error::Error;
 use error::Result;
-use serde_json::{self, Value};
+#[cfg(feature = "remote-run")]
+use serde_json;
+use serde_json::Value;
 #[cfg(feature = "remote-run")]
 use std::mem;
 use std::path::Path;

@@ -78,8 +78,8 @@ fn dependencies(me: &mut Value) -> Result<Vec<Value>> {
         }
     }
 
-    if let Some(map) = me.as_object_mut() {
-        map.insert("_payloads".into(), serde_json::to_value(payloads));
+    if me.is_object() && !payloads.is_empty() {
+        me.as_object_mut().unwrap().insert("_payloads".into(), serde_json::to_value(payloads));
     }
 
     Ok(deps)

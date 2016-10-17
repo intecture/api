@@ -7,6 +7,7 @@
 // modified, or distributed except according to those terms.
 
 mod config;
+pub mod ffi;
 
 use czmq::{ZMsg, ZPoller, ZSock, ZSys};
 use error::{Error, Result};
@@ -19,6 +20,7 @@ use std::path::PathBuf;
 use std::thread;
 use zdaemon::ConfigFile;
 
+#[repr(C)]
 #[derive(Clone, Debug, PartialEq, RustcDecodable, RustcEncodable)]
 pub enum Language {
     C,
@@ -26,6 +28,7 @@ pub enum Language {
     Rust,
 }
 
+#[derive(Debug)]
 pub struct Payload {
     path: PathBuf,
     artifact: String,
@@ -106,34 +109,39 @@ impl Payload {
 
         let (mut parent, child) = try!(ZSys::create_pipe());
         let language = self.language.clone();
-        let payload_path = self.path.to_str().unwrap().to_owned();
+        let mut payload_path = PathBuf::from(&self.path);
         let artifact = self.artifact.clone();
 
         let handle = thread::spawn(move || {
             match language {
                 Language::C => {
-                    let output = try!(Command::new(&artifact).args(&[&api_endpoint, &file_endpoint]).output());
+                    payload_path.push(&artifact);
+                    let output = try!(Command::new(payload_path.to_str().unwrap()).args(&[&api_endpoint, &file_endpoint]).output());
                     if !output.status.success() {
                         try!(child.signal(0));
-                        return Err(Error::BuildFailed(try!(String::from_utf8(output.stderr))).into());
+                        return Err(Error::RunFailed(try!(String::from_utf8(output.stderr))).into());
                     }
                 },
                 Language::Php => {
-                    let output = try!(Command::new("php").args(&[&artifact, &api_endpoint, &file_endpoint]).output());
+                    payload_path.push(&artifact);
+                    if payload_path.extension().is_none() {
+                        payload_path.set_extension("php");
+                    }
+                    let output = try!(Command::new("php").args(&[payload_path.to_str().unwrap(), &api_endpoint, &file_endpoint]).output());
                     if !output.status.success() {
                         try!(child.signal(0));
-                        return Err(Error::BuildFailed(try!(String::from_utf8(output.stderr))).into());
+                        return Err(Error::RunFailed(try!(String::from_utf8(output.stderr))).into());
                     }
                 },
                 Language::Rust => {
-                    let manifest_path = format!("{}/Cargo.toml", payload_path);
+                    payload_path.push("Cargo.toml");
                     let output = try!(Command::new("cargo").args(&[
                         "run",
                         "--release",
                         "--bin",
                         &artifact,
                         "--manifest-path",
-                        &manifest_path,
+                        payload_path.to_str().unwrap(),
                         "--",
                         &api_endpoint,
                         &file_endpoint
@@ -141,7 +149,7 @@ impl Payload {
 
                     if !output.status.success() {
                         try!(child.signal(0));
-                        return Err(Error::BuildFailed(try!(String::from_utf8(output.stderr))).into());
+                        return Err(Error::RunFailed(try!(String::from_utf8(output.stderr))).into());
                     }
                 }
             }
@@ -195,11 +203,11 @@ impl Payload {
 
 #[cfg(test)]
 mod tests {
-    use czmq::ZSys;
     use host::Host;
     use super::config::Config;
     use std::fs;
     use std::io::Write;
+    use std::path::PathBuf;
     use std::process::Command;
     use super::*;
     use tempdir::TempDir;
@@ -207,15 +215,12 @@ mod tests {
 
     #[test]
     fn test_new_nodeps() {
+        let _ = ::_MOCK_ENV.init();
+
         let tempdir = TempDir::new("test_payload_new_nodeps").unwrap();
         let mut buf = tempdir.path().to_owned();
 
-        buf.push("rust");
-        let output = Command::new("cargo")
-                             .args(&["new", buf.to_str().unwrap(), "--bin"])
-                             .output()
-                             .expect("Failed to execute process");
-        assert!(output.status.success());
+        create_cargo_proj(&mut buf);
 
         let conf = Config {
             author: "Dr. Hibbert".into(),
@@ -233,15 +238,12 @@ mod tests {
 
     #[test]
     fn test_build_rust() {
+        let _ = ::_MOCK_ENV.init();
+
         let tempdir = TempDir::new("test_payload_build_rust").unwrap();
         let mut buf = tempdir.path().to_owned();
 
-        buf.push("rust");
-        let output = Command::new("cargo")
-                             .args(&["new", buf.to_str().unwrap(), "--bin"])
-                             .output()
-                             .expect("Failed to execute process");
-        assert!(output.status.success());
+        create_cargo_proj(&mut buf);
 
         let conf = Config {
             author: "Dr. Hibbert".into(),
@@ -255,15 +257,16 @@ mod tests {
         buf.pop();
 
         let payload = Payload::new(buf.to_str().unwrap()).unwrap();
-        assert!(payload.build().is_ok());
+        // assert!(payload.build().is_ok());
+        payload.build().unwrap();
     }
 
     #[test]
     fn test_build_c() {
+        let _ = ::_MOCK_ENV.init();
+
         let tempdir = TempDir::new("test_payload_build_c").unwrap();
         let mut buf = tempdir.path().to_owned();
-        buf.push("c");
-        fs::create_dir(&buf).unwrap();
 
         buf.push("Makefile");
         let mut fh = fs::File::create(&buf).unwrap();
@@ -291,17 +294,12 @@ mod tests {
 
     #[test]
     fn test_run() {
-        ZSys::init();
+        let _ = ::_MOCK_ENV.init();
 
         let tempdir = TempDir::new("test_payload_run").unwrap();
         let mut buf = tempdir.path().to_owned();
 
-        buf.push("default");
-        let output = Command::new("cargo")
-                             .args(&["new", buf.to_str().unwrap(), "--bin"])
-                             .output()
-                             .expect("Failed to execute process");
-        assert!(output.status.success());
+        create_cargo_proj(&mut buf);
 
         let conf = Config {
             author: "Dr. Hibbert".into(),
@@ -317,5 +315,13 @@ mod tests {
         let mut host = Host::test_new(None, None, None, None);
         let payload = Payload::new(buf.to_str().unwrap()).unwrap();
         payload.run(&mut host).unwrap();
+    }
+
+    fn create_cargo_proj(buf: &mut PathBuf) {
+        let output = Command::new("cargo")
+                             .args(&["init", buf.to_str().unwrap(), "--bin", "--name", "default"])
+                             .output()
+                             .expect("Failed to execute process");
+        assert!(output.status.success());
     }
 }
