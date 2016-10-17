@@ -63,6 +63,7 @@ pub use directory::{Directory, DirectoryOpts};
 pub use error::Error;
 pub use file::{File, FileOwner};
 pub use host::Host;
+pub use host::data::open as data_open;
 pub use host::ffi::{get_value, get_value_keys, get_value_type};
 #[cfg(feature = "local-run")]
 pub use host::ffi::host_local;

@@ -21,7 +21,7 @@
 //! ```
 
 #[macro_use]
-mod data;
+pub mod data;
 pub mod ffi;
 pub mod telemetry;
 

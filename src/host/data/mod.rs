@@ -18,6 +18,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+#[doc(hidden)]
 pub fn open<P: AsRef<Path>>(path: P) -> Result<Value> {
     let mut p = PathBuf::from("data");
     p.push(path);
