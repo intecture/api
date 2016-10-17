@@ -829,4 +829,58 @@ extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
  */
 extern int vec_push_map(VecBuilder *builder, MapBuilder *value);
 
+/**
+ * @brief The payload's programming language.
+ */
+enum Language {
+    C,
+    Php,
+    Rust,
+};
+
+/**
+ * @brief Payloads are self-contained projects that encapsulate a
+ * specific feature or system function. Think of them as reusable
+ * chunks of code that can be run across multiple hosts. Any time you
+ * have a task that you want to repeat, it should probably go into a
+ * payload.
+ */
+typedef struct _Payload {
+    const char *path; /**< Path to the payload directory */
+    const char *artifact; /**< Name of the executable/source file to run */
+    enum Language language; /**< Language the payload is written in */
+} Payload;
+
+/**
+ * @brief Create a new Payload using the payload::artifact notation.
+ * This notation is simply "payload" + separator ("::") +
+ * "executable/source file". For example: "nginx::install".
+ * @param payload_artifact The name of the payload and artifact in
+ * payload::artifact notation.
+ * @return A Payload struct, or null on error.
+ */
+extern Payload *payload_new(const char *payload_artifact);
+
+/**
+ * @brief Compile a payload's source code. This function is also
+ * called by payload_run(), but is useful for precompiling payloads
+ * ahead of time to catch build errors early.
+ * @param payload The payload you wish to build.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int *payload_build(Payload *payload);
+
+/**
+ * @brief Execute the payload's artifact. For compiled languages, the
+ * artifact will be executed directly. For interpreted languages, the
+ * artifact will be passed as an argument to the interpreter.
+ * @param payload The payload you wish to run.
+ * @param host The host the payload will target.
+ * @param user_args An optional array of args to pass to payload
+ * executable.
+ * @param user_args_len Size of user_args array.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int *payload_run(Payload *payload, Host *host, const char *user_args, size_t user_args_len);
+
 #endif
