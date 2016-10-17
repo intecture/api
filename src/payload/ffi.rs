@@ -6,6 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use ffi_helpers::Ffi__Array;
 use host::Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t};
@@ -57,10 +58,22 @@ pub extern "C" fn payload_build(ffi_payload_ptr: *mut Ffi__Payload) -> uint8_t {
     0
 }
 
-pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload, ffi_host_ptr: *mut Ffi__Host) -> uint8_t {
+pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload, ffi_host_ptr: *mut Ffi__Host, ffi_user_args: *mut Ffi__Array<*const c_char>) -> uint8_t {
     let payload: Payload = tryrc!(readptr!(ffi_payload_ptr, "Payload struct"));
     let mut host: Host = tryrc!(readptr!(ffi_host_ptr, "Host struct"));
-    tryrc!(payload.run(&mut host));
+
+    let user_args = if ffi_user_args.is_null() {
+        None
+    } else {
+        let a: Vec<_> = tryrc!(readptr!(ffi_user_args, "User args array"));
+        let mut b = Vec::new();
+        for ptr in a {
+            b.push(tryrc!(ptrtostr!(ptr, "User arg string")));
+        }
+        Some(b)
+    };
+
+    tryrc!(payload.run(&mut host, user_args));
     0
 }
 
@@ -71,7 +84,7 @@ mod tests {
     use payload::config::Config;
     use payload::Language;
     use std::ffi::CString;
-    use std::fs;
+    use std::{fs, ptr};
     use super::*;
     use tempdir::TempDir;
     use zdaemon::ConfigFile;
@@ -153,6 +166,6 @@ mod tests {
         assert!(!payload_ptr.is_null());
 
         let mut host = Ffi__Host::from(Host::test_new(None, None, None, None));
-        assert_eq!(payload_run(payload_ptr, &mut host), 0);
+        assert_eq!(payload_run(payload_ptr, &mut host, ptr::null_mut()), 0);
     }
 }

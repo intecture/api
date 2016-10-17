@@ -6,6 +6,26 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+//! Payloads are self-contained projects that encapsulate a specific
+//! feature or system function. Think of them as reusable chunks of
+//! code that can be run across multiple hosts. Any time you have a
+//! task that you want to repeat, it should probably go into a
+//! payload.
+//!
+//! For example, a payload could handle installing a specific
+//! package, such as Nginx. Or, you could create a payload that
+//! configures iptables.
+//!
+//! # Examples
+//!
+//! ```no_run
+//! # use inapi::{Host, Payload};
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(Some(\"nodes/mynode.json\")).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+//! let payload = Payload::new("nginx::install").unwrap(); // format is "payload::executable"
+//! payload.run(&mut host, None).unwrap();
+//! ```
+
 mod config;
 pub mod ffi;
 
@@ -22,20 +42,42 @@ use zdaemon::ConfigFile;
 
 #[repr(C)]
 #[derive(Clone, Debug, PartialEq, RustcDecodable, RustcEncodable)]
+/// The payload's programming language.
 pub enum Language {
     C,
     Php,
     Rust,
 }
 
-#[derive(Debug)]
+/// Container for running a Payload.
 pub struct Payload {
+    /// Path to the payload directory.
     path: PathBuf,
+    /// Name of the executable/source file to run.
     artifact: String,
+    /// Language the payload is written in.
     language: Language,
 }
 
 impl Payload {
+    /// Create a new Payload using the payload/artifact notation.
+    /// This notation is simply "payload" + separator ("::") +
+    /// "executable/source file". For example: "nginx::install".
+    ///
+    /// By default, payloads live in
+    /// <project root>/payloads/<payload_name>. Thus the payload name
+    /// "nginx" will resolve to <project root>/payloads/nginx/. You
+    /// can also specify an absolute path to your payload, which will
+    /// override the resolved path.
+    ///
+    /// ```no_run
+    /// # use inapi::Payload;
+    /// // Using standard payload/artifact notation...
+    /// let payload = Payload::new("iptables::update").unwrap();
+    ///
+    /// // Using an absolute path...
+    /// let payload = Payload::new("/mnt/intecture/payloads/iptables::update").unwrap();
+    /// ```
     pub fn new(payload_artifact: &str) -> Result<Payload> {
         let mut parts: Vec<&str> = payload_artifact.split("::").collect();
         let payload = if parts.len() > 0 {
@@ -68,6 +110,13 @@ impl Payload {
         })
     }
 
+    /// Compile a payload's source code. This function is also called
+    /// by Payload::run(), but is useful for precompiling payloads
+    /// ahead of time to catch build errors early.
+    ///
+    /// Note that this is only useful for compiled languages. If this
+    /// function is run on a payload that uses an interpreted
+    /// language, it will safely be ignored.
     pub fn build(&self) -> Result<()> {
         let mut make_path = self.path.clone();
         make_path.push("Makefile");
@@ -98,8 +147,24 @@ impl Payload {
         Ok(())
     }
 
-    pub fn run(&self, host: &mut Host) -> Result<()> {
-        // Build project to make sure it's up to date
+    /// Execute the payload's artifact.
+    ///
+    /// For compiled languages, the artifact will be executed
+    /// directly. For interpreted languages, the artifact will be
+    /// passed as an argument to the interpreter.
+    ///
+    /// ```no_run
+    /// # use inapi::{Host, Payload};
+    #[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(Some(\"nodes/mynode.json\")).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+    /// let payload = Payload::new("iptables::configure").unwrap();
+    /// payload.run(&mut host, Some(vec![
+    ///     "add_rule",
+    ///     "..."
+    /// ])).unwrap();
+    /// ```
+    pub fn run(&self, host: &mut Host, user_args: Option<Vec<&str>>) -> Result<()> {
+        // Build payload to make sure it's up to date
         try!(self.build());
 
         let api_endpoint = format!("inproc://payload_{}_{}_api", self.path.to_str().unwrap(), self.artifact);
@@ -111,12 +176,22 @@ impl Payload {
         let language = self.language.clone();
         let mut payload_path = PathBuf::from(&self.path);
         let artifact = self.artifact.clone();
+        let user_args_c: Option<Vec<String>> = match user_args {
+            Some(a) => Some(a.into_iter().map(|arg| String::from(arg)).collect()),
+            None => None,
+        };
 
         let handle = thread::spawn(move || {
             match language {
                 Language::C => {
                     payload_path.push(&artifact);
-                    let output = try!(Command::new(payload_path.to_str().unwrap()).args(&[&api_endpoint, &file_endpoint]).output());
+
+                    let mut args = vec![api_endpoint, file_endpoint];
+                    if let Some(mut a) = user_args_c {
+                        args.append(&mut a);
+                    }
+
+                    let output = try!(Command::new(payload_path.to_str().unwrap()).args(&args).output());
                     if !output.status.success() {
                         try!(child.signal(0));
                         return Err(Error::RunFailed(try!(String::from_utf8(output.stderr))).into());
@@ -127,7 +202,13 @@ impl Payload {
                     if payload_path.extension().is_none() {
                         payload_path.set_extension("php");
                     }
-                    let output = try!(Command::new("php").args(&[payload_path.to_str().unwrap(), &api_endpoint, &file_endpoint]).output());
+
+                    let mut args = vec![payload_path.to_str().unwrap().into(), api_endpoint, file_endpoint];
+                    if let Some(mut a) = user_args_c {
+                        args.append(&mut a);
+                    }
+
+                    let output = try!(Command::new("php").args(&args).output());
                     if !output.status.success() {
                         try!(child.signal(0));
                         return Err(Error::RunFailed(try!(String::from_utf8(output.stderr))).into());
@@ -135,17 +216,23 @@ impl Payload {
                 },
                 Language::Rust => {
                     payload_path.push("Cargo.toml");
-                    let output = try!(Command::new("cargo").args(&[
-                        "run",
-                        "--release",
-                        "--bin",
-                        &artifact,
-                        "--manifest-path",
-                        payload_path.to_str().unwrap(),
-                        "--",
-                        &api_endpoint,
-                        &file_endpoint
-                    ]).output());
+
+                    let mut args = vec![
+                        "run".into(),
+                        "--release".into(),
+                        "--bin".into(),
+                        artifact,
+                        "--manifest-path".into(),
+                        payload_path.to_str().unwrap().into(),
+                        "--".into(),
+                        api_endpoint,
+                        file_endpoint
+                    ];
+                    if let Some(mut a) = user_args_c {
+                        args.append(&mut a);
+                    }
+
+                    let output = try!(Command::new("cargo").args(&args).output());
 
                     if !output.status.success() {
                         try!(child.signal(0));
@@ -257,7 +344,6 @@ mod tests {
         buf.pop();
 
         let payload = Payload::new(buf.to_str().unwrap()).unwrap();
-        // assert!(payload.build().is_ok());
         payload.build().unwrap();
     }
 
@@ -286,7 +372,7 @@ mod tests {
         buf.pop();
 
         let payload = Payload::new(buf.to_str().unwrap()).unwrap();
-        assert!(payload.build().is_ok());
+        payload.build().unwrap();
 
         buf.push("test");
         assert!(buf.exists());
@@ -314,7 +400,7 @@ mod tests {
 
         let mut host = Host::test_new(None, None, None, None);
         let payload = Payload::new(buf.to_str().unwrap()).unwrap();
-        payload.run(&mut host).unwrap();
+        payload.run(&mut host, Some(vec!["abc"])).unwrap();
     }
 
     fn create_cargo_proj(buf: &mut PathBuf) {
