@@ -9,7 +9,7 @@
 use ffi_helpers::Ffi__Array;
 use host::Host;
 use host::ffi::Ffi__Host;
-use libc::{c_char, uint8_t};
+use libc::{c_char, size_t, uint8_t};
 use std::convert;
 use std::ffi::CString;
 use std::panic::catch_unwind;
@@ -58,14 +58,21 @@ pub extern "C" fn payload_build(ffi_payload_ptr: *mut Ffi__Payload) -> uint8_t {
     0
 }
 
-pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload, ffi_host_ptr: *mut Ffi__Host, ffi_user_args: *mut Ffi__Array<*const c_char>) -> uint8_t {
+pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload,
+                              ffi_host_ptr: *mut Ffi__Host,
+                              ffi_user_args: *mut *const c_char,
+                              ffi_user_args_len: size_t) -> uint8_t {
     let payload: Payload = tryrc!(readptr!(ffi_payload_ptr, "Payload struct"));
     let mut host: Host = tryrc!(readptr!(ffi_host_ptr, "Host struct"));
 
     let user_args = if ffi_user_args.is_null() {
         None
     } else {
-        let a: Vec<_> = tryrc!(readptr!(ffi_user_args, "User args array"));
+        let a: Vec<_> = tryrc!(catch_unwind(|| Ffi__Array {
+            ptr: ffi_user_args,
+            length: ffi_user_args_len,
+            capacity: ffi_user_args_len,
+        }.into()));
         let mut b = Vec::new();
         for ptr in a {
             b.push(tryrc!(ptrtostr!(ptr, "User arg string")));
@@ -166,6 +173,6 @@ mod tests {
         assert!(!payload_ptr.is_null());
 
         let mut host = Ffi__Host::from(Host::test_new(None, None, None, None));
-        assert_eq!(payload_run(payload_ptr, &mut host, ptr::null_mut()), 0);
+        assert_eq!(payload_run(payload_ptr, &mut host, &mut ptr::null(), 0), 0);
     }
 }
