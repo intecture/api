@@ -33,6 +33,7 @@ static zend_function_entry host_methods[] = {
   PHP_ME(Host, __construct, NULL, ZEND_ACC_PRIVATE|ZEND_ACC_CTOR)
   PHP_ME(Host, connect, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
   PHP_ME(Host, connect_endpoint, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
+  PHP_ME(Host, connect_payload, NULL, ZEND_ACC_PUBLIC|ZEND_ACC_STATIC)
   PHP_ME(Host, data, NULL, ZEND_ACC_PUBLIC)
   {NULL, NULL, NULL}
 };
@@ -124,6 +125,26 @@ PHP_METHOD(Host, connect_endpoint) {
     }
 
     Host *host = host_connect_endpoint(hostname, api_port, upload_port);
+
+    if (!host) {
+        zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
+    intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    intern->host = host;
+}
+
+PHP_METHOD(Host, connect_payload) {
+    php_host *intern;
+    char *api_endpoint, *file_endpoint;
+    int api_len, file_len;
+
+    if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &api_endpoint, &api_len, &file_endpoint, &file_len) == FAILURE) {
+        return;
+    }
+
+    Host *host = host_connect_payload(api_endpoint, file_endpoint);
 
     if (!host) {
         zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);

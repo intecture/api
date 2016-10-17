@@ -23,6 +23,7 @@ void free_php_host(void *object TSRMLS_DC);
 PHP_METHOD(Host, __construct);
 PHP_METHOD(Host, connect);
 PHP_METHOD(Host, connect_endpoint);
+PHP_METHOD(Host, connect_payload);
 PHP_METHOD(Host, data);
 
 typedef struct _php_host {

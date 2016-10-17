@@ -315,6 +315,16 @@ class Host
     public static function connect_endpoint($hostname, $api_port, $upload_port) {}
 
     /**
+     * Create a new Host specifically for use inside a payload.
+     *
+     * @param string $api_endpoint The API endpoint provided by $argv.
+     * @param string $file_endpoint The file endpoint provided by $argv.
+     *
+     * @return Host A new Host object.
+     */
+    public static function connect_payload($api_endpoint, $file_endpoint) {}
+
+    /**
      * Return data for Host, comprising data files and telemetry.
      *
      * @return array Host data.
