@@ -45,6 +45,7 @@ impl convert::Into<Payload> for Ffi__Payload {
     }
 }
 
+#[no_mangle]
 pub extern "C" fn payload_new(payload_artifact_ptr: *const c_char) -> *mut Ffi__Payload {
     let payload_artifact = trynull!(ptrtostr!(payload_artifact_ptr, "payload::artifact string"));
     let payload = trynull!(Payload::new(&payload_artifact));
@@ -52,12 +53,14 @@ pub extern "C" fn payload_new(payload_artifact_ptr: *const c_char) -> *mut Ffi__
     Box::into_raw(Box::new(ffi_payload))
 }
 
+#[no_mangle]
 pub extern "C" fn payload_build(ffi_payload_ptr: *mut Ffi__Payload) -> uint8_t {
     let payload: Payload = tryrc!(readptr!(ffi_payload_ptr, "Payload struct"));
     tryrc!(payload.build());
     0
 }
 
+#[no_mangle]
 pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload,
                               ffi_host_ptr: *mut Ffi__Host,
                               ffi_user_args: *mut *const c_char,
