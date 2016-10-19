@@ -14,6 +14,7 @@
 #include "wrappers/file.h"
 #include "wrappers/host.h"
 #include "wrappers/package.h"
+#include "wrappers/payload.h"
 #include "wrappers/service.h"
 #include "wrappers/template.h"
 
