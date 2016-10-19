@@ -30,6 +30,7 @@ typedef struct _php_host {
     zend_object std;
 
     Host *host;
+    zval *data;
 } php_host;
 
 void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC);

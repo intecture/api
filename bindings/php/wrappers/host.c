@@ -164,7 +164,11 @@ PHP_METHOD(Host, data) {
 
     intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-    unwrap_value(intern->host->data, 7, return_value TSRMLS_CC); // 7 = Object
+    if (intern->data) {
+        RETURN_ZVAL(intern->data, false, false);
+    } else {
+        unwrap_value(intern->host->data, 7, return_value TSRMLS_CC); // 7 = Object
+    }
 }
 
 void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {
