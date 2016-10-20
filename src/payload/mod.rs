@@ -26,12 +26,13 @@
 //! payload.run(&mut host, None).unwrap();
 //! ```
 
-mod config;
+pub mod config;
 pub mod ffi;
 
 use czmq::{ZMsg, ZPoller, ZSock, ZSys};
 use error::{Error, Result};
 use host::{Host,HostSendRecv};
+use project::Language;
 use self::config::Config;
 use serde_json;
 use std::env::{current_dir, set_current_dir};
@@ -39,15 +40,6 @@ use std::process::Command;
 use std::path::PathBuf;
 use std::thread;
 use zdaemon::ConfigFile;
-
-#[repr(C)]
-#[derive(Clone, Debug, PartialEq, RustcDecodable, RustcEncodable)]
-/// The payload's programming language.
-pub enum Language {
-    C,
-    Php,
-    Rust,
-}
 
 /// Container for running a Payload.
 pub struct Payload {
@@ -136,7 +128,7 @@ impl Payload {
             },
             Language::Rust => {
                 let manifest_path = format!("{}/Cargo.toml", self.path.to_str().unwrap());
-                let output = try!(Command::new("cargo").arg("build").arg("--manifest-path").arg(&manifest_path).output());
+                let output = try!(Command::new("cargo").arg("build").arg("--release").arg("--manifest-path").arg(&manifest_path).output());
                 if !output.status.success() {
                     return Err(Error::BuildFailed(try!(String::from_utf8(output.stderr))).into());
                 }
@@ -291,12 +283,13 @@ impl Payload {
 #[cfg(test)]
 mod tests {
     use host::Host;
-    use super::config::Config;
+    use project::Language;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
     use std::process::Command;
     use super::*;
+    use super::config::Config;
     use tempdir::TempDir;
     use zdaemon::ConfigFile;
 

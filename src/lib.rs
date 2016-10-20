@@ -43,7 +43,7 @@ extern crate zfilexfer;
 #[macro_use]
 mod ffi_helpers;
 pub mod command;
-mod config;
+mod project;
 pub mod directory;
 pub mod error;
 pub mod file;
@@ -75,7 +75,10 @@ pub use package::providers::{Provider, ProviderFactory, Providers};
 #[cfg(feature = "remote-run")]
 pub use payload::Payload;
 #[cfg(feature = "remote-run")]
+pub use payload::config::Config as PayloadConfig;
+#[cfg(feature = "remote-run")]
 pub use payload::ffi::{payload_new, payload_build, payload_run};
+pub use project::{Language, ProjectConfig};
 pub use serde_json::Value;
 pub use service::{Service, ServiceRunnable};
 pub use template::Template;
@@ -91,5 +94,6 @@ lazy_static! {
 
 #[cfg(feature = "remote-run")]
 lazy_static! {
-    static ref PROJECT_CONFIG: config::Config = config::Config::load("project.json").expect("Could not load project.json");
+    static ref PROJECT_CONFIG: project::ProjectConfig = project::ProjectConfig::load("project.json")
+                                                                               .expect("Could not load project.json");
 }

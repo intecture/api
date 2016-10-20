@@ -6,8 +6,8 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use config::Config;
 use czmq::{ZCert, ZSock, ZSys};
+use project::{Language, ProjectConfig};
 use std::env::set_current_dir;
 use std::thread::{JoinHandle, spawn};
 use tempdir::TempDir;
@@ -38,7 +38,10 @@ impl MockEnv {
         sock.set_zap_domain("mock_auth_server");
         let port = sock.bind("tcp://127.0.0.1:*[60000-]").unwrap();
 
-        let config = Config::new("rust", "target/debug/intecture", &format!("127.0.0.1:{}", port));
+        let config = ProjectConfig {
+            language: Language::Rust,
+            auth_server: format!("127.0.0.1:{}", port)
+        };
         config.save("project.json").unwrap();
 
         let handle = spawn(move|| MockEnv::auth_handler(sock));

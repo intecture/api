@@ -8,22 +8,19 @@
 
 use zdaemon::ConfigFile;
 
+#[repr(C)]
+#[derive(Clone, Debug, PartialEq, RustcDecodable, RustcEncodable)]
+/// The payload's programming language.
+pub enum Language {
+    C,
+    Php,
+    Rust,
+}
+
 #[derive(Debug, RustcDecodable, RustcEncodable)]
-pub struct Config {
-    pub language: String,
-    pub artifact: String,
+pub struct ProjectConfig {
+    pub language: Language,
     pub auth_server: String,
 }
 
-impl ConfigFile for Config {}
-
-#[cfg(all(test, feature = "remote-run"))]
-impl Config {
-    pub fn new(language: &str, artifact: &str, auth_server: &str) -> Config {
-        Config {
-            language: language.into(),
-            artifact: artifact.into(),
-            auth_server: auth_server.into(),
-        }
-    }
-}
+impl ConfigFile for ProjectConfig {}

@@ -10,6 +10,7 @@ use ffi_helpers::Ffi__Array;
 use host::Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, size_t, uint8_t};
+use project::Language;
 use std::convert;
 use std::ffi::CString;
 use std::panic::catch_unwind;
@@ -92,7 +93,7 @@ mod tests {
     use host::Host;
     use host::ffi::Ffi__Host;
     use payload::config::Config;
-    use payload::Language;
+    use project::Language;
     use std::ffi::CString;
     use std::{fs, ptr};
     use super::*;
