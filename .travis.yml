@@ -48,27 +48,34 @@ before_script:
       gpg --verify libsodium-1.0.8.tar.gz.sig libsodium-1.0.8.tar.gz
       tar zxf libsodium-1.0.8.tar.gz
       cd libsodium-1.0.8
-      ./configure --prefix=$HOME && make && make install
+      ./configure --prefix=$HOME --silent
+      make --silent
+      make --silent install
       cd ..
 
       curl -sSOL https://github.com/zeromq/zeromq4-1/archive/v4.1.4.tar.gz
       tar zxf v4.1.4.tar.gz
       cd zeromq4-1-4.1.4
-      ./autogen.sh && ./configure --prefix=$HOME --with-libsodium && make && make install
+      ./autogen.sh
+      ./configure --prefix=$HOME --with-libsodium --silent
+      make --silent
+      make --silent install
       cd ..
 
       git clone https://github.com/zeromq/czmq
       cd czmq
-      ./autogen.sh && ./configure --prefix=$HOME && make && make install
+      ./autogen.sh
+      ./configure --prefix=$HOME --silent
+      make --silent
+      make --silent install
       cd $TRAVIS_BUILD_DIR
 
       curl -L -o "$HOME/.local/bin/phpbrew" https://github.com/phpbrew/phpbrew/raw/master/phpbrew
       chmod +x $HOME/.local/bin/phpbrew
 
 script:
-  - travis-cargo build
+  - travis-cargo build -q
   - travis-cargo test
-  - travis-cargo bench
   - |
       ln -s "$HOME/lib/libczmq.so.3" target/debug
       ln -s "$HOME/lib/libzmq.so.5" target/debug
@@ -84,13 +91,13 @@ script:
       for MAJ in 5 7
       do
         MIN="PHP${MAJ}_VERSION"
-        phpbrew install -j $(nproc) --no-install ${!MIN} +debug
+        phpbrew install -j $(nproc) --no-install ${!MIN} +debug > /dev/null
         cd "php$MAJ"
         ln -s ../c include
         chmod +x $PHPBREW_ROOT/build/php-${!MIN}.*/scripts/phpize
         $PHPBREW_ROOT/build/php-${!MIN}.*/scripts/phpize
-        ./configure --with-inapi=../../target/debug
-        make
+        ./configure --with-inapi=../../target/debug --silent
+        make --silent
         TEST_PHP_ARGS="-q" make test || exit 1
         cd ..
       done
