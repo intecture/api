@@ -2,60 +2,39 @@ sudo: required
 dist: trusty
 language: rust
 
-addons:
-  apt:
-    packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - binutils-dev
-
-      - php5-dev
-      - php5-cli
-      - php5-json
-      - php-pear
-      - autoconf
-      - automake
-      - curl
-      - build-essential
-      - libxslt1-dev
-      - re2c
-      - libxml2
-      - libxml2-dev
-      - bison
-      - libbz2-dev
-      - libreadline-dev
-      - libicu-dev
-
 rust:
   - stable
   - beta
   - nightly
 
+addons:
+  apt:
+    sources:
+      - sourceline: 'ppa:chris-lea/libsodium'
+      - sourceline: 'deb http://ppa.launchpad.net/chris-lea/libsodium/ubuntu trusty main'
+      - sourceline: 'deb-src http://ppa.launchpad.net/chris-lea/libsodium/ubuntu trusty main'
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - binutils-dev
+      - libsodium-dev
+      - php5
+
 before_script:
   - |
       pip install 'travis-cargo<0.2' --user
+
       export PATH=$HOME/.local/bin:$PATH
       export LIBRARY_PATH=$HOME/lib
       export LD_LIBRARY_PATH=$HOME/lib
       export PKG_CONFIG_PATH=$HOME/lib/pkgconfig
 
       cd /tmp
-      curl -sSOL https://download.libsodium.org/libsodium/releases/libsodium-1.0.8.tar.gz
-      curl -sSOL https://download.libsodium.org/libsodium/releases/libsodium-1.0.8.tar.gz.sig
-      curl -sSOL https://download.libsodium.org/jedi.gpg.asc
-      gpg --import jedi.gpg.asc
-      gpg --verify libsodium-1.0.8.tar.gz.sig libsodium-1.0.8.tar.gz
-      tar zxf libsodium-1.0.8.tar.gz
-      cd libsodium-1.0.8
-      ./configure --prefix=$HOME --silent
-      make --silent
-      make --silent install
-      cd ..
 
-      curl -sSOL https://github.com/zeromq/zeromq4-1/archive/v4.1.4.tar.gz
-      tar zxf v4.1.4.tar.gz
-      cd zeromq4-1-4.1.4
+      curl -sSOL https://github.com/zeromq/zeromq4-1/archive/v4.1.5.tar.gz
+      tar zxf v4.1.5.tar.gz
+      cd zeromq4-1-4.1.5
       ./autogen.sh
       ./configure --prefix=$HOME --with-libsodium --silent
       make --silent
@@ -70,9 +49,6 @@ before_script:
       make --silent install
       cd $TRAVIS_BUILD_DIR
 
-      curl -L -o "$HOME/.local/bin/phpbrew" https://github.com/phpbrew/phpbrew/raw/master/phpbrew
-      chmod +x $HOME/.local/bin/phpbrew
-
 script:
   - travis-cargo build -q
   - travis-cargo test
@@ -80,22 +56,13 @@ script:
       ln -s "$HOME/lib/libczmq.so.3" target/debug
       ln -s "$HOME/lib/libzmq.so.5" target/debug
 
-      phpbrew init
-      . $HOME/.phpbrew/bashrc
-
       cd bindings
 
-      export PHP5_VERSION=5.6
-      export PHP7_VERSION=7.0
-
-      for MAJ in 5 7
+      for VER in 5 7
       do
-        MIN="PHP${MAJ}_VERSION"
-        phpbrew install -j $(nproc) --no-install ${!MIN} +debug > /dev/null
-        cd "php$MAJ"
+        cd "php$VER"
         ln -s ../c include
-        chmod +x $PHPBREW_ROOT/build/php-${!MIN}.*/scripts/phpize
-        $PHPBREW_ROOT/build/php-${!MIN}.*/scripts/phpize
+        phpize
         ./configure --with-inapi=../../target/debug --silent
         make --silent
         TEST_PHP_ARGS="-q" make test || exit 1
