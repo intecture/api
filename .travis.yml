@@ -50,7 +50,7 @@ before_script:
       cd $TRAVIS_BUILD_DIR
 
 script:
-  - travis-cargo build -q
+  - travis-cargo build
   - travis-cargo test
   - |
       ln -s "$HOME/lib/libczmq.so.3" target/debug
