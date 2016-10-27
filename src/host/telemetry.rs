@@ -8,9 +8,7 @@
 
 use error::Result;
 use host::Host;
-use serde_json::Value;
-#[cfg(feature = "local-run")]
-use serde_json::{to_value, Map};
+use serde_json::{to_value, Map, Value};
 use target::Target;
 
 #[cfg(feature = "local-run")]
@@ -41,7 +39,12 @@ impl Telemetry {
     }
 
     pub fn init(host: &mut Host) -> Result<Value> {
-        Target::telemetry_init(host)
+        let t = try!(Target::telemetry_init(host));
+
+        // Make sure telemetry is namespaced
+        let mut t_map: Map<String, Value> = Map::new();
+        t_map.insert("_telemetry".into(), t);
+        Ok(to_value(t_map))
     }
 
     // XXX While Macros 1.1 are unstable, we can't use Serde to

@@ -46,7 +46,7 @@ pub struct Payload {
     /// Path to the payload directory.
     path: PathBuf,
     /// Name of the executable/source file to run.
-    artifact: String,
+    artifact: Option<String>,
     /// Language the payload is written in.
     language: Language,
 }
@@ -77,11 +77,6 @@ impl Payload {
         } else {
             return Err(Error::Generic("Invalid payload string".into()));
         };
-        let artifact = if parts.len() > 1 {
-            parts.remove(1)
-        } else {
-            "default"
-        };
 
         let mut buf = PathBuf::from("payloads");
         buf.push(payload);
@@ -97,7 +92,11 @@ impl Payload {
 
         Ok(Payload {
             path: buf,
-            artifact: artifact.into(),
+            artifact: if parts.len() > 1 {
+                Some(parts.remove(1).into())
+            } else {
+                None
+            },
             language: config.language,
         })
     }
@@ -156,17 +155,24 @@ impl Payload {
     /// ])).unwrap();
     /// ```
     pub fn run(&self, host: &mut Host, user_args: Option<Vec<&str>>) -> Result<()> {
+        // XXX This ugly cloning is a wasteful solution. New ZMQ
+        // socket types (SERVER & CLIENT) are threadsafe, which will
+        // allow us to thread the ZMQ poller and avoid having to
+        // clone half the world. When these are implemented, this
+        // code should be changed.
+
         // Build payload to make sure it's up to date
         try!(self.build());
 
-        let api_endpoint = format!("inproc://payload_{}_{}_api", self.path.to_str().unwrap(), self.artifact);
+        let artifact_default = self.artifact.as_ref().map(|a| &**a).unwrap_or("main");
+        let api_endpoint = format!("inproc://payload_{}_{}_api", self.path.to_str().unwrap(), artifact_default);
         let mut api_pipe = try!(ZSock::new_pair(&api_endpoint));
-        let file_endpoint = format!("inproc://payload_{}_{}_file", self.path.to_str().unwrap(), self.artifact);
+        let file_endpoint = format!("inproc://payload_{}_{}_file", self.path.to_str().unwrap(), artifact_default);
         let mut file_pipe = try!(ZSock::new_pair(&file_endpoint));
 
         let (mut parent, child) = try!(ZSys::create_pipe());
         let language = self.language.clone();
-        let mut payload_path = PathBuf::from(&self.path);
+        let mut payload_path = self.path.clone();
         let artifact = self.artifact.clone();
         let user_args_c: Option<Vec<String>> = match user_args {
             Some(a) => Some(a.into_iter().map(|arg| String::from(arg)).collect()),
@@ -176,7 +182,7 @@ impl Payload {
         let handle = thread::spawn(move || {
             match language {
                 Language::C => {
-                    payload_path.push(&artifact);
+                    payload_path.push(artifact.as_ref().map(|a| &**a).unwrap_or("main"));
 
                     let mut args = vec![api_endpoint, file_endpoint];
                     if let Some(mut a) = user_args_c {
@@ -190,7 +196,8 @@ impl Payload {
                     }
                 },
                 Language::Php => {
-                    payload_path.push(&artifact);
+                    payload_path.push("src");
+                    payload_path.push(artifact.as_ref().map(|a| &**a).unwrap_or("main"));
                     if payload_path.extension().is_none() {
                         payload_path.set_extension("php");
                     }
@@ -212,14 +219,19 @@ impl Payload {
                     let mut args = vec![
                         "run".into(),
                         "--release".into(),
-                        "--bin".into(),
-                        artifact,
                         "--manifest-path".into(),
-                        payload_path.to_str().unwrap().into(),
-                        "--".into(),
-                        api_endpoint,
-                        file_endpoint
+                        payload_path.to_str().unwrap().into()
                     ];
+
+                    if let Some(a) = artifact {
+                        args.push("--bin".into());
+                        args.push(a);
+                    }
+
+                    args.push("--".into());
+                    args.push(api_endpoint);
+                    args.push(file_endpoint);
+
                     if let Some(mut a) = user_args_c {
                         args.append(&mut a);
                     }
@@ -398,7 +410,7 @@ mod tests {
 
     fn create_cargo_proj(buf: &mut PathBuf) {
         let output = Command::new("cargo")
-                             .args(&["init", buf.to_str().unwrap(), "--bin", "--name", "default"])
+                             .args(&["init", buf.to_str().unwrap(), "--bin", "--name", "payload"])
                              .output()
                              .expect("Failed to execute process");
         assert!(output.status.success());

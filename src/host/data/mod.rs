@@ -65,7 +65,7 @@ fn dependencies(me: &mut Value) -> Result<Vec<Value>> {
                     let mut buf = PathBuf::from("payloads");
                     buf.push(try!(parts.get(0).ok_or(Error::Generic("Empty payload in `_include`".into()))));
                     buf.push("data");
-                    buf.push(parts.get(1).unwrap_or(&"default"));
+                    buf.push(parts.get(1).unwrap_or(&"main"));
                     buf.set_extension("json");
 
                     deps.push(try!(open_raw(&buf)));

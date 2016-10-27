@@ -11,7 +11,7 @@ use host::Host;
 use host::ffi::Ffi__Host;
 use libc::{c_char, size_t, uint8_t};
 use project::Language;
-use std::convert;
+use std::{convert, ptr};
 use std::ffi::CString;
 use std::panic::catch_unwind;
 use std::path::PathBuf;
@@ -28,7 +28,11 @@ impl convert::From<Payload> for Ffi__Payload {
     fn from(payload: Payload) -> Ffi__Payload {
         Ffi__Payload {
             path: CString::new(payload.path.to_str().unwrap()).unwrap().into_raw(),
-            artifact: CString::new(payload.artifact).unwrap().into_raw(),
+            artifact: if let Some(a) = payload.artifact {
+                CString::new(a).unwrap().into_raw()
+            } else {
+                ptr::null()
+            },
             language: payload.language,
         }
     }
@@ -40,7 +44,11 @@ impl convert::Into<Payload> for Ffi__Payload {
 
         Payload {
             path: PathBuf::from(&path),
-            artifact: trypanic!(ptrtostr!(self.artifact, "artifact string")).into(),
+            artifact: if self.artifact.is_null() {
+                None
+            } else {
+                Some(trypanic!(ptrtostr!(self.artifact, "artifact string")).into())
+            },
             language: self.language,
         }
     }
@@ -107,8 +115,8 @@ mod tests {
         let tempdir = TempDir::new("test_payload_ffi_new").unwrap();
         let mut buf = tempdir.path().to_owned();
 
-        buf.push("bootstrap.php");
-        fs::File::create(&buf).expect("Failed to create bootstrap.php");
+        buf.push("main.php");
+        fs::File::create(&buf).expect("Failed to create main.php");
         buf.pop();
 
         let conf = Config {
@@ -157,8 +165,12 @@ mod tests {
         let tempdir = TempDir::new("test_payload_run").unwrap();
         let mut buf = tempdir.path().to_owned();
 
-        buf.push("default.php");
-        fs::File::create(&buf).expect("Failed to create default.php");
+        buf.push("src");
+        fs::create_dir(&buf).expect("Could not create `src` dir");
+
+        buf.push("main.php");
+        fs::File::create(&buf).expect("Failed to create main.php");
+        buf.pop();
         buf.pop();
 
         let conf = Config {

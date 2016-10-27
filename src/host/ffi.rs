@@ -484,17 +484,12 @@ mod tests {
     #[cfg(feature = "local-run")]
     fn check_array(v: Vec<&str>) {
         let mut iter = v.into_iter();
+        assert_eq!(iter.next().unwrap(), "_telemetry");
         assert_eq!(iter.next().unwrap(), "array");
         assert_eq!(iter.next().unwrap(), "bool");
-        assert_eq!(iter.next().unwrap(), "cpu");
         assert_eq!(iter.next().unwrap(), "f64");
-        assert_eq!(iter.next().unwrap(), "fs");
-        assert_eq!(iter.next().unwrap(), "hostname");
         assert_eq!(iter.next().unwrap(), "i64");
-        assert_eq!(iter.next().unwrap(), "memory");
-        assert_eq!(iter.next().unwrap(), "net");
         assert_eq!(iter.next().unwrap(), "obj");
-        assert_eq!(iter.next().unwrap(), "os");
         assert_eq!(iter.next().unwrap(), "string");
         assert_eq!(iter.next().unwrap(), "u64");
     }

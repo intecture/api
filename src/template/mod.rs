@@ -40,7 +40,7 @@ use rustc_serialize::Encodable;
 use std::convert::Into;
 use std::fs;
 use std::io::{Seek, SeekFrom};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::tempfile;
 
 /// Container for rendering and uploading templates.
@@ -51,12 +51,15 @@ pub struct Template {
 impl Template {
     /// Create a new File struct.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Template> {
-        if !path.as_ref().exists() {
+        let mut buf = PathBuf::from("payloads");
+        buf.push(path);
+
+        if !buf.exists() {
             return Err(Error::Generic("Template path does not exist".into()));
         }
 
         Ok(Template {
-            inner: try!(mustache::compile_path(path.as_ref())),
+            inner: try!(mustache::compile_path(&buf)),
         })
     }
 
