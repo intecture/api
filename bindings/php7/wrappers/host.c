@@ -25,6 +25,7 @@ PHP_METHOD(Host, __construct) {
 PHP_METHOD(Host, connect) {
     char *path;
     size_t path_len;
+    zval obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
         return;
@@ -37,14 +38,18 @@ PHP_METHOD(Host, connect) {
         return;
     }
 
-    php_host *intern = Z_HOST_OBJ_P(getThis());
+    object_init_ex(&obj, inapi_ce_host);
+    php_host *intern = Z_HOST_OBJ_P(&obj);
     intern->host = host;
+    unwrap_value(intern->host->data, 7, &intern->data TSRMLS_CC); // 7 = Object
+    RETURN_ZVAL(&obj, false, false);
 }
 
 PHP_METHOD(Host, connect_endpoint) {
     char *hostname;
     size_t hostname_len;
     long api_port, upload_port;
+    zval obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll", &hostname, &hostname_len, &api_port, &upload_port) == FAILURE) {
         return;
@@ -57,13 +62,17 @@ PHP_METHOD(Host, connect_endpoint) {
         return;
     }
 
-    php_host *intern = Z_HOST_OBJ_P(getThis());
+    object_init_ex(&obj, inapi_ce_host);
+    php_host *intern = Z_HOST_OBJ_P(&obj);
     intern->host = host;
+    unwrap_value(intern->host->data, 7, &intern->data TSRMLS_CC); // 7 = Object
+    RETURN_ZVAL(&obj, false, false);
 }
 
 PHP_METHOD(Host, connect_payload) {
     char *api_endpoint, *file_endpoint;
     size_t api_len, file_len;
+    zval obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &api_endpoint, &api_len, &file_endpoint, &file_len) == FAILURE) {
         return;
@@ -76,8 +85,11 @@ PHP_METHOD(Host, connect_payload) {
         return;
     }
 
-    php_host *intern = Z_HOST_OBJ_P(getThis());
+    object_init_ex(&obj, inapi_ce_host);
+    php_host *intern = Z_HOST_OBJ_P(&obj);
     intern->host = host;
+    unwrap_value(intern->host->data, 7, &intern->data TSRMLS_CC); // 7 = Object
+    RETURN_ZVAL(&obj, false, false);
 }
 
 PHP_METHOD(Host, data) {
@@ -86,12 +98,7 @@ PHP_METHOD(Host, data) {
     }
 
     php_host *intern = Z_HOST_OBJ_P(getThis());
-
-    if (intern->data) {
-        RETURN_ZVAL(intern->data, false, false);
-    } else {
-        unwrap_value(intern->host->data, 7, return_value TSRMLS_CC); // 7 = Object
-    }
+    RETURN_ZVAL(&intern->data, false, false);
 }
 
 void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {

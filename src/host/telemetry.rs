@@ -48,7 +48,7 @@ impl Telemetry {
     }
 
     // XXX While Macros 1.1 are unstable, we can't use Serde to
-    // handle Telemetry => Value, so we have to roll our own.
+    // convert Telemetry => Value, so we have to roll our own.
     // (https://github.com/rust-lang/rust/issues/35900)
     #[cfg(feature = "local-run")]
     pub fn into_value(self) -> Value {

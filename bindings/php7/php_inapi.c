@@ -153,6 +153,8 @@ zend_object *inapi_host_create(zend_class_entry *ce) {
 
 void inapi_host_free(zend_object *object TSRMLS_DC) {
     php_host *host = (php_host *)((char *)object - XtOffsetOf(php_host, std));
+    host_close(host->host);
+    zval_dtor(&host->data);
     zend_object_std_dtor(object);
 }
 

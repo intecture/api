@@ -29,7 +29,7 @@
 pub mod config;
 pub mod ffi;
 
-use czmq::{ZMsg, ZPoller, ZSock, ZSys};
+use czmq::{ZMsg, ZPoller, ZSock, ZSockType, ZSys};
 use error::{Error, Result};
 use host::{Host,HostSendRecv};
 use project::Language;
@@ -127,7 +127,7 @@ impl Payload {
             },
             Language::Rust => {
                 let manifest_path = format!("{}/Cargo.toml", self.path.to_str().unwrap());
-                let output = try!(Command::new("cargo").arg("build").arg("--release").arg("--manifest-path").arg(&manifest_path).output());
+                let output = try!(Command::new("cargo").args(&["build", "--release", "--manifest-path", &manifest_path]).output());
                 if !output.status.success() {
                     return Err(Error::BuildFailed(try!(String::from_utf8(output.stderr))).into());
                 }
@@ -165,10 +165,13 @@ impl Payload {
         try!(self.build());
 
         let artifact_default = self.artifact.as_ref().map(|a| &**a).unwrap_or("main");
-        let api_endpoint = format!("inproc://payload_{}_{}_api", self.path.to_str().unwrap(), artifact_default);
-        let mut api_pipe = try!(ZSock::new_pair(&api_endpoint));
-        let file_endpoint = format!("inproc://payload_{}_{}_file", self.path.to_str().unwrap(), artifact_default);
-        let mut file_pipe = try!(ZSock::new_pair(&file_endpoint));
+        let api_endpoint = format!("ipc://{}/{}_api.ipc", self.path.to_str().unwrap(), artifact_default);
+        let mut api_pipe = ZSock::new(ZSockType::DEALER);
+        try!(api_pipe.bind(&api_endpoint));
+
+        let file_endpoint = format!("ipc://{}/{}_file.ipc", self.path.to_str().unwrap(), artifact_default);
+        let mut file_pipe = ZSock::new(ZSockType::DEALER);
+        try!(file_pipe.bind(&file_endpoint));
 
         let (mut parent, child) = try!(ZSys::create_pipe());
         let language = self.language.clone();

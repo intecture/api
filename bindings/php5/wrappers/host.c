@@ -71,6 +71,7 @@ zend_object_value create_php_host(zend_class_entry *class_type TSRMLS_DC) {
 void free_php_host(void *object TSRMLS_DC) {
   php_host *host = (php_host*)object;
   host_close(host->host);
+  zval_dtor(host->data);
   efree(host);
 }
 
@@ -98,6 +99,7 @@ PHP_METHOD(Host, connect) {
     php_host *intern;
     char *path;
     int path_len;
+    zval *obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
         return;
@@ -110,8 +112,12 @@ PHP_METHOD(Host, connect) {
         return;
     }
 
-    intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    ALLOC_ZVAL(obj);
+    object_init_ex(obj, inapi_ce_host);
+    intern = (php_host*)zend_object_store_get_object(obj TSRMLS_CC);
     intern->host = host;
+    unwrap_value(intern->host->data, 7, intern->data TSRMLS_CC); // 7 = Object
+    RETURN_ZVAL(obj, false, false);
 }
 
 PHP_METHOD(Host, connect_endpoint) {
@@ -119,6 +125,7 @@ PHP_METHOD(Host, connect_endpoint) {
     char *hostname;
     int hostname_len;
     long api_port, upload_port;
+    zval *obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll", &hostname, &hostname_len, &api_port, &upload_port) == FAILURE) {
         return;
@@ -131,14 +138,19 @@ PHP_METHOD(Host, connect_endpoint) {
         return;
     }
 
-    intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    ALLOC_ZVAL(obj);
+    object_init_ex(obj, inapi_ce_host);
+    intern = (php_host*)zend_object_store_get_object(obj TSRMLS_CC);
     intern->host = host;
+    unwrap_value(intern->host->data, 7, &intern->data TSRMLS_CC); // 7 = Object
+    RETURN_ZVAL(obj, false, false);
 }
 
 PHP_METHOD(Host, connect_payload) {
     php_host *intern;
     char *api_endpoint, *file_endpoint;
     int api_len, file_len;
+    zval *obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &api_endpoint, &api_len, &file_endpoint, &file_len) == FAILURE) {
         return;
@@ -151,8 +163,12 @@ PHP_METHOD(Host, connect_payload) {
         return;
     }
 
-    intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
+    ALLOC_ZVAL(obj);
+    object_init_ex(obj, inapi_ce_host);
+    intern = (php_host*)zend_object_store_get_object(obj TSRMLS_CC);
     intern->host = host;
+    unwrap_value(intern->host->data, 7, &intern->data TSRMLS_CC); // 7 = Object
+    RETURN_ZVAL(obj, false, false);
 }
 
 PHP_METHOD(Host, data) {
@@ -163,12 +179,7 @@ PHP_METHOD(Host, data) {
     }
 
     intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
-
-    if (intern->data) {
-        RETURN_ZVAL(intern->data, false, false);
-    } else {
-        unwrap_value(intern->host->data, 7, return_value TSRMLS_CC); // 7 = Object
-    }
+    RETURN_ZVAL(intern->data, false, false);
 }
 
 void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {

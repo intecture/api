@@ -24,7 +24,7 @@ use super::debian::DebianTarget;
 use super::fedora::FedoraTarget;
 use super::redhat::RedhatTarget;
 use super::ubuntu::UbuntuTarget;
-use host::telemetry::{Telemetry, TelemetryTarget};
+use host::telemetry::TelemetryTarget;
 
 static mut LINUX_PLATFORM: LinuxPlatform = LinuxPlatform::Centos;
 static INIT_FINGERPRINT: Once = ONCE_INIT;

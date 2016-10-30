@@ -35,7 +35,7 @@ impl Provider for Dnf {
             return Err(Error::Agent(result.stderr));
         }
 
-        let arch = try!(needstr!(host.data() => "/telemetry/os/arch"));
+        let arch = try!(needstr!(host.data() => "/_telemetry/os/arch"));
 
         let re = try!(Regex::new(&format!("(?m)^{}\\.({}|noarch)\\s+", name, arch)));
         Ok(re.is_match(&result.stdout))

@@ -68,7 +68,9 @@ fn dependencies(me: &mut Value) -> Result<Vec<Value>> {
                     buf.push(parts.get(1).unwrap_or(&"main"));
                     buf.set_extension("json");
 
-                    deps.push(try!(open_raw(&buf)));
+                    if let Ok(d) = open_raw(&buf) {
+                        deps.push(d);
+                    }
                     payloads.insert(0, payload.into());
                 } else {
                     deps.push(try!(open(s)));

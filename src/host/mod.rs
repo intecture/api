@@ -137,14 +137,19 @@ impl Host {
     #[cfg(feature = "remote-run")]
     /// Create a new Host specifically for use inside a payload.
     pub fn connect_payload(api_endpoint: &str, file_endpoint: &str) -> Result<Host> {
-        let api_sock = try!(ZSock::new_pair(api_endpoint));
+        let api_sock = ZSock::new(ZSockType::DEALER);
+        try!(api_sock.connect(api_endpoint));
+
+        let file_sock = ZSock::new(ZSockType::DEALER);
+        try!(file_sock.connect(file_endpoint));
+
         let data_json = try!(api_sock.recv_str()).unwrap();
         let data = try!(serde_json::from_str(&data_json));
 
         Ok(Host {
             hostname: "payload".into(),
             api_sock: Some(api_sock),
-            file_sock: Some(try!(ZSock::new_pair(file_endpoint))),
+            file_sock: Some(file_sock),
             data: Rc::new(data),
         })
     }

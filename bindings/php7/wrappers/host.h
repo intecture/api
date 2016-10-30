@@ -22,7 +22,7 @@ PHP_METHOD(Host, data);
 
 typedef struct _php_host {
     Host *host;
-    zval *data;
+    zval data;
     zend_object std;
 } php_host;
 
