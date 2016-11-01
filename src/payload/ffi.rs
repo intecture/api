@@ -98,12 +98,15 @@ pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload,
 
 #[cfg(test)]
 mod tests {
+    use czmq::{ZSock, ZSockType};
     use host::Host;
     use host::ffi::Ffi__Host;
     use payload::config::Config;
     use project::Language;
     use std::ffi::CString;
-    use std::{fs, ptr};
+    use std::{fs, ptr, thread};
+    use std::path::PathBuf;
+    use std::process::Command;
     use super::*;
     use tempdir::TempDir;
     use zdaemon::ConfigFile;
@@ -165,18 +168,12 @@ mod tests {
         let tempdir = TempDir::new("test_payload_run").unwrap();
         let mut buf = tempdir.path().to_owned();
 
-        buf.push("src");
-        fs::create_dir(&buf).expect("Could not create `src` dir");
-
-        buf.push("main.php");
-        fs::File::create(&buf).expect("Failed to create main.php");
-        buf.pop();
-        buf.pop();
+        create_cargo_proj(&mut buf);
 
         let conf = Config {
             author: "Dr. Hibbert".into(),
             repository: "https://github.com/dhibbz/hehehe.git".into(),
-            language: Language::Php,
+            language: Language::Rust,
             dependencies: None,
         };
 
@@ -184,11 +181,31 @@ mod tests {
         conf.save(&buf).unwrap();
         buf.pop();
 
-        let payload_artifact = CString::new(buf.to_str().unwrap()).unwrap();
+        let payload_name = buf.into_os_string().into_string().unwrap();
+        let payload_name_clone = payload_name.clone();
+
+        let handle = thread::spawn(move || {
+            let s = ZSock::new(ZSockType::DEALER);
+            s.connect(&format!("ipc://{}/main_api.ipc", payload_name_clone)).unwrap();
+            s.recv_str().unwrap().unwrap();
+        });
+
+        let payload_artifact = CString::new(payload_name.as_bytes()).unwrap();
         let payload_ptr = payload_new(payload_artifact.as_ptr());
         assert!(!payload_ptr.is_null());
 
         let mut host = Ffi__Host::from(Host::test_new(None, None, None, None));
         assert_eq!(payload_run(payload_ptr, &mut host, &mut ptr::null(), 0), 0);
+
+        handle.join().unwrap();
+    }
+
+    fn create_cargo_proj(buf: &mut PathBuf) {
+        let status = Command::new("cargo")
+                             .args(&["init", buf.to_str().unwrap(), "--bin", "--name", "payload"])
+                             .status()
+                             .expect("Failed to execute process");
+
+        assert!(status.success());
     }
 }

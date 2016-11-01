@@ -193,6 +193,7 @@ impl Payload {
                     }
 
                     let output = try!(Command::new(payload_path.to_str().unwrap()).args(&args).output());
+
                     if !output.status.success() {
                         try!(child.signal(0));
                         return Err(Error::RunFailed(try!(String::from_utf8(output.stderr))).into());
@@ -211,6 +212,7 @@ impl Payload {
                     }
 
                     let output = try!(Command::new("php").args(&args).output());
+
                     if !output.status.success() {
                         try!(child.signal(0));
                         return Err(Error::RunFailed(try!(String::from_utf8(output.stderr))).into());
@@ -297,12 +299,14 @@ impl Payload {
 
 #[cfg(test)]
 mod tests {
+    use czmq::{ZSock, ZSockType};
     use host::Host;
     use project::Language;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
     use std::process::Command;
+    use std::thread;
     use super::*;
     use super::config::Config;
     use tempdir::TempDir;
@@ -406,16 +410,28 @@ mod tests {
         conf.save(&buf).unwrap();
         buf.pop();
 
+        let payload_name = buf.into_os_string().into_string().unwrap();
+        let payload_name_clone = payload_name.clone();
+
+        let handle = thread::spawn(move || {
+            let s = ZSock::new(ZSockType::DEALER);
+            s.connect(&format!("ipc://{}/main_api.ipc", payload_name_clone)).unwrap();
+            s.recv_str().unwrap().unwrap();
+        });
+
         let mut host = Host::test_new(None, None, None, None);
-        let payload = Payload::new(buf.to_str().unwrap()).unwrap();
+        let payload = Payload::new(&payload_name).unwrap();
         payload.run(&mut host, Some(vec!["abc"])).unwrap();
+
+        handle.join().unwrap();
     }
 
     fn create_cargo_proj(buf: &mut PathBuf) {
-        let output = Command::new("cargo")
+        let status = Command::new("cargo")
                              .args(&["init", buf.to_str().unwrap(), "--bin", "--name", "payload"])
-                             .output()
+                             .status()
                              .expect("Failed to execute process");
-        assert!(output.status.success());
+
+        assert!(status.success());
     }
 }

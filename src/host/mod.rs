@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_connect_payload() {
-        let api = ZSock::new(ZSockType::PAIR);
+        let api = ZSock::new(ZSockType::DEALER);
         let port = api.bind("tcp://127.0.0.1:*").unwrap();
         let api_endpoint = format!("tcp://127.0.0.1:{}", port);
 
