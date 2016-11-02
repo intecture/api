@@ -281,8 +281,11 @@ impl Payload {
             let sock: Option<ZSock> = poller.wait(None);
             if let Some(mut s) = sock {
                 if s == api_pipe || s == file_pipe {
-                    let msg = try!(ZMsg::recv(&mut s));
-                    try!(host.send(msg));
+                    let req = try!(ZMsg::recv(&mut s));
+                    try!(host.send(req));
+
+                    let reply = try!(host.recv_raw());
+                    try!(reply.send(&mut s));
                 }
                 else if s == parent {
                     break;

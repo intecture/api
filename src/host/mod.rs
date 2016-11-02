@@ -218,6 +218,7 @@ pub trait HostSendRecv {
     fn send(&mut self, msg: ZMsg) -> Result<()>;
     fn send_file<P: AsRef<Path>>(&mut self, file: &mut zfilexfer::File, remote_path: P) -> Result<()>;
     fn recv(&mut self, min: usize, max: Option<usize>) -> Result<ZMsg>;
+    fn recv_raw(&mut self) -> Result<ZMsg>;
     fn extract_header(msg: &ZMsg) -> Result<()>;
 }
 
@@ -251,6 +252,10 @@ impl HostSendRecv for Host {
         } else {
             Ok(msg)
         }
+    }
+
+    fn recv_raw(&mut self) -> Result<ZMsg> {
+        Ok(try!(ZMsg::recv(self.api_sock.as_mut().unwrap())))
     }
 
     fn extract_header(msg: &ZMsg) -> Result<()> {
