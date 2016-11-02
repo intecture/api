@@ -36,7 +36,7 @@ use project::Language;
 use self::config::Config;
 use serde_json;
 use std::env::{current_dir, set_current_dir};
-use std::process::Command;
+use std::process;
 use std::path::PathBuf;
 use std::thread;
 use zdaemon::ConfigFile;
@@ -117,7 +117,9 @@ impl Payload {
                 let current_dir = try!(current_dir());
                 try!(set_current_dir(&self.path));
 
-                let output = try!(Command::new("make").output());
+                let output = try!(process::Command::new("make")
+                                                   .stdout(process::Stdio::inherit())
+                                                   .output());
 
                 try!(set_current_dir(&current_dir));
 
@@ -127,7 +129,10 @@ impl Payload {
             },
             Language::Rust => {
                 let manifest_path = format!("{}/Cargo.toml", self.path.to_str().unwrap());
-                let output = try!(Command::new("cargo").args(&["build", "--release", "--manifest-path", &manifest_path]).output());
+                let output = try!(process::Command::new("cargo")
+                                                   .args(&["build", "--release", "--manifest-path", &manifest_path])
+                                                   .stdout(process::Stdio::inherit())
+                                                   .output());
                 if !output.status.success() {
                     return Err(Error::BuildFailed(try!(String::from_utf8(output.stderr))).into());
                 }
@@ -192,7 +197,10 @@ impl Payload {
                         args.append(&mut a);
                     }
 
-                    let output = try!(Command::new(payload_path.to_str().unwrap()).args(&args).output());
+                    let output = try!(process::Command::new(payload_path.to_str().unwrap())
+                                                       .args(&args)
+                                                       .stdout(process::Stdio::inherit())
+                                                       .output());
 
                     if !output.status.success() {
                         try!(child.signal(0));
@@ -211,7 +219,10 @@ impl Payload {
                         args.append(&mut a);
                     }
 
-                    let output = try!(Command::new("php").args(&args).output());
+                    let output = try!(process::Command::new("php")
+                                                       .args(&args)
+                                                       .stdout(process::Stdio::inherit())
+                                                       .output());
 
                     if !output.status.success() {
                         try!(child.signal(0));
@@ -241,7 +252,10 @@ impl Payload {
                         args.append(&mut a);
                     }
 
-                    let output = try!(Command::new("cargo").args(&args).output());
+                    let output = try!(process::Command::new("cargo")
+                                                       .args(&args)
+                                                       .stdout(process::Stdio::inherit())
+                                                       .output());
 
                     if !output.status.success() {
                         try!(child.signal(0));
