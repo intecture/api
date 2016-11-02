@@ -25,7 +25,6 @@ PHP_METHOD(Host, __construct) {
 PHP_METHOD(Host, connect) {
     char *path;
     size_t path_len;
-    zval obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "s", &path, &path_len) == FAILURE) {
         return;
@@ -38,18 +37,16 @@ PHP_METHOD(Host, connect) {
         return;
     }
 
-    object_init_ex(&obj, inapi_ce_host);
-    php_host *intern = Z_HOST_OBJ_P(&obj);
+    object_init_ex(return_value, inapi_ce_host);
+    php_host *intern = Z_HOST_OBJ_P(return_value);
     intern->host = host;
     unwrap_value(intern->host->data, 7, &intern->data TSRMLS_CC); // 7 = Object
-    RETURN_ZVAL(&obj, false, false);
 }
 
 PHP_METHOD(Host, connect_endpoint) {
     char *hostname;
     size_t hostname_len;
     long api_port, upload_port;
-    zval obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "sll", &hostname, &hostname_len, &api_port, &upload_port) == FAILURE) {
         return;
@@ -62,17 +59,15 @@ PHP_METHOD(Host, connect_endpoint) {
         return;
     }
 
-    object_init_ex(&obj, inapi_ce_host);
-    php_host *intern = Z_HOST_OBJ_P(&obj);
+    object_init_ex(return_value, inapi_ce_host);
+    php_host *intern = Z_HOST_OBJ_P(return_value);
     intern->host = host;
     unwrap_value(intern->host->data, 7, &intern->data TSRMLS_CC); // 7 = Object
-    RETURN_ZVAL(&obj, false, false);
 }
 
 PHP_METHOD(Host, connect_payload) {
     char *api_endpoint, *file_endpoint;
     size_t api_len, file_len;
-    zval obj;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "ss", &api_endpoint, &api_len, &file_endpoint, &file_len) == FAILURE) {
         return;
@@ -85,11 +80,10 @@ PHP_METHOD(Host, connect_payload) {
         return;
     }
 
-    object_init_ex(&obj, inapi_ce_host);
-    php_host *intern = Z_HOST_OBJ_P(&obj);
+    object_init_ex(return_value, inapi_ce_host);
+    php_host *intern = Z_HOST_OBJ_P(return_value);
     intern->host = host;
     unwrap_value(intern->host->data, 7, &intern->data TSRMLS_CC); // 7 = Object
-    RETURN_ZVAL(&obj, false, false);
 }
 
 PHP_METHOD(Host, data) {
@@ -186,20 +180,18 @@ void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC
     }
 }
 
-int get_check_host(zval *phost, php_host **host TSRMLS_DC) {
+php_host *check_host(zval *phost TSRMLS_DC) {
     switch (Z_TYPE_P(phost)) {
         case IS_OBJECT:
             if (!instanceof_function(Z_OBJCE_P(phost), inapi_ce_host TSRMLS_CC)) {
-                return 1;
+                return NULL;
             }
             break;
 
         default:
-            return 1;
+            return NULL;
             break;
     }
 
-    *host = (php_host *)((char *)phost - XtOffsetOf(php_host, std));
-
-    return 0;
+    return Z_HOST_OBJ_P(phost);
 }

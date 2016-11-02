@@ -66,8 +66,8 @@ PHP_METHOD(Payload, run) {
         return;
     }
 
-    int rtn = get_check_host(zhost, &host TSRMLS_CC);
-    if (rtn != 0) {
+    host = check_host(zhost TSRMLS_CC);
+    if (!host) {
         zend_throw_exception(inapi_ce_payload_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
         return;
     }

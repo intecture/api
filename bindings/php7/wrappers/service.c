@@ -125,8 +125,8 @@ PHP_METHOD(Service, action) {
         return;
     }
 
-    int rtn = get_check_host(phost, &host TSRMLS_CC);
-    if (rtn != 0) {
+    host = check_host(phost TSRMLS_CC);
+    if (!host) {
         zend_throw_exception(inapi_ce_service_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
         return;
     }

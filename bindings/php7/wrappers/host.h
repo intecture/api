@@ -27,6 +27,6 @@ typedef struct _php_host {
 } php_host;
 
 void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC);
-int get_check_host(zval *phost, php_host **host TSRMLS_DC);
+php_host *check_host(zval *phost TSRMLS_DC);
 
 #endif
