@@ -10,8 +10,7 @@ unlink($temp_dir);
 mkdir($temp_dir);
 
 $fh = fopen("$temp_dir/Makefile", "w");
-fwrite($fh, "all:
-\ttouch test");
+fwrite($fh, "all:\n\t@touch test");
 fclose($fh);
 
 $fh = fopen("$temp_dir/payload.json", "w");
