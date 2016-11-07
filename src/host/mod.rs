@@ -392,7 +392,7 @@ mod tests {
         });
 
         let mut host = Host::test_new(None, None, Some(client), None);
-        assert!(host.send_file(&mut file, &path).is_ok());
+        assert!(host.send_fs_file(&mut file, &path).is_ok());
 
         handle.join().unwrap();
     }
