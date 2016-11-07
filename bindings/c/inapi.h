@@ -162,7 +162,7 @@ extern ValueKeysArray *get_value_keys(void *value, const char *pointer);
  * @param pointer [Optional] A JSON pointer to a nested value.
  * @return The `Value`'s data type, or -1 on error.
  */
-extern enum DataType get_value_type(void *value, const char *pointer);
+extern int get_value_type(void *value, const char *pointer);
 
 /**
  * @brief The shell command primitive for running commands on a

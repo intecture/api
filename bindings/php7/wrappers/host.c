@@ -159,12 +159,14 @@ void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC
 
             int i = 0;
             for (i = 0; i < a->length; i++) {
-                enum DataType dtype = get_value_type(a->ptr[i], NULL);
+                int retval = get_value_type(a->ptr[i], NULL);
 
-                if (dtype < 0) {
+                if (retval < 0) {
                     zend_throw_exception(inapi_ce_host_ex, geterr(), 1000 TSRMLS_CC);
                     return;
                 }
+
+                enum DataType dtype = (enum DataType)retval;
 
                 void *v = get_value(a->ptr[i], dtype, NULL);
 
@@ -188,8 +190,9 @@ void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC
             for (i = 0; i < k->length; i++) {
                 char json_p[256] = "/";
                 strncat(json_p, k->ptr[i], 255);
-                enum DataType dtype = get_value_type(value, json_p);
-                assert(dtype > -1);
+                int retval = get_value_type(value, json_p);
+                assert(retval > -1);
+                enum DataType dtype = (enum DataType)retval;
                 void *v = get_value(value, dtype, json_p);
                 assert(v);
 
