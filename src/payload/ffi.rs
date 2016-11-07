@@ -6,9 +6,8 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use ffi_helpers::Ffi__Array;
+use ffi_helpers::{Ffi__Array, Leaky};
 use host::Host;
-use host::ffi::Ffi__Host;
 use libc::{c_char, size_t, uint8_t};
 use project::Language;
 use std::{convert, ptr};
@@ -64,18 +63,18 @@ pub extern "C" fn payload_new(payload_artifact_ptr: *const c_char) -> *mut Ffi__
 
 #[no_mangle]
 pub extern "C" fn payload_build(ffi_payload_ptr: *mut Ffi__Payload) -> uint8_t {
-    let payload: Payload = tryrc!(readptr!(ffi_payload_ptr, "Payload struct"));
+    let payload = tryrc!(readptr!(ffi_payload_ptr; Payload, "Payload struct"));
     tryrc!(payload.build());
     0
 }
 
 #[no_mangle]
 pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload,
-                              ffi_host_ptr: *mut Ffi__Host,
+                              host_ptr: *mut Host,
                               ffi_user_args: *mut *const c_char,
                               ffi_user_args_len: size_t) -> uint8_t {
-    let payload: Payload = tryrc!(readptr!(ffi_payload_ptr, "Payload struct"));
-    let mut host: Host = tryrc!(readptr!(ffi_host_ptr, "Host struct"));
+    let payload = tryrc!(readptr!(ffi_payload_ptr; Payload, "Payload struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     let user_args = if ffi_user_args.is_null() {
         None
@@ -93,6 +92,7 @@ pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload,
     };
 
     tryrc!(payload.run(&mut host, user_args));
+
     0
 }
 
@@ -100,7 +100,6 @@ pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload,
 mod tests {
     use czmq::{ZSock, ZSockType};
     use host::Host;
-    use host::ffi::Ffi__Host;
     use payload::config::Config;
     use project::Language;
     use std::ffi::CString;
@@ -194,7 +193,7 @@ mod tests {
         let payload_ptr = payload_new(payload_artifact.as_ptr());
         assert!(!payload_ptr.is_null());
 
-        let mut host = Ffi__Host::from(Host::test_new(None, None, None, None));
+        let mut host = Host::test_new(None, None, None, None);
         assert_eq!(payload_run(payload_ptr, &mut host, &mut ptr::null(), 0), 0);
 
         handle.join().unwrap();

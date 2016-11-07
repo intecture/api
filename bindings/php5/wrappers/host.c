@@ -111,10 +111,17 @@ PHP_METHOD(Host, connect) {
         return;
     }
 
+    void *data = host_data(host);
+
+    if (!data) {
+        zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
     object_init_ex(return_value, inapi_ce_host);
     intern = (php_host*)zend_object_store_get_object(return_value TSRMLS_CC);
     intern->host = host;
-    unwrap_value(intern->host->data, 7, intern->data TSRMLS_CC); // 7 = Object
+    unwrap_value(data, 7, intern->data TSRMLS_CC); // 7 = Object
 }
 
 PHP_METHOD(Host, connect_endpoint) {
@@ -134,10 +141,17 @@ PHP_METHOD(Host, connect_endpoint) {
         return;
     }
 
+    void *data = host_data(host);
+
+    if (!data) {
+        zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
     object_init_ex(return_value, inapi_ce_host);
     intern = (php_host*)zend_object_store_get_object(return_value TSRMLS_CC);
     intern->host = host;
-    unwrap_value(intern->host->data, 7, intern->data TSRMLS_CC); // 7 = Object
+    unwrap_value(data, 7, intern->data TSRMLS_CC); // 7 = Object
 }
 
 PHP_METHOD(Host, connect_payload) {
@@ -156,10 +170,17 @@ PHP_METHOD(Host, connect_payload) {
         return;
     }
 
+    void *data = host_data(host);
+
+    if (!data) {
+        zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);
+        return;
+    }
+
     object_init_ex(return_value, inapi_ce_host);
     intern = (php_host*)zend_object_store_get_object(return_value TSRMLS_CC);
     intern->host = host;
-    unwrap_value(intern->host->data, 7, intern->data TSRMLS_CC); // 7 = Object
+    unwrap_value(data, 7, intern->data TSRMLS_CC); // 7 = Object
 }
 
 PHP_METHOD(Host, data) {
@@ -216,20 +237,20 @@ void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC
 
             int i = 0;
             for (i = 0; i < a->length; i++) {
-                enum DataType *dtype = get_value_type(a->ptr[i], NULL);
+                enum DataType dtype = get_value_type(a->ptr[i], NULL);
 
-                if (!dtype) {
+                if (dtype < 0) {
                     zend_throw_exception(inapi_ce_host_exception, geterr(), 1000 TSRMLS_CC);
                     return;
                 }
 
-                void *v = get_value(a->ptr[i], *dtype, NULL);
+                void *v = get_value(a->ptr[i], dtype, NULL);
 
                 if (!v) {
                     add_next_index_null(return_value);
                 } else {
                     ALLOC_INIT_ZVAL(val);
-                    unwrap_value(v, *dtype, val TSRMLS_CC);
+                    unwrap_value(v, dtype, val TSRMLS_CC);
                     add_next_index_zval(return_value, val);
                 }
             }
@@ -245,13 +266,13 @@ void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC
             for (i = 0; i < k->length; i++) {
                 char json_p[256] = "/";
                 strncat(json_p, k->ptr[i], 255);
-                enum DataType *dtype = get_value_type(value, json_p);
-                assert(dtype);
-                void *v = get_value(value, *dtype, json_p);
+                enum DataType dtype = get_value_type(value, json_p);
+                assert(dtype > -1);
+                void *v = get_value(value, dtype, json_p);
                 assert(v);
 
                 ALLOC_INIT_ZVAL(val);
-                unwrap_value(v, *dtype, val TSRMLS_CC);
+                unwrap_value(v, dtype, val TSRMLS_CC);
                 add_assoc_zval(return_value, k->ptr[i], val);
             }
             break;

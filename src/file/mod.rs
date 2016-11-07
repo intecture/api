@@ -103,14 +103,14 @@ impl File {
     /// Upload a file to the managed host.
     pub fn upload<P: AsRef<Path>>(&self, host: &mut Host, local_path: P, options: Option<&[zfilexfer::FileOptions]>) -> Result<()> {
         let mut file = try!(zfilexfer::File::open(&local_path, options));
-        host.send_file(&mut file, &self.path)
+        host.send_fs_file(&mut file, &self.path)
     }
 
     #[cfg(feature = "remote-run")]
     /// Upload a file handle to the managed host.
     pub fn upload_file(&self, host: &mut Host, file: fs::File, options: Option<&[zfilexfer::FileOptions]>) -> Result<()> {
         let mut zfile = try!(zfilexfer::File::open_file(file, options));
-        host.send_file(&mut zfile, &self.path)
+        host.send_fs_file(&mut zfile, &self.path)
     }
 
     /// Delete the file.

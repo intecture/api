@@ -8,33 +8,13 @@
 
 //! FFI interface for Command
 
-use host::ffi::Ffi__Host;
+use ffi_helpers::Leaky;
 use host::Host;
 use libc::c_char;
 use std::convert;
 use std::ffi::CString;
 use std::panic::catch_unwind;
 use super::{Command, CommandResult};
-
-#[repr(C)]
-pub struct Ffi__Command {
-    cmd: *const c_char,
-}
-
-impl convert::From<Command> for Ffi__Command {
-    fn from(command: Command) -> Ffi__Command {
-        Ffi__Command {
-            cmd: CString::new(command.cmd).unwrap().into_raw(),
-        }
-    }
-}
-
-impl convert::Into<Command> for Ffi__Command {
-    fn into(self) -> Command {
-        let cmd = trypanic!(ptrtostr!(self.cmd, "Command.cmd string"));
-        Command::new(cmd)
-    }
-}
 
 #[repr(C)]
 pub struct Ffi__CommandResult {
@@ -54,55 +34,37 @@ impl convert::From<CommandResult> for Ffi__CommandResult {
 }
 
 #[no_mangle]
-pub extern "C" fn command_new(cmd_ptr: *const c_char) -> *mut Ffi__Command {
-    let cmd = trynull!(ptrtostr!(cmd_ptr, "path string"));
-
-    let ffi_command: Ffi__Command = trynull!(catch_unwind(|| Command::new(cmd).into()));
-    Box::into_raw(Box::new(ffi_command))
+pub extern "C" fn command_new(cmd_ptr: *const c_char) -> *mut Command {
+    let cmd_string = trynull!(ptrtostr!(cmd_ptr, "command string"));
+    Box::into_raw(Box::new(Command::new(cmd_string)))
 }
 
 #[no_mangle]
-pub extern "C" fn command_exec(ffi_cmd_ptr: *mut Ffi__Command, ffi_host_ptr: *mut Ffi__Host) -> *mut Ffi__CommandResult {
-    let cmd: Command = trynull!(readptr!(ffi_cmd_ptr, "Command struct"));
-    let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
+pub extern "C" fn command_exec(cmd_ptr: *mut Command, host_ptr: *mut Host) -> *mut Ffi__CommandResult {
+    let cmd = Leaky::new(trynull!(readptr!(cmd_ptr, "Command pointer")));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = trynull!(cmd.exec(&mut host));
     let ffi_result: Ffi__CommandResult = trynull!(catch_unwind(|| result.into()));
+
     Box::into_raw(Box::new(ffi_result))
 }
 
 #[cfg(test)]
 mod tests {
-    use {Command, CommandResult};
-    use Host;
+    use command::CommandResult;
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
     use error::ERRMSG;
-    use host::ffi::Ffi__Host;
     #[cfg(feature = "remote-run")]
     use host::ffi::host_close;
+    use host::Host;
     #[cfg(feature = "remote-run")]
     use std::{str, thread};
     use std::ffi::CStr;
     use std::ffi::CString;
     use std::ptr;
     use super::*;
-
-    #[test]
-    fn test_convert_command() {
-        let command = Command {
-            cmd: "whoami".to_string(),
-        };
-        Ffi__Command::from(command);
-    }
-
-    #[test]
-    fn test_convert_ffi_command() {
-        let ffi_command = Ffi__Command {
-            cmd: CString::new("whoami").unwrap().as_ptr(),
-        };
-        let _: Command = ffi_command.into();
-    }
 
     #[test]
     fn test_convert_command_result() {
@@ -115,28 +77,32 @@ mod tests {
     }
 
     #[test]
-    fn test_command_new() {
-        let cmd_cstr = CString::new("moo").unwrap().as_ptr();
-        let ffi_cmd = unsafe { ptr::read(command_new(cmd_cstr)) };
-        assert_eq!(ffi_cmd.cmd, cmd_cstr);
+    fn test_new() {
+        let cmd_cstr = CString::new("moo").unwrap();
+        let cmd = unsafe { ptr::read(command_new(cmd_cstr.as_ptr())) };
+        assert_eq!(cmd.cmd, "moo");
 
         assert!(command_new(ptr::null()).is_null());
-        assert_eq!(unsafe { CStr::from_ptr(ERRMSG).to_str().unwrap() }, "Received null when we expected a path string pointer");
+        assert_eq!(unsafe { CStr::from_ptr(ERRMSG).to_str().unwrap() }, "Received null when we expected a command string pointer");
     }
 
     #[cfg(feature = "local-run")]
     #[test]
-    fn test_command_exec() {
+    fn test_exec() {
         let path: Option<String> = None;
-        let mut host = Ffi__Host::from(Host::local(path).unwrap());
-        let cmd = command_new(CString::new("whoami").unwrap().as_ptr());
-        let result = unsafe { ptr::read(command_exec(cmd, &mut host)) };
+        let mut host = Host::local(path).unwrap();
+
+        let whoami = CString::new("whoami").unwrap();
+        let cmd = command_new(whoami.as_ptr());
+        let ffi_result = command_exec(cmd, &mut host);
+        assert!(!ffi_result.is_null());
+        let result = unsafe { ptr::read(ffi_result) };
         assert_eq!(result.exit_code, 0);
     }
 
     #[cfg(feature = "remote-run")]
     #[test]
-    fn test_command_exec() {
+    fn test_exec() {
         ZSys::init();
 
         let (client, mut server) = ZSys::create_pipe().unwrap();
@@ -156,13 +122,13 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
-        let mut ffi_command = Ffi__Command {
-            cmd: CString::new("moo").unwrap().into_raw(),
-        };
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
+        let whoami = CString::new("moo").unwrap();
+        let command = command_new(whoami.as_ptr());
 
-        let result = unsafe { ptr::read(command_exec(&mut ffi_command, &mut ffi_host)) };
-
+        let ffi_result = command_exec(command, host);
+        assert!(!ffi_result.is_null());
+        let result = unsafe { ptr::read(ffi_result) };
         assert_eq!(result.exit_code, 0);
 
         let stdout = ptrtostr!(result.stdout, "stdout").unwrap();
@@ -171,7 +137,7 @@ mod tests {
         let stderr = ptrtostr!(result.stderr, "stderr").unwrap();
         assert_eq!(stderr, "err");
 
-        assert_eq!(host_close(&mut ffi_host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 }

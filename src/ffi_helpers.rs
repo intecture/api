@@ -9,6 +9,9 @@
 use error::Error;
 use libc::size_t;
 use std::{convert, mem};
+use std::borrow::{Borrow, BorrowMut};
+use std::fmt::{Debug, Formatter, Result as FmtResult};
+use std::ops::{Deref, DerefMut};
 
 #[repr(C)]
 pub struct Ffi__Array<T> {
@@ -39,6 +42,70 @@ impl <T>convert::Into<Vec<T>> for Ffi__Array<T> {
             panic!(Error::NullPtr("array"));
         }
         unsafe { Vec::from_raw_parts(self.ptr, self.length, self.capacity) }
+    }
+}
+
+pub struct Leaky<T> {
+    inner: Option<T>,
+}
+
+impl<T> Leaky<T> {
+    pub fn new(inner: T) -> Leaky<T> {
+        Leaky {
+            inner: Some(inner),
+        }
+    }
+}
+
+impl<T> AsRef<T> for Leaky<T> {
+    fn as_ref(&self) -> &T {
+        self.inner.as_ref().unwrap()
+    }
+}
+
+impl<T> AsMut<T> for Leaky<T> {
+    fn as_mut(&mut self) -> &mut T {
+        self.inner.as_mut().unwrap()
+    }
+}
+
+impl<T> Borrow<T> for Leaky<T> {
+    fn borrow(&self) -> &T {
+        self.inner.as_ref().unwrap()
+    }
+}
+
+impl<T> BorrowMut<T> for Leaky<T> {
+    fn borrow_mut(&mut self) -> &mut T {
+        self.inner.as_mut().unwrap()
+    }
+}
+
+impl<T> Debug for Leaky<T> where T: Debug {
+    fn fmt(&self, f: &mut Formatter) -> FmtResult {
+        self.inner.as_ref().unwrap().fmt(f)
+    }
+}
+
+impl<T> Deref for Leaky<T> {
+    type Target = T;
+
+    fn deref(&self) -> &T {
+        self.inner.as_ref().unwrap()
+    }
+}
+
+impl<T> DerefMut for Leaky<T> {
+    fn deref_mut(&mut self) -> &mut T {
+        self.inner.as_mut().unwrap()
+    }
+}
+
+impl<T> Drop for Leaky<T> {
+    fn drop(&mut self) {
+        if let Some(i) = self.inner.take() {
+            mem::forget(i);
+        }
     }
 }
 
@@ -90,10 +157,19 @@ macro_rules! readptr {
         if r.is_null() {
             ::std::result::Result::Err(::error::Error::NullPtr($e))
         } else {
-            match ::std::panic::catch_unwind(|| ::std::convert::Into::into(unsafe { ::std::ptr::read(r) })) {
-                ::std::result::Result::Ok(val) => ::std::result::Result::Ok(val),
-                ::std::result::Result::Err(e) => ::std::result::Result::Err(::std::convert::Into::into(e)),
-            }
+            Ok(unsafe { ::std::ptr::read(r) })
+        }
+    });
+
+    ($p:expr; $t:ty, $e:expr) => ({
+        match readptr!($p, $e) {
+            Ok(data) => {
+                match ::std::panic::catch_unwind(|| ::std::convert::Into::<$t>::into(data)) {
+                    ::std::result::Result::Ok(val) => ::std::result::Result::Ok(val),
+                    ::std::result::Result::Err(e) => ::std::result::Result::Err(::std::convert::Into::into(e)),
+                }
+            },
+            Err(e) => Err(e),
         }
     });
 }
@@ -104,10 +180,19 @@ macro_rules! boxptr {
         if r.is_null() {
             ::std::result::Result::Err(::error::Error::NullPtr($e))
         } else {
-            match ::std::panic::catch_unwind(|| ::std::convert::Into::into(unsafe { ::std::boxed::Box::from_raw(r) })) {
-                ::std::result::Result::Ok(val) => ::std::result::Result::Ok(val),
-                ::std::result::Result::Err(e) => ::std::result::Result::Err(::std::convert::Into::into(e)),
-            }
+            Ok(unsafe { ::std::boxed::Box::from_raw(r) })
+        }
+    });
+
+    ($p:expr; $t:ty, $e:expr) => ({
+        match readptr!($p, $e) {
+            Ok(data) => {
+                match ::std::panic::catch_unwind(|| ::std::convert::Into::<$t>::into(data)) {
+                    ::std::result::Result::Ok(val) => ::std::result::Result::Ok(val),
+                    ::std::result::Result::Err(e) => ::std::result::Result::Err(::std::convert::Into::into(e)),
+                }
+            },
+            Err(e) => Err(e),
         }
     });
 }

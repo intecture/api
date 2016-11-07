@@ -9,9 +9,8 @@
 //! FFI interface for Service
 
 use command::ffi::Ffi__CommandResult;
-use ffi_helpers::Ffi__Array;
+use ffi_helpers::{Ffi__Array, Leaky};
 use host::Host;
-use host::ffi::Ffi__Host;
 use libc::{c_char, size_t};
 use std::{convert, ptr};
 use std::collections::HashMap;
@@ -152,7 +151,7 @@ impl <'a>convert::Into<Service<'a>> for Ffi__Service {
             mapped_actions: if self.mapped_actions.is_null() {
                 None
             } else {
-                Some(trypanic!(readptr!(self.mapped_actions, "mapped_actions array")))
+                Some(trypanic!(readptr!(self.mapped_actions; HashMap<&'a str, &'a str>, "mapped_actions array")))
             }
         }
     }
@@ -202,9 +201,9 @@ pub extern "C" fn service_new_map(actions_ptr: *mut Ffi__ServiceAction,
 }
 
 #[no_mangle]
-pub extern "C" fn service_action(service_ptr: *mut Ffi__Service, host_ptr: *const Ffi__Host, action_ptr: *const c_char) -> *const Ffi__CommandResult {
-    let service: Service = trynull!(readptr!(service_ptr, "Service struct"));
-    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn service_action(service_ptr: *mut Ffi__Service, host_ptr: *const Host, action_ptr: *const c_char) -> *const Ffi__CommandResult {
+    let service = trynull!(readptr!(service_ptr; Service, "Service struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
     let action = trynull!(ptrtostr!(action_ptr, "action string"));
 
     let result = match trynull!(service.action(&mut host, action)) {
@@ -233,8 +232,6 @@ mod tests {
     use Host;
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
-    #[cfg(feature = "remote-run")]
-    use host::ffi::Ffi__Host;
     #[cfg(feature = "remote-run")]
     use host::ffi::host_close;
     use {Service, ServiceRunnable};
@@ -340,7 +337,7 @@ mod tests {
         mapped.insert("test", "mapped_test");
         let ffi_mapped = Ffi__Array::from(mapped);
 
-        let service: Service = readptr!(service_new_service(ffi_runnable, ffi_mapped.ptr, ffi_mapped.length), "Service struct").unwrap();
+        let service = readptr!(service_new_service(ffi_runnable, ffi_mapped.ptr, ffi_mapped.length); Service, "Service struct").unwrap();
 
         match service.actions.get("_").unwrap() {
             &ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),
@@ -356,7 +353,7 @@ mod tests {
         map.insert("test", ServiceRunnable::Command("test"));
         let ffi_map = Ffi__Array::from(map);
 
-        let service: Service = readptr!(service_new_map(ffi_map.ptr, ffi_map.length, ptr::null_mut(), 0), "Service struct").unwrap();
+        let service = readptr!(service_new_map(ffi_map.ptr, ffi_map.length, ptr::null_mut(), 0); Service, "Service struct").unwrap();
 
         match service.actions.get("test").unwrap() {
             &ServiceRunnable::Command(cmd) => assert_eq!(cmd, "test"),
@@ -365,12 +362,6 @@ mod tests {
 
         assert!(service.mapped_actions.is_none());
     }
-
-    // XXX This requires mocking the shell or Command struct
-    // #[cfg(feature = "local-run")]
-    // #[test]
-    // fn test_service_action() {
-    // }
 
     #[cfg(feature = "remote-run")]
     #[test]
@@ -396,22 +387,22 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
         let ffi_service = service_new_service(Ffi__ServiceRunnable::from(ServiceRunnable::Service("nginx")), ptr::null_mut(), 0);
         assert!(!ffi_service.is_null());
         let action_ptr = CString::new("start").unwrap().into_raw();
 
-        let result_ptr = service_action(ffi_service, &ffi_host, action_ptr);
+        let result_ptr = service_action(ffi_service, host, action_ptr);
         assert!(!result_ptr.is_null());
         let result = unsafe { ptr::read(result_ptr) };
         assert_eq!(result.exit_code, 0);
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(result.stdout).to_bytes()).unwrap() }, "Service started...");
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(result.stderr).to_bytes()).unwrap() }, "");
 
-        let result_ptr = service_action(ffi_service, &ffi_host, action_ptr);
+        let result_ptr = service_action(ffi_service, host, action_ptr);
         assert!(result_ptr.is_null());
 
-        assert_eq!(host_close(&mut ffi_host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 }

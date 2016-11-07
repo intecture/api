@@ -77,7 +77,8 @@ PHP_METHOD(Directory, exists) {
 }
 
 PHP_METHOD(Directory, create) {
-    zval *phost, *opts, *zv;
+    zval *phost, *zv;
+    zval *opts = NULL;
     php_host *host;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|a", &phost, &opts) == FAILURE) {
@@ -117,7 +118,8 @@ PHP_METHOD(Directory, create) {
 }
 
 PHP_METHOD(Directory, delete) {
-    zval *phost, *opts, *zv;
+    zval *phost, *zv;
+    zval *opts = NULL;
     php_host *host;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z|a", &phost, &opts) == FAILURE) {

@@ -53,7 +53,7 @@ pub struct Host {
 /// Representation of a managed host.
 pub struct Host {
     /// Hostname or IP of managed host
-    hostname: String,
+    pub hostname: String,
     /// API socket
     api_sock: Option<ZSock>,
     /// File transfer socket
@@ -216,9 +216,11 @@ impl Host {
 #[cfg(feature = "remote-run")]
 pub trait HostSendRecv {
     fn send(&mut self, msg: ZMsg) -> Result<()>;
-    fn send_file<P: AsRef<Path>>(&mut self, file: &mut zfilexfer::File, remote_path: P) -> Result<()>;
+    fn send_file(&mut self, msg: ZMsg) -> Result<()>;
+    fn send_fs_file<P: AsRef<Path>>(&mut self, file: &mut zfilexfer::File, remote_path: P) -> Result<()>;
     fn recv(&mut self, min: usize, max: Option<usize>) -> Result<ZMsg>;
     fn recv_raw(&mut self) -> Result<ZMsg>;
+    fn recv_file_raw(&mut self) -> Result<ZMsg>;
     fn extract_header(msg: &ZMsg) -> Result<()>;
 }
 
@@ -233,7 +235,16 @@ impl HostSendRecv for Host {
         Ok(())
     }
 
-    fn send_file<P: AsRef<Path>>(&mut self, file: &mut zfilexfer::File, remote_path: P) -> Result<()> {
+    fn send_file(&mut self, msg: ZMsg) -> Result<()> {
+        if self.file_sock.is_none() {
+            return Err(Error::HostDisconnected);
+        }
+
+        try!(msg.send(self.file_sock.as_mut().unwrap()));
+        Ok(())
+    }
+
+    fn send_fs_file<P: AsRef<Path>>(&mut self, file: &mut zfilexfer::File, remote_path: P) -> Result<()> {
         if self.file_sock.is_none() {
             return Err(Error::HostDisconnected);
         }
@@ -243,6 +254,10 @@ impl HostSendRecv for Host {
     }
 
     fn recv(&mut self, min: usize, max: Option<usize>) -> Result<ZMsg> {
+        if self.api_sock.is_none() {
+            return Err(Error::HostDisconnected);
+        }
+
         let msg = try!(ZMsg::recv(self.api_sock.as_mut().unwrap()));
         try!(Self::extract_header(&msg));
 
@@ -255,7 +270,19 @@ impl HostSendRecv for Host {
     }
 
     fn recv_raw(&mut self) -> Result<ZMsg> {
+        if self.api_sock.is_none() {
+            return Err(Error::HostDisconnected);
+        }
+
         Ok(try!(ZMsg::recv(self.api_sock.as_mut().unwrap())))
+    }
+
+    fn recv_file_raw(&mut self) -> Result<ZMsg> {
+        if self.file_sock.is_none() {
+            return Err(Error::HostDisconnected);
+        }
+
+        Ok(try!(ZMsg::recv(self.file_sock.as_mut().unwrap())))
     }
 
     fn extract_header(msg: &ZMsg) -> Result<()> {

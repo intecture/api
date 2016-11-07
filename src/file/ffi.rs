@@ -10,8 +10,8 @@
 
 #[cfg(feature = "remote-run")]
 use error;
+use ffi_helpers::Leaky;
 use host::Host;
-use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t, uint16_t, uint64_t};
 #[cfg(feature = "remote-run")]
 use libc::c_int;
@@ -99,8 +99,8 @@ impl convert::Into<FileOwner> for Ffi__FileOwner {
 }
 
 #[no_mangle]
-pub extern "C" fn file_new(host_ptr: *const Ffi__Host, path_ptr: *const c_char) -> *mut Ffi__File {
-    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn file_new(host_ptr: *const Host, path_ptr: *const c_char) -> *mut Ffi__File {
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
     let path = trynull!(ptrtostr!(path_ptr, "path string"));
 
     let file = trynull!(File::new(&mut host, path));
@@ -109,24 +109,25 @@ pub extern "C" fn file_new(host_ptr: *const Ffi__Host, path_ptr: *const c_char) 
 }
 
 #[no_mangle]
-pub extern "C" fn file_exists(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host) -> *mut uint8_t {
-    let file: File = trynull!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn file_exists(file_ptr: *const Ffi__File, host_ptr: *const Host) -> *mut uint8_t {
+    let file = trynull!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = if trynull!(file.exists(&mut host)) { 1 } else { 0 };
+
     Box::into_raw(Box::new(result))
 }
 
 #[cfg(feature = "remote-run")]
 #[no_mangle]
 pub extern "C" fn file_upload(file_ptr: *const Ffi__File,
-                              host_ptr: *const Ffi__Host,
+                              host_ptr: *const Host,
                               local_path_ptr: *const c_char,
                               file_options_ptr: *const Ffi__FileOptions) -> uint8_t {
-    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let local_path = tryrc!(ptrtostr!(local_path_ptr, "local path string"));
-    let opts: Vec<FileOptions> = match readptr!(file_options_ptr, "FileOptions array") {
+    let opts = match readptr!(file_options_ptr; Vec<FileOptions>, "FileOptions array") {
         Ok(o) => o,
         Err(_) => Vec::new(),
     };
@@ -139,11 +140,11 @@ pub extern "C" fn file_upload(file_ptr: *const Ffi__File,
 #[cfg(feature = "remote-run")]
 #[no_mangle]
 pub extern "C" fn file_upload_file(file_ptr: *const Ffi__File,
-                                   host_ptr: *const Ffi__Host,
+                                   host_ptr: *const Host,
                                    file_descriptor: c_int,
                                    file_options_ptr: *const Ffi__FileOptions) -> uint8_t {
-    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     if file_descriptor == 0 {
         error::seterr(error::Error::InvalidFileDescriptor);
@@ -151,7 +152,7 @@ pub extern "C" fn file_upload_file(file_ptr: *const Ffi__File,
     }
 
     let fh = unsafe { fs::File::from_raw_fd(file_descriptor) };
-    let opts: Vec<FileOptions> = match readptr!(file_options_ptr, "FileOptions array") {
+    let opts = match readptr!(file_options_ptr; Vec<FileOptions>, "FileOptions array") {
         Ok(o) => o,
         Err(_) => Vec::new(),
     };
@@ -162,9 +163,9 @@ pub extern "C" fn file_upload_file(file_ptr: *const Ffi__File,
 }
 
 #[no_mangle]
-pub extern "C" fn file_delete(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host) -> uint8_t {
-    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn file_delete(file_ptr: *const Ffi__File, host_ptr: *const Host) -> uint8_t {
+    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     tryrc!(file.delete(&mut host));
 
@@ -172,9 +173,9 @@ pub extern "C" fn file_delete(file_ptr: *const Ffi__File, host_ptr: *const Ffi__
 }
 
 #[no_mangle]
-pub extern "C" fn file_mv(file_ptr: *mut Ffi__File, host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) -> uint8_t {
-    let mut file: File = tryrc!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn file_mv(file_ptr: *mut Ffi__File, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
+    let mut file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
 
     tryrc!(file.mv(&mut host, new_path));
@@ -187,9 +188,9 @@ pub extern "C" fn file_mv(file_ptr: *mut Ffi__File, host_ptr: *const Ffi__Host, 
 }
 
 #[no_mangle]
-pub extern "C" fn file_copy(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) -> uint8_t {
-    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn file_copy(file_ptr: *const Ffi__File, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
+    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
 
     tryrc!(file.copy(&mut host, new_path));
@@ -198,22 +199,23 @@ pub extern "C" fn file_copy(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Ho
 }
 
 #[no_mangle]
-pub extern "C" fn file_get_owner(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host) -> *mut Ffi__FileOwner {
-    let file: File = trynull!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn file_get_owner(file_ptr: *const Ffi__File, host_ptr: *const Host) -> *mut Ffi__FileOwner {
+    let file = trynull!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let owner = trynull!(file.get_owner(&mut host));
     let ffi_owner: Ffi__FileOwner = trynull!(catch_unwind(|| owner.into()));
+
     Box::into_raw(Box::new(ffi_owner))
 }
 
 #[no_mangle]
 pub extern "C" fn file_set_owner(file_ptr: *const Ffi__File,
-                                 host_ptr: *const Ffi__Host,
+                                 host_ptr: *const Host,
                                  user_ptr: *const c_char,
                                  group_ptr: *const c_char) -> uint8_t {
-    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let user = tryrc!(ptrtostr!(user_ptr, "user string"));
     let group = tryrc!(ptrtostr!(group_ptr, "group string"));
 
@@ -223,18 +225,19 @@ pub extern "C" fn file_set_owner(file_ptr: *const Ffi__File,
 }
 
 #[no_mangle]
-pub extern "C" fn file_get_mode(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host) -> *mut uint16_t {
-    let file: File = trynull!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn file_get_mode(file_ptr: *const Ffi__File, host_ptr: *const Host) -> *mut uint16_t {
+    let file = trynull!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = trynull!(file.get_mode(&mut host));
+
     Box::into_raw(Box::new(result))
 }
 
 #[no_mangle]
-pub extern "C" fn file_set_mode(file_ptr: *const Ffi__File, host_ptr: *const Ffi__Host, mode: uint16_t) -> uint8_t {
-    let file: File = tryrc!(readptr!(file_ptr, "File struct"));
-    let mut host: Host = tryrc!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn file_set_mode(file_ptr: *const Ffi__File, host_ptr: *const Host, mode: uint16_t) -> uint8_t {
+    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     tryrc!(file.set_mode(&mut host, mode as u16));
 
@@ -247,7 +250,7 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
     #[cfg(feature = "remote-run")]
-    use host::ffi::{Ffi__Host, host_close};
+    use host::ffi::host_close;
     #[cfg(feature = "remote-run")]
     use libc::{uint8_t, uint16_t};
     use std::ffi::{CStr, CString};
@@ -289,7 +292,6 @@ mod tests {
         });
 
         let mut host = Host::test_new(None, Some(client), None, None);
-
         let file = File::new(&mut host, "/path/to/file").unwrap();
         let ffi_file = Ffi__File::from(file);
 
@@ -372,13 +374,13 @@ mod tests {
             msg.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file: File = readptr!(file_new(&host, path), "File struct").unwrap();
+        let file = readptr!(file_new(host, path); File, "File struct").unwrap();
         assert_eq!(file.path, Path::new("/path/to/file"));
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -398,12 +400,12 @@ mod tests {
             msg.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        assert!(file_new(&host, path).is_null());
+        assert!(file_new(host, path).is_null());
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -430,15 +432,15 @@ mod tests {
             msg.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host, path);
+        let file = file_new(host, path);
         assert!(!file.is_null());
-        let exists: uint8_t = readptr!(file_exists(file, &host), "bool").unwrap();
+        let exists: uint8_t = readptr!(file_exists(file, host), "bool").unwrap();
         assert_eq!(exists, 0);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -461,14 +463,14 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host, path);
+        let file = file_new(host, path);
         assert!(!file.is_null());
-        assert_eq!(file_delete(file, &host), 0);
+        assert_eq!(file_delete(file, host), 0);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -498,19 +500,19 @@ mod tests {
             reply.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host, path);
+        let file = file_new(host, path);
         assert!(!file.is_null());
 
-        let owner: FileOwner = readptr!(file_get_owner(file, &host), "FileOwner struct").unwrap();
+        let owner = readptr!(file_get_owner(file, host); FileOwner, "FileOwner struct").unwrap();
         assert_eq!(owner.user_name, "user");
         assert_eq!(owner.user_uid, 123);
         assert_eq!(owner.group_name, "group");
         assert_eq!(owner.group_gid, 123);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -538,16 +540,16 @@ mod tests {
             server.send_str("Ok").unwrap()
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host as *const Ffi__Host, path);
+        let file = file_new(host, path);
         assert!(!file.is_null());
         let user = CString::new("user").unwrap().into_raw();
         let group = CString::new("group").unwrap().into_raw();
-        assert_eq!(file_set_owner(file, &host, user, group), 0);
+        assert_eq!(file_set_owner(file, host, user, group), 0);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -574,15 +576,15 @@ mod tests {
             reply.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host as *const Ffi__Host, path);
+        let file = file_new(host, path);
         assert!(!file.is_null());
-        let mode: uint16_t = readptr!(file_get_mode(file, &host), "mode string").unwrap();
+        let mode: uint16_t = readptr!(file_get_mode(file, host), "mode string").unwrap();
         assert_eq!(mode, 755);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -609,14 +611,14 @@ mod tests {
             server.send_str("Ok").unwrap()
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = file_new(&host as *const Ffi__Host, path);
+        let file = file_new(host, path);
         assert!(!file.is_null());
-        assert_eq!(file_set_mode(file, &host, 644), 0);
+        assert_eq!(file_set_mode(file, host, 644), 0);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 }

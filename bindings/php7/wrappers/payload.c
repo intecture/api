@@ -57,7 +57,8 @@ PHP_METHOD(Payload, build) {
 }
 
 PHP_METHOD(Payload, run) {
-    zval *zhost, *zuser_args, *zv;
+    zval *zhost, *zv;
+    zval *zuser_args = NULL;
     php_host *host;
     const char **user_args = NULL;
     int args_len = 0;

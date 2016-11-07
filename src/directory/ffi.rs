@@ -8,9 +8,9 @@
 
 //! FFI interface for Directory
 
+use ffi_helpers::Leaky;
 use file::ffi::Ffi__FileOwner;
 use host::Host;
-use host::ffi::Ffi__Host;
 use libc::{c_char, uint8_t, uint16_t};
 use std::{convert, ptr};
 use std::ffi::CString;
@@ -71,60 +71,60 @@ impl convert::Into<Vec<DirectoryOpts>> for Ffi__DirectoryOpts {
 }
 
 #[no_mangle]
-pub extern "C" fn directory_new(ffi_host_ptr: *const Ffi__Host, path_ptr: *const c_char) -> *mut Ffi__Directory {
-    let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
+pub extern "C" fn directory_new(host_ptr: *const Host, path_ptr: *const c_char) -> *mut Ffi__Directory {
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
     let path = trynull!(ptrtostr!(path_ptr, "path string"));
 
     let dir = trynull!(Directory::new(&mut host, path));
     let ffi_dir = trynull!(catch_unwind(|| dir.into()));
+
     Box::into_raw(Box::new(ffi_dir))
 }
 
 #[no_mangle]
-pub extern "C" fn directory_exists(ffi_directory_ptr: *const Ffi__Directory, ffi_host_ptr: *const Ffi__Host) -> *const uint8_t {
-    let directory: Directory = trynull!(readptr!(ffi_directory_ptr, "Directory struct"));
-    let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
+pub extern "C" fn directory_exists(ffi_directory_ptr: *const Ffi__Directory, host_ptr: *const Host) -> *const uint8_t {
+    let directory = trynull!(readptr!(ffi_directory_ptr; Directory, "Directory struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = if trynull!(directory.exists(&mut host)) { 1 } else { 0 };
+
     Box::into_raw(Box::new(result))
 }
 
 #[no_mangle]
 pub extern "C" fn directory_create(ffi_directory_ptr: *const Ffi__Directory,
-                                   ffi_host_ptr: *const Ffi__Host,
+                                   host_ptr: *const Host,
                                    ffi_directoryopts_ptr: *const Ffi__DirectoryOpts) -> uint8_t {
-    let directory: Directory = tryrc!(readptr!(ffi_directory_ptr, "Directory struct"));
-    let mut host: Host = tryrc!(readptr!(ffi_host_ptr, "Host struct"));
-    let opts: Vec<DirectoryOpts> = match readptr!(ffi_directoryopts_ptr, "DirectoryOpts array") {
+    let directory = tryrc!(readptr!(ffi_directory_ptr; Directory, "Directory struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
+    let opts = match readptr!(ffi_directoryopts_ptr; Vec<DirectoryOpts>, "DirectoryOpts array") {
         Ok(o) => o,
         Err(_) => Vec::new(),
     };
 
     tryrc!(directory.create(&mut host, if opts.is_empty() { None } else { Some(opts.as_ref()) }));
-
     0
 }
 
 #[no_mangle]
 pub extern "C" fn directory_delete(ffi_directory_ptr: *const Ffi__Directory,
-                                   ffi_host_ptr: *const Ffi__Host,
+                                   host_ptr: *const Host,
                                    ffi_directoryopts_ptr: *const Ffi__DirectoryOpts) -> uint8_t {
-    let directory: Directory = tryrc!(readptr!(ffi_directory_ptr, "Directory struct"));
-    let mut host: Host = tryrc!(readptr!(ffi_host_ptr, "Host struct"));
-    let opts: Vec<DirectoryOpts> = match readptr!(ffi_directoryopts_ptr, "DirectoryOpts array") {
+    let directory = tryrc!(readptr!(ffi_directory_ptr; Directory, "Directory struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
+    let opts = match readptr!(ffi_directoryopts_ptr; Vec<DirectoryOpts>, "DirectoryOpts array") {
         Ok(o) => o,
         Err(_) => Vec::new(),
     };
 
     tryrc!(directory.delete(&mut host, if opts.is_empty() { None } else { Some(opts.as_ref()) }));
-
     0
 }
 
 #[no_mangle]
-pub extern "C" fn directory_mv(ffi_directory_ptr: *mut Ffi__Directory, ffi_host_ptr: *const Ffi__Host, new_path_ptr: *const c_char) -> uint8_t {
-    let mut directory: Directory = tryrc!(readptr!(ffi_directory_ptr, "Directory struct"));
-    let mut host: Host = tryrc!(readptr!(ffi_host_ptr, "Host struct"));
+pub extern "C" fn directory_mv(ffi_directory_ptr: *mut Ffi__Directory, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
+    let mut directory = tryrc!(readptr!(ffi_directory_ptr; Directory, "Directory struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
 
     tryrc!(directory.mv(&mut host, new_path));
@@ -132,51 +132,49 @@ pub extern "C" fn directory_mv(ffi_directory_ptr: *mut Ffi__Directory, ffi_host_
     // Write mutated Directory path back to pointer
     let ffi_dir = tryrc!(catch_unwind(|| directory.into()));
     unsafe { ptr::write(&mut *ffi_directory_ptr, ffi_dir); }
-
     0
 }
 
 #[no_mangle]
-pub extern "C" fn directory_get_owner(ffi_directory_ptr: *const Ffi__Directory, ffi_host_ptr: *const Ffi__Host) -> *mut Ffi__FileOwner {
-    let directory: Directory = trynull!(readptr!(ffi_directory_ptr, "Directory struct"));
-    let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
+pub extern "C" fn directory_get_owner(ffi_directory_ptr: *const Ffi__Directory, host_ptr: *const Host) -> *mut Ffi__FileOwner {
+    let directory = trynull!(readptr!(ffi_directory_ptr; Directory, "Directory struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let owner = trynull!(directory.get_owner(&mut host));
     let ffi_owner = trynull!(catch_unwind(|| owner.into()));
+
     Box::into_raw(Box::new(ffi_owner))
 }
 
 #[no_mangle]
 pub extern "C" fn directory_set_owner(ffi_directory_ptr: *const Ffi__Directory,
-                                      ffi_host_ptr: *const Ffi__Host,
+                                      host_ptr: *const Host,
                                       user_ptr: *const c_char,
                                       group_ptr: *const c_char) -> uint8_t {
-    let directory: Directory = tryrc!(readptr!(ffi_directory_ptr, "Directory struct"));
-    let mut host: Host = tryrc!(readptr!(ffi_host_ptr, "Host struct"));
+    let directory = tryrc!(readptr!(ffi_directory_ptr; Directory, "Directory struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let user = tryrc!(ptrtostr!(user_ptr, "user string"));
     let group = tryrc!(ptrtostr!(group_ptr, "group string"));
 
     tryrc!(directory.set_owner(&mut host, user, group));
-
     0
 }
 
 #[no_mangle]
-pub extern "C" fn directory_get_mode(ffi_directory_ptr: *const Ffi__Directory, ffi_host_ptr: *const Ffi__Host) -> *const uint16_t {
-    let directory: Directory = trynull!(readptr!(ffi_directory_ptr, "Directory struct"));
-    let mut host: Host = trynull!(readptr!(ffi_host_ptr, "Host struct"));
+pub extern "C" fn directory_get_mode(ffi_directory_ptr: *const Ffi__Directory, host_ptr: *const Host) -> *const uint16_t {
+    let directory = trynull!(readptr!(ffi_directory_ptr; Directory, "Directory struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = trynull!(directory.get_mode(&mut host));
     Box::into_raw(Box::new(result))
 }
 
 #[no_mangle]
-pub extern "C" fn directory_set_mode(ffi_directory_ptr: *const Ffi__Directory, ffi_host_ptr: *const Ffi__Host, mode: uint16_t) -> uint8_t {
-    let directory: Directory = tryrc!(readptr!(ffi_directory_ptr, "Directory struct"));
-    let mut host: Host = tryrc!(readptr!(ffi_host_ptr, "Host struct"));
+pub extern "C" fn directory_set_mode(ffi_directory_ptr: *const Ffi__Directory, host_ptr: *const Host, mode: uint16_t) -> uint8_t {
+    let directory = tryrc!(readptr!(ffi_directory_ptr; Directory, "Directory struct"));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     tryrc!(directory.set_mode(&mut host, mode as u16));
-
     0
 }
 
@@ -187,8 +185,6 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
     use file::ffi::Ffi__FileOwner;
-    #[cfg(feature = "remote-run")]
-    use host::ffi::Ffi__Host;
     #[cfg(feature = "remote-run")]
     use host::ffi::host_close;
     use std::ffi::{CStr, CString};
@@ -236,7 +232,6 @@ mod tests {
         });
 
         let mut host = Host::test_new(None, Some(client), None, None);
-
         let directory = Directory::new(&mut host, "/path/to/dir").unwrap();
         let ffi_directory = Ffi__Directory::from(directory);
 
@@ -328,13 +323,13 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        let directory = unsafe { ptr::read(directory_new(&host as *const Ffi__Host, path)) };
+        let directory = unsafe { ptr::read(directory_new(host, path)) };
         assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(directory.path).to_bytes()).unwrap() }, "/path/to/dir");
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -354,12 +349,12 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        assert!(directory_new(&host, path).is_null());
+        assert!(directory_new(host, path).is_null());
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -386,14 +381,14 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        let directory = unsafe { ptr::read(directory_new(&host as *const Ffi__Host, path)) };
-        let exists = unsafe { ptr::read(directory_exists(&directory as *const Ffi__Directory, &host as *const Ffi__Host)) };
+        let directory = unsafe { ptr::read(directory_new(host, path)) };
+        let exists = unsafe { ptr::read(directory_exists(&directory, host)) };
         assert_eq!(exists, 0);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -416,16 +411,16 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        let directory = directory_new(&host, path);
+        let directory = directory_new(host, path);
         let opts = Ffi__DirectoryOpts {
             do_recursive: 0
         };
-        directory_create(directory, &host, &opts);
+        directory_create(directory, host, &opts);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -448,13 +443,13 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        let directory = directory_new(&host, path);
-        directory_delete(directory, &host, ptr::null());
+        let directory = directory_new(host, path);
+        directory_delete(directory, host, ptr::null());
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -484,18 +479,18 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        let directory = directory_new(&host as *const Ffi__Host, path);
+        let directory = directory_new(host, path);
 
-        let owner: FileOwner = readptr!(directory_get_owner(directory, &host as *const Ffi__Host), "Directory owner").unwrap();
+        let owner = readptr!(directory_get_owner(directory, host); FileOwner, "Directory owner").unwrap();
         assert_eq!(owner.user_name, "user");
         assert_eq!(owner.user_uid, 123);
         assert_eq!(owner.group_name, "group");
         assert_eq!(owner.group_gid, 123);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -518,16 +513,16 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        let directory = directory_new(&host, path);
+        let directory = directory_new(host, path);
         let user = CString::new("Moo").unwrap().into_raw();
         let group = CString::new("Cow").unwrap().into_raw();
-        let result = directory_set_owner(directory, &host, user, group);
+        let result = directory_set_owner(directory, host, user, group);
         assert_eq!(result, 0);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -554,15 +549,15 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        let directory = directory_new(&host, path);
-        let mode = directory_get_mode(directory, &host);
+        let directory = directory_new(host, path);
+        let mode = directory_get_mode(directory, host);
         assert!(!mode.is_null());
         assert_eq!(unsafe { ptr::read(mode) }, 755);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -585,13 +580,13 @@ mod tests {
             server.send_str("Ok").unwrap();
         });
 
-        let mut host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/dir").unwrap().into_raw();
-        let directory = directory_new(&host, path);
-        directory_set_mode(directory, &host, 644);
+        let directory = directory_new(host, path);
+        directory_set_mode(directory, host, 644);
 
-        assert_eq!(host_close(&mut host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 }

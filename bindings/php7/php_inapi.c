@@ -339,6 +339,7 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_directory_handlers.free_obj = inapi_directory_free;
 
     inapi_ce_directory = zend_register_internal_class(&ce_directory);
+    zend_declare_class_constant_long(inapi_ce_directory, "OPT_DO_RECURSIVE", 16, OPT_DO_RECURSIVE TSRMLS_CC);
 
     INIT_CLASS_ENTRY(ce_directory_ex, "Intecture\\DirectoryException", NULL);
     inapi_ce_directory_ex = zend_register_internal_class_ex(&ce_directory_ex, zend_exception_get_default());
@@ -353,6 +354,8 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_file_handlers.free_obj = inapi_file_free;
 
     inapi_ce_file = zend_register_internal_class(&ce_file);
+    zend_declare_class_constant_long(inapi_ce_file, "OPT_BACKUP_EXISTING", 19, OPT_BACKUP_EXISTING TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_file, "OPT_CHUNK_SIZE", 14, OPT_CHUNK_SIZE TSRMLS_CC);
 
     INIT_CLASS_ENTRY(ce_file_ex, "Intecture\\FileException", NULL);
     inapi_ce_file_ex = zend_register_internal_class_ex(&ce_file_ex, zend_exception_get_default());
@@ -423,7 +426,6 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_service_runnable_handlers.free_obj = inapi_service_runnable_free;
 
     inapi_ce_service_runnable = zend_register_internal_class(&ce_service_runnable);
-
     zend_declare_class_constant_long(inapi_ce_service_runnable, "COMMAND", 7, RUNNABLE_COMMAND TSRMLS_CC);
     zend_declare_class_constant_long(inapi_ce_service_runnable, "SERVICE", 7, RUNNABLE_SERVICE TSRMLS_CC);
 

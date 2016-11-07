@@ -80,8 +80,6 @@ impl convert::From<mustache::VecBuilder> for Ffi__VecBuilder {
 
 impl convert::Into<mustache::VecBuilder> for Ffi__VecBuilder {
     fn into(self) -> mustache::VecBuilder {
-        // Using `readptr!` results in an "Overflow evaluating the
-        // requirement" ICE.
         if self.inner.is_null() {
             panic!(Error::NullPtr("VecBuilder struct"));
         } else {
@@ -100,16 +98,16 @@ pub extern "C" fn template_new(path_ptr: *const c_char) -> *mut Ffi__Template {
 
 #[no_mangle]
 pub extern "C" fn template_render_map(template_ptr: *const Ffi__Template, builder_ptr: *mut Ffi__MapBuilder) -> c_int {
-    let template: Template = tryrc!(readptr!(template_ptr, "Template struct"), 0);
-    let builder: mustache::MapBuilder = tryrc!(readptr!(builder_ptr as *mut Ffi__MapBuilder, "MapBuilder struct"), 0);
+    let template = tryrc!(readptr!(template_ptr; Template, "Template struct"), 0);
+    let builder = tryrc!(readptr!(builder_ptr as *mut Ffi__MapBuilder; mustache::MapBuilder, "MapBuilder struct"), 0);
     let fh = tryrc!(template.render_data(&builder.build()), 0);
     fh.into_raw_fd()
 }
 
 #[no_mangle]
 pub extern "C" fn template_render_vec(template_ptr: *const Ffi__Template, builder_ptr: *mut Ffi__VecBuilder) -> c_int {
-    let template: Template = tryrc!(readptr!(template_ptr, "Template struct"), 0);
-    let builder: mustache::VecBuilder = tryrc!(readptr!(builder_ptr as *mut Ffi__VecBuilder, "VecBuilder struct"), 0);
+    let template = tryrc!(readptr!(template_ptr; Template, "Template struct"), 0);
+    let builder = tryrc!(readptr!(builder_ptr as *mut Ffi__VecBuilder; mustache::VecBuilder, "VecBuilder struct"), 0);
     let fh = tryrc!(template.render_data(&builder.build()), 0);
     fh.into_raw_fd()
 }
@@ -122,7 +120,7 @@ pub extern "C" fn map_new() -> *mut Ffi__MapBuilder {
 
 #[no_mangle]
 pub extern "C" fn map_insert_str(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *const c_char, val_ptr: *const c_char) -> uint8_t {
-    let builder: mustache::MapBuilder = tryrc!(readptr!(builder_ptr, "MapBuilder struct"));
+    let builder = tryrc!(readptr!(builder_ptr; mustache::MapBuilder, "MapBuilder struct"));
     let key = tryrc!(ptrtostr!(key_ptr, "key string"));
     let value = tryrc!(ptrtostr!(val_ptr, "value string"));
 
@@ -134,7 +132,7 @@ pub extern "C" fn map_insert_str(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *co
 
 #[no_mangle]
 pub extern "C" fn map_insert_bool(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *const c_char, value: uint8_t) -> uint8_t {
-    let builder: mustache::MapBuilder = tryrc!(readptr!(builder_ptr, "MapBuilder struct"));
+    let builder = tryrc!(readptr!(builder_ptr; mustache::MapBuilder, "MapBuilder struct"));
     let key = tryrc!(ptrtostr!(key_ptr, "key string"));
 
     let ffi_builder = builder.insert_bool(key, value == 1).into();
@@ -145,9 +143,9 @@ pub extern "C" fn map_insert_bool(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *c
 
 #[no_mangle]
 pub extern "C" fn map_insert_vec(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *const c_char, val_ptr: *mut Ffi__VecBuilder) -> uint8_t {
-    let builder: mustache::MapBuilder = tryrc!(readptr!(builder_ptr, "MapBuilder struct"));
+    let builder = tryrc!(readptr!(builder_ptr; mustache::MapBuilder, "MapBuilder struct"));
     let key = tryrc!(ptrtostr!(key_ptr, "key string"));
-    let mut value: Option<mustache::VecBuilder> = Some(tryrc!(readptr!(val_ptr, "value struct")));
+    let mut value = Some(tryrc!(readptr!(val_ptr; mustache::VecBuilder, "value struct")));
 
     // XXX Work around FnMut
     let ffi_builder = builder.insert_vec(key, move |_| value.take().unwrap()).into();
@@ -158,9 +156,9 @@ pub extern "C" fn map_insert_vec(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *co
 
 #[no_mangle]
 pub extern "C" fn map_insert_map(builder_ptr: *mut Ffi__MapBuilder, key_ptr: *const c_char, val_ptr: *mut Ffi__MapBuilder) -> uint8_t {
-    let builder: mustache::MapBuilder = tryrc!(readptr!(builder_ptr, "MapBuilder struct"));
+    let builder = tryrc!(readptr!(builder_ptr; mustache::MapBuilder, "MapBuilder struct"));
     let key = tryrc!(ptrtostr!(key_ptr, "key string"));
-    let mut value: Option<mustache::MapBuilder> = Some(tryrc!(readptr!(val_ptr, "value struct")));
+    let mut value = Some(tryrc!(readptr!(val_ptr; mustache::MapBuilder, "value struct")));
 
     // XXX Work around FnMut
     let ffi_builder = builder.insert_map(key, move |_| value.take().unwrap()).into();
@@ -177,7 +175,7 @@ pub extern "C" fn vec_new() -> *mut Ffi__VecBuilder {
 
 #[no_mangle]
 pub extern "C" fn vec_push_str(builder_ptr: *mut Ffi__VecBuilder, val_ptr: *const c_char) -> uint8_t {
-    let builder: mustache::VecBuilder = tryrc!(readptr!(builder_ptr, "VecBuilder struct"));
+    let builder = tryrc!(readptr!(builder_ptr; mustache::VecBuilder, "VecBuilder struct"));
     let value = tryrc!(ptrtostr!(val_ptr, "value string"));
 
     let ffi_builder = builder.push_str(value).into();
@@ -188,7 +186,7 @@ pub extern "C" fn vec_push_str(builder_ptr: *mut Ffi__VecBuilder, val_ptr: *cons
 
 #[no_mangle]
 pub extern "C" fn vec_push_bool(builder_ptr: *mut Ffi__VecBuilder, value: uint8_t) -> uint8_t {
-    let builder: mustache::VecBuilder = tryrc!(readptr!(builder_ptr, "VecBuilder struct"));
+    let builder = tryrc!(readptr!(builder_ptr; mustache::VecBuilder, "VecBuilder struct"));
 
     let ffi_builder = builder.push_bool(value == 1).into();
     unsafe { ptr::write(&mut *builder_ptr, ffi_builder); }
@@ -198,8 +196,8 @@ pub extern "C" fn vec_push_bool(builder_ptr: *mut Ffi__VecBuilder, value: uint8_
 
 #[no_mangle]
 pub extern "C" fn vec_push_vec(builder_ptr: *mut Ffi__VecBuilder, val_ptr: *mut Ffi__VecBuilder) -> uint8_t {
-    let builder: mustache::VecBuilder = tryrc!(readptr!(builder_ptr, "VecBuilder struct"));
-    let mut value: Option<mustache::VecBuilder> = Some(tryrc!(readptr!(val_ptr, "value struct")));
+    let builder = tryrc!(readptr!(builder_ptr; mustache::VecBuilder, "VecBuilder struct"));
+    let mut value = Some(tryrc!(readptr!(val_ptr; mustache::VecBuilder, "value struct")));
 
     let ffi_builder = builder.push_vec(move |_| value.take().unwrap()).into();
     unsafe { ptr::write(&mut *builder_ptr, ffi_builder); }
@@ -209,8 +207,8 @@ pub extern "C" fn vec_push_vec(builder_ptr: *mut Ffi__VecBuilder, val_ptr: *mut 
 
 #[no_mangle]
 pub extern "C" fn vec_push_map(builder_ptr: *mut Ffi__VecBuilder, val_ptr: *mut Ffi__MapBuilder) -> uint8_t {
-    let builder: mustache::VecBuilder = tryrc!(readptr!(builder_ptr, "VecBuilder struct"));
-    let mut value: Option<mustache::MapBuilder> = Some(tryrc!(readptr!(val_ptr, "value struct")));
+    let builder = tryrc!(readptr!(builder_ptr; mustache::VecBuilder, "VecBuilder struct"));
+    let mut value = Some(tryrc!(readptr!(val_ptr; mustache::MapBuilder, "value struct")));
 
     // XXX Work around FnMut
     let ffi_builder = builder.push_map(move |_| value.take().unwrap()).into();
@@ -252,7 +250,7 @@ mod tests {
         fs::File::create(&path).unwrap();
 
         let path_ptr = CString::new(path.as_bytes()).unwrap().into_raw();
-        let _: Template = readptr!(template_new(path_ptr), "Template struct").unwrap();
+        readptr!(template_new(path_ptr); Template, "Template struct").unwrap();
     }
 
     #[test]
@@ -284,7 +282,7 @@ mod tests {
         assert!(!m.is_null());
 
         let template = mustache::compile_str("{{key}}");
-        let m: mustache::MapBuilder = readptr!(m, "MapBuilder struct").unwrap();
+        let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
         let mut result = Vec::new();
         template.render_data(&mut result, &m.build());
         assert_eq!(result, b"value");
@@ -297,7 +295,7 @@ mod tests {
         assert!(!m.is_null());
 
         let template = mustache::compile_str("{{#key}}true{{/key}}");
-        let m: mustache::MapBuilder = readptr!(m, "MapBuilder struct").unwrap();
+        let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
         let mut result = Vec::new();
         template.render_data(&mut result, &m.build());
         assert_eq!(result, b"true");
@@ -313,7 +311,7 @@ mod tests {
         assert_eq!(map_insert_vec(m, CString::new("list").unwrap().into_raw(), v), 0);
 
         let template = mustache::compile_str("{{#list}}{{.}}{{/list}}");
-        let m: mustache::MapBuilder = readptr!(m, "MapBuilder struct").unwrap();
+        let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
         let mut result = Vec::new();
         template.render_data(&mut result, &m.build());
         assert_eq!(result, b"val1val2");
@@ -329,7 +327,7 @@ mod tests {
         assert_eq!(map_insert_map(m, CString::new("nested").unwrap().into_raw(), c), 0);
 
         let template = mustache::compile_str("{{#nested}}{{key}}{{/nested}}{{one}}");
-        let m: mustache::MapBuilder = readptr!(m, "MapBuilder struct").unwrap();
+        let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
         let mut result = Vec::new();
         template.render_data(&mut result, &m.build());
         assert_eq!(result, b"valuetwo");
@@ -376,7 +374,7 @@ mod tests {
     //     assert!(!m.is_null());
     //
     //     let template = mustache::compile_str("{{#list}}{{.}}{{/list}}");
-    //     let m: mustache::MapBuilder = readptr!(m, "MapBuilder struct").unwrap();
+    //     let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
     //     let mut result = Vec::new();
     //     template.render_data(&mut result, &m.build());
     //     assert_eq!(result, b"value");
@@ -393,7 +391,7 @@ mod tests {
     //     assert!(!m.is_null());
     //
     //     let template = mustache::compile_str("{{#list}}{{#.}}true{{/.}}{{/list}}");
-    //     let m: mustache::MapBuilder = readptr!(m, "MapBuilder struct").unwrap();
+    //     let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
     //     let mut result = Vec::new();
     //     template.render_data(&mut result, &m.build());
     //     assert_eq!(result, b"true");
@@ -413,7 +411,7 @@ mod tests {
     //     assert!(!m.is_null());
     //
     //     let template = mustache::compile_str("{{#list}}{{#.}}{{.}}{{/.}}{{/list}}").unwrap();
-    //     let m: mustache::MapBuilder = readptr!(m, "MapBuilder struct").unwrap();
+    //     let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
     //     let mut result = Vec::new();
     //     template.render_data(&mut result, &m.build());
     //     assert_eq!(result, b"val1val2");

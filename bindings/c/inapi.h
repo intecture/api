@@ -34,12 +34,7 @@ extern char *geterr();
 /**
  * @brief The host primitive for connecting to a managed host.
  */
-typedef struct _Host {
-    const char *hostname; /**< Hostname or IP of managed host */
-    void *api_sock; /**< API socket */
-    void *file_sock; /**< File upload socket */
-    void *data; /**< Data for host, comprising data files and telemetry */
-} Host;
+typedef void Host;
 
 /**
  * @brief Create a new Host connected to the endpoint specified in the
@@ -81,6 +76,13 @@ extern Host *host_connect_endpoint(const char *hostname, uint32_t api_port, uint
  * @return A new Host struct, or null on error.
  */
 extern Host *host_connect_payload(const char *api_endpoint, const char *file_endpoint);
+
+/**
+ * @brief Retrieve telemetry data for Host.
+ * @param host The host connection you wish to use.
+ * @return A new Host struct, or null on error.
+ */
+extern void *host_data(Host *host);
 
 /**
  * @brief Close the connection to your managed host.
@@ -158,17 +160,15 @@ extern ValueKeysArray *get_value_keys(void *value, const char *pointer);
  * @brief Returns the data type for a `Value` pointer.
  * @param value A `Value` pointer.
  * @param pointer [Optional] A JSON pointer to a nested value.
- * @return The `Value`'s data type, or null if no data.
+ * @return The `Value`'s data type, or -1 on error.
  */
-extern enum DataType *get_value_type(void *value, const char *pointer);
+extern enum DataType get_value_type(void *value, const char *pointer);
 
 /**
  * @brief The shell command primitive for running commands on a
  * managed host.
  */
-typedef struct _Command {
-    const char *cmd; /**< The shell command */
-} Command;
+typedef void Command;
 
 /**
  * @brief Result attributes returned from the managed host.

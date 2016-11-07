@@ -10,7 +10,7 @@
 
 use {Host, Providers};
 use command::ffi::Ffi__CommandResult;
-use host::ffi::Ffi__Host;
+use ffi_helpers::Leaky;
 use libc::{c_char, uint8_t};
 use std::{convert, ptr};
 use std::ffi::CString;
@@ -88,26 +88,27 @@ impl convert::Into<Option<Providers>> for Ffi__Providers {
 }
 
 #[no_mangle]
-pub extern "C" fn package_new(host_ptr: *const Ffi__Host, name_ptr: *const c_char, ffi_providers: Ffi__Providers) -> *mut Ffi__Package {
-    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn package_new(host_ptr: *const Host, name_ptr: *const c_char, ffi_providers: Ffi__Providers) -> *mut Ffi__Package {
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
     let name = trynull!(ptrtostr!(name_ptr, "name string"));
     let providers: Option<Providers> = ffi_providers.into();
 
     let pkg = trynull!(Package::new(&mut host, name, providers));
     let ffi_pkg = trynull!(catch_unwind(|| pkg.into()));
+
     Box::into_raw(Box::new(ffi_pkg))
 }
 
 #[no_mangle]
 pub extern "C" fn package_is_installed(pkg_ptr: *const Ffi__Package) -> *mut uint8_t {
-    let pkg: Package = trynull!(readptr!(pkg_ptr, "Package struct"));
+    let pkg = trynull!(readptr!(pkg_ptr; Package, "Package struct"));
     Box::into_raw(Box::new(if pkg.installed { 1 } else { 0 }))
 }
 
 #[no_mangle]
-pub extern "C" fn package_install(pkg_ptr: *mut Ffi__Package, host_ptr: *const Ffi__Host) -> *mut Ffi__CommandResult {
-    let mut pkg: Package = trynull!(readptr!(pkg_ptr, "Package struct"));
-    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn package_install(pkg_ptr: *mut Ffi__Package, host_ptr: *const Host) -> *mut Ffi__CommandResult {
+    let mut pkg = trynull!(readptr!(pkg_ptr; Package, "Package struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = trynull!(pkg.install(&mut host));
 
@@ -125,9 +126,9 @@ pub extern "C" fn package_install(pkg_ptr: *mut Ffi__Package, host_ptr: *const F
 }
 
 #[no_mangle]
-pub extern "C" fn package_uninstall(pkg_ptr: *mut Ffi__Package, host_ptr: *const Ffi__Host) -> *mut Ffi__CommandResult {
-    let mut pkg: Package = trynull!(readptr!(pkg_ptr, "Package struct"));
-    let mut host: Host = trynull!(readptr!(host_ptr, "Host struct"));
+pub extern "C" fn package_uninstall(pkg_ptr: *mut Ffi__Package, host_ptr: *const Host) -> *mut Ffi__CommandResult {
+    let mut pkg = trynull!(readptr!(pkg_ptr; Package, "Package struct"));
+    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = trynull!(pkg.uninstall(&mut host));
 
@@ -149,7 +150,6 @@ mod tests {
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
     use Host;
-    use host::ffi::Ffi__Host;
     #[cfg(feature = "remote-run")]
     use host::ffi::host_close;
     use libc::uint8_t;
@@ -186,10 +186,10 @@ mod tests {
     #[test]
     fn test_package_new_default() {
         let path: Option<String> = None;
-        let host = Ffi__Host::from(Host::local(path).unwrap());
+        let host = Host::local(path).unwrap();
         let name = CString::new("nginx").unwrap().into_raw();
 
-        let pkg: Package = readptr!(package_new(&host, name, Ffi__Providers::Default), "Package struct").unwrap();
+        let pkg = readptr!(package_new(&host, name, Ffi__Providers::Default); Package, "Package struct").unwrap();
 
         assert_eq!(pkg.name, "nginx");
     }
@@ -228,13 +228,13 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let name = CString::new("nginx").unwrap().into_raw();
-        let pkg: Package = readptr!(package_new(&ffi_host, name, Ffi__Providers::Default), "Package struct").unwrap();
+        let pkg = readptr!(package_new(host, name, Ffi__Providers::Default); Package, "Package struct").unwrap();
         assert_eq!(pkg.name, "nginx");
 
-        assert_eq!(host_close(&mut ffi_host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn test_package_new_specific() {
         let path: Option<String> = None;
-        let host = Ffi__Host::from(Host::local(path).unwrap());
+        let host = Host::from(Host::local(path).unwrap());
         let name = CString::new("nginx").unwrap().into_raw();
         let mut providers = Ffi__Providers::Default;
 
@@ -268,7 +268,7 @@ mod tests {
             providers = Ffi__Providers::Apt;
         }
 
-        let pkg: Package = readptr!(package_new(&host, name, providers), "Package struct").unwrap();
+        let pkg = readptr!(package_new(&host, name, providers); Package, "Package struct").unwrap();
 
         assert_eq!(pkg.name, "nginx");
     }
@@ -300,14 +300,14 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let name = CString::new("nginx").unwrap().into_raw();
-        let pkg: Package = readptr!(package_new(&ffi_host, name, Ffi__Providers::Homebrew), "Package struct").unwrap();
+        let pkg = readptr!(package_new(host, name, Ffi__Providers::Homebrew); Package, "Package struct").unwrap();
         assert_eq!(pkg.name, "nginx");
         assert!(!pkg.is_installed());
 
-        assert_eq!(host_close(&mut ffi_host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -326,13 +326,13 @@ mod tests {
     // #[cfg(feature = "local-run")]
     // #[test]
     // fn test_package_install() {
-    //     let host = Ffi__Host;
+    //     let host = Host;
     //     let pkg = Ffi__Package {
     //         name: CString::new("nginx").unwrap().as_ptr(),
     //         provider: Box::into_raw(Box::new(Homebrew)),
     //         installed: 0,
     //     };
-    //     let result = package_install(&pkg as *const Ffi__Package, &host as *const Ffi__Host);
+    //     let result = package_install(&pkg as *const Ffi__Package, &host as *const Host);
     //     assert_eq!(result.exit_code, 0);
     // }
 
@@ -354,19 +354,19 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,
             installed: 0,
         };
 
-        let result_ptr = package_install(&mut ffi_pkg, &ffi_host);
+        let result_ptr = package_install(&mut ffi_pkg, host);
         assert!(!result_ptr.is_null());
         let result = unsafe { ptr::read(result_ptr) };
         assert_eq!(result.exit_code, 0);
 
-        assert_eq!(host_close(&mut ffi_host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 
@@ -374,14 +374,14 @@ mod tests {
     // #[cfg(feature = "local-run")]
     // #[test]
     // fn test_package_uninstall() {
-    //     let host = Ffi__Host;
+    //     let host = Host;
     //     let pkg = Ffi__Package {
     //         name: CString::new("nginx").unwrap().as_ptr(),
     //         provider: Ffi__Provider {
     //             provider: Box::into_raw(Box::new(Homebrew)),
     //         },
     //     };
-    //     let result = package_uninstall(&pkg as *const Ffi__Package, &host as *const Ffi__Host);
+    //     let result = package_uninstall(&pkg as *const Ffi__Package, &host as *const Host);
     //     assert_eq!(result.exit_code, 0);
     // }
 
@@ -403,19 +403,19 @@ mod tests {
             rep.send(&mut server).unwrap();
         });
 
-        let mut ffi_host = Ffi__Host::from(Host::test_new(None, Some(client), None, None));
+        let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
         let mut ffi_pkg = Ffi__Package {
             name: CString::new("nginx").unwrap().into_raw(),
             provider: Ffi__Providers::Homebrew,
             installed: 1,
         };
 
-        let result_ptr = package_uninstall(&mut ffi_pkg, &ffi_host);
+        let result_ptr = package_uninstall(&mut ffi_pkg, host);
         assert!(!result_ptr.is_null());
         let result = unsafe { ptr::read(result_ptr) };
         assert_eq!(result.exit_code, 0);
 
-        assert_eq!(host_close(&mut ffi_host), 0);
+        assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
 }
