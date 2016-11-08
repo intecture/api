@@ -451,8 +451,10 @@ mod tests {
     }
 
     fn create_cargo_proj(buf: &mut PathBuf) {
+        buf.push("payload");
+
         let status = Command::new("cargo")
-                             .args(&["init", buf.to_str().unwrap(), "--bin", "--name", "payload"])
+                             .args(&["new", buf.to_str().unwrap(), "--bin"])
                              .status()
                              .expect("Failed to execute process");
 
