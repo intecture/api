@@ -92,8 +92,8 @@ impl Payload {
 
         Ok(Payload {
             path: buf,
-            artifact: if parts.len() > 1 {
-                Some(parts.remove(1).into())
+            artifact: if parts.len() > 0 {
+                Some(parts.remove(0).into())
             } else {
                 None
             },
@@ -230,29 +230,27 @@ impl Payload {
                     }
                 },
                 Language::Rust => {
-                    payload_path.push("Cargo.toml");
-
-                    let mut args = vec![
-                        "run".into(),
-                        "--release".into(),
-                        "--manifest-path".into(),
-                        payload_path.to_str().unwrap().into()
-                    ];
-
                     if let Some(a) = artifact {
-                        args.push("--bin".into());
-                        args.push(a);
+                        payload_path.push("target/release");
+                        payload_path.push(a);
+                    } else {
+                        let dirname = try!(try!(payload_path.file_stem().ok_or(Error::RunFailed("Invalid payload path".into())))
+                                                            .to_str().ok_or(Error::RunFailed("Invalid payload path".into())))
+                                                            .to_owned();
+                        payload_path.push("target/release");
+                        payload_path.push(&dirname);
                     }
 
-                    args.push("--".into());
-                    args.push(api_endpoint);
-                    args.push(file_endpoint);
+                    let mut args = vec![
+                        api_endpoint,
+                        file_endpoint
+                    ];
 
                     if let Some(mut a) = user_args_c {
                         args.append(&mut a);
                     }
 
-                    let output = try!(process::Command::new("cargo")
+                    let output = try!(process::Command::new(&payload_path)
                                                        .args(&args)
                                                        .stdout(process::Stdio::inherit())
                                                        .output());
