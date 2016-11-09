@@ -42,5 +42,5 @@ if test "$PHP_INAPI" != "no"; then
     ])
 
     PHP_SUBST(INAPI_SHARED_LIBADD)
-    PHP_NEW_EXTENSION(inapi, php_inapi.c wrappers/command.c wrappers/directory.c wrappers/file.c wrappers/host.c wrappers/package.c wrappers/payload.c wrappers/service.c wrappers/template.c, $ext_shared)
+    PHP_NEW_EXTENSION(inapi, php_inapi.c src/command.c src/directory.c src/file.c src/host.c src/package.c src/payload.c src/service.c src/template.c, $ext_shared)
 fi

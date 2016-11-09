@@ -9,14 +9,14 @@
 */
 
 #include "php_inapi.h"
-#include "wrappers/command.h"
-#include "wrappers/directory.h"
-#include "wrappers/file.h"
-#include "wrappers/host.h"
-#include "wrappers/package.h"
-#include "wrappers/payload.h"
-#include "wrappers/service.h"
-#include "wrappers/template.h"
+#include "src/command.h"
+#include "src/directory.h"
+#include "src/file.h"
+#include "src/host.h"
+#include "src/package.h"
+#include "src/payload.h"
+#include "src/service.h"
+#include "src/template.h"
 #include <zend_exceptions.h>
 
 zend_class_entry *inapi_ce_command, *inapi_ce_command_ex,
