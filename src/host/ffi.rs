@@ -256,8 +256,8 @@ mod tests {
 
     #[test]
     fn test_open_get_value() {
-        let mut host = create_host();
-        let data = host_data(&mut host);
+        let host = create_host();
+        let data = host_data(host);
 
         // Test bool
         let json_ptr = CString::new("/bool").unwrap();
@@ -347,9 +347,9 @@ mod tests {
 
     #[test]
     fn test_get_value_keys() {
-        let mut host = create_host();
+        let host = create_host();
 
-        let ffi_a_ptr = get_value_keys(host_data(&mut host), ptr::null());
+        let ffi_a_ptr = get_value_keys(host_data(host), ptr::null());
         assert!(!ffi_a_ptr.is_null());
         let ffi_a: Ffi__Array<*mut c_char> = unsafe { ptr::read(ffi_a_ptr) };
         let a: Vec<_> = ffi_a.into();
@@ -383,7 +383,7 @@ mod tests {
     }
 
     #[cfg(feature = "local-run")]
-    fn create_host() -> Host {
+    fn create_host() -> *mut Host {
         let td = TempDir::new("test_data_ffi").unwrap();
         let mut path = td.path().to_owned();
         path.push("data.json");
@@ -404,11 +404,11 @@ mod tests {
             }
         }").unwrap();
 
-        Host::local(Some(&path)).unwrap()
+        Box::into_raw(Box::new(Host::local(Some(&path)).unwrap()))
     }
 
     #[cfg(feature = "remote-run")]
-    fn create_host() -> Host {
+    fn create_host() -> *mut Host {
         let v = serde_json::from_str("{
             \"bool\": true,
             \"i64\": -5,
@@ -423,6 +423,6 @@ mod tests {
                 \"a\": \"b\"
             }
         }").unwrap();
-        Host::test_new(None, None, None, Some(v))
+        Box::into_raw(Box::new(Host::test_new(None, None, None, Some(v))))
     }
 }

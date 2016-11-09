@@ -96,10 +96,8 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let cmd_ptr = command_new(CString::new("moo").unwrap().into_raw());
-        let cmd = unsafe { ptr::read(cmd_ptr) };
+        let cmd = readptr!(command_new(CString::new("moo").unwrap().into_raw()), "Command pointer").unwrap();
         assert_eq!(cmd.cmd, "moo");
-        assert_eq!(command_free(cmd_ptr), 0);
 
         assert!(command_new(ptr::null()).is_null());
         assert_eq!(unsafe { CStr::from_ptr(ERRMSG).to_str().unwrap() }, "Received null when we expected a command string pointer");
@@ -109,16 +107,17 @@ mod tests {
     #[test]
     fn test_exec() {
         let path: Option<String> = None;
-        let mut host = Host::local(path).unwrap();
+        let mut host = Box::into_raw(Box::new(Host::local(path).unwrap()));
 
         let whoami = CString::new("whoami").unwrap();
-        let cmd = command_new(whoami.as_ptr());
-        let ffi_result = command_exec(cmd, &mut host);
-        assert!(!ffi_result.is_null());
-        let result = unsafe { ptr::read(ffi_result) };
+        let cmd = command_new(whoami.into_raw());
+        assert!(!cmd.is_null());
+
+        let result = readptr!(command_exec(cmd, host), "CommandResult pointer").unwrap();
         assert_eq!(result.exit_code, 0);
-        assert_eq!(command_result_free(ffi_result), 0);
+
         assert_eq!(command_free(cmd), 0);
+        unsafe { Box::from_raw(host) };
     }
 
     #[cfg(feature = "remote-run")]
@@ -145,22 +144,14 @@ mod tests {
 
         let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
         let whoami = CString::new("moo").unwrap();
-        let command = command_new(whoami.as_ptr());
+        let command = command_new(whoami.into_raw());
 
-        let ffi_result = command_exec(command, host);
-        assert!(!ffi_result.is_null());
-        let result = unsafe { ptr::read(ffi_result) };
+        let result = readptr!(command_exec(command, host), "CommandResult pointer").unwrap();
         assert_eq!(result.exit_code, 0);
+        assert_eq!(ptrtostr!(result.stdout, "stdout").unwrap(), "cow");
+        assert_eq!(ptrtostr!(result.stderr, "stderr").unwrap(), "err");
 
-        let stdout = ptrtostr!(result.stdout, "stdout").unwrap();
-        assert_eq!(stdout, "cow");
-
-        let stderr = ptrtostr!(result.stderr, "stderr").unwrap();
-        assert_eq!(stderr, "err");
-
-        assert_eq!(command_result_free(ffi_result), 0);
         assert_eq!(command_free(command), 0);
-
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }

@@ -66,6 +66,7 @@ pub extern "C" fn payload_free(payload_ptr: *mut Payload) -> uint8_t {
 mod tests {
     use czmq::{ZSock, ZSockType};
     use host::Host;
+    use host::ffi::host_close;
     use payload::config::Config;
     use project::Language;
     use std::ffi::CString;
@@ -162,10 +163,11 @@ mod tests {
         let payload_ptr = payload_new(payload_artifact.as_ptr());
         assert!(!payload_ptr.is_null());
 
-        let mut host = Host::test_new(None, None, None, None);
-        assert_eq!(payload_run(payload_ptr, &mut host, &mut ptr::null(), 0), 0);
+        let host = Box::into_raw(Box::new(Host::test_new(None, None, None, None)));
+        assert_eq!(payload_run(payload_ptr, host, &mut ptr::null(), 0), 0);
 
         assert_eq!(payload_free(payload_ptr), 0);
+        assert_eq!(host_close(host), 0);
         handle.join().unwrap();
     }
 
