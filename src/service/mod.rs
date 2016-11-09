@@ -172,6 +172,7 @@ use command::{CommandResult, CommandTarget};
 use error::{Error, Result};
 use host::Host;
 use std::collections::HashMap;
+use std::convert::Into;
 use target::Target;
 
 /// Runnables are the executable items that a Service calls actions
@@ -183,15 +184,29 @@ pub enum ServiceRunnable<'a> {
     Service(&'a str),
 }
 
-/// Container for managing a service.
-pub struct Service<'a> {
-    /// Actions map for Runnables
-    actions: HashMap<&'a str, ServiceRunnable<'a>>,
-    /// Action aliases map
-    mapped_actions: Option<HashMap<&'a str, &'a str>>,
+enum ServiceRunnableOwned {
+    Command(String),
+    Service(String),
 }
 
-impl <'a>Service<'a> {
+impl<'a> From<ServiceRunnable<'a>> for ServiceRunnableOwned {
+    fn from(runnable: ServiceRunnable<'a>) -> ServiceRunnableOwned {
+        match runnable {
+            ServiceRunnable::Command(c) => ServiceRunnableOwned::Command(c.into()),
+            ServiceRunnable::Service(s) => ServiceRunnableOwned::Service(s.into()),
+        }
+    }
+}
+
+/// Container for managing a service.
+pub struct Service {
+    /// Actions map for Runnables
+    actions: HashMap<String, ServiceRunnableOwned>,
+    /// Action aliases map
+    mapped_actions: Option<HashMap<String, String>>,
+}
+
+impl Service {
     /// Create a new Service with a single Runnable.
     ///
     /// # Examples
@@ -200,7 +215,7 @@ impl <'a>Service<'a> {
     /// # use inapi::{Service, ServiceRunnable};
     /// let service = Service::new_service(ServiceRunnable::Service("service_name"), None);
     /// ```
-    pub fn new_service(runnable: ServiceRunnable<'a>, mapped_actions: Option<HashMap<&'a str, &'a str>>) -> Service<'a> {
+    pub fn new_service<'a>(runnable: ServiceRunnable<'a>, mapped_actions: Option<HashMap<&'a str, &'a str>>) -> Service {
         let mut actions = HashMap::new();
         actions.insert("_", runnable);
         Self::new_map(actions, mapped_actions)
@@ -218,10 +233,26 @@ impl <'a>Service<'a> {
     /// map.insert("stop", ServiceRunnable::Command("killall \"nginx: master process nginx\""));
     /// let service = Service::new_map(map, None);
     /// ```
-    pub fn new_map(actions: HashMap<&'a str, ServiceRunnable<'a>>, mapped_actions: Option<HashMap<&'a str, &'a str>>) -> Service<'a> {
+    pub fn new_map<'a>(actions: HashMap<&'a str, ServiceRunnable<'a>>, mapped_actions: Option<HashMap<&'a str, &'a str>>) -> Service {
+        let mut actions_owned = HashMap::new();
+        for (k, v) in actions {
+            actions_owned.insert(k.to_owned(), v.into());
+        }
+
+        let mapped_actions_owned = match mapped_actions {
+            Some(mapped) => {
+                let mut owned = HashMap::new();
+                for (k, v) in mapped {
+                    owned.insert(k.to_owned(), v.to_owned());
+                }
+                Some(owned)
+            },
+            None => None,
+        };
+
         Service {
-            actions: actions,
-            mapped_actions: mapped_actions,
+            actions: actions_owned,
+            mapped_actions: mapped_actions_owned,
         }
     }
 
@@ -247,24 +278,24 @@ impl <'a>Service<'a> {
 
         // Exchange this action with a mapped action if possible
         if let Some(ref mapped) = self.mapped_actions {
-            if mapped.contains_key(&action) {
-                action = mapped.get(&action).unwrap();
+            if mapped.contains_key(action) {
+                action = mapped.get(action).unwrap();
             }
         }
 
-        if self.actions.contains_key(&action) {
-            self.run(host, action, self.actions.get(&action).unwrap(), false)
-        } else if self.actions.contains_key(&"_") {
-            self.run(host, action, self.actions.get(&"_").unwrap(), true)
+        if self.actions.contains_key(action) {
+            self.run(host, action, self.actions.get(action).unwrap(), false)
+        } else if self.actions.contains_key("_") {
+            self.run(host, action, self.actions.get("_").unwrap(), true)
         } else {
             Err(Error::Generic(format!("Unrecognised action {}", action)))
         }
     }
 
-    fn run(&self, host: &mut Host, action: &str, runnable: &ServiceRunnable<'a>, default: bool) -> Result<Option<CommandResult>> {
-        match runnable {
-            &ServiceRunnable::Service(name) => Target::service_action(host, name, action),
-            &ServiceRunnable::Command(cmd) => if default {
+    fn run(&self, host: &mut Host, action: &str, runnable: &ServiceRunnableOwned, default: bool) -> Result<Option<CommandResult>> {
+        match *runnable {
+            ServiceRunnableOwned::Service(ref name) => Target::service_action(host, name, action),
+            ServiceRunnableOwned::Command(ref cmd) => if default {
                 Ok(Some(try!(Target::exec(host, &format!("{} {}", cmd, action)))))
             } else {
                 Ok(Some(try!(Target::exec(host, cmd))))

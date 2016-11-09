@@ -11,10 +11,9 @@
 use command::ffi::Ffi__CommandResult;
 use ffi_helpers::{Ffi__Array, Leaky};
 use host::Host;
-use libc::{c_char, size_t};
+use libc::{c_char, size_t, uint8_t};
 use std::{convert, ptr};
 use std::collections::HashMap;
-use std::ffi::CString;
 use std::panic::catch_unwind;
 use super::*;
 
@@ -22,21 +21,6 @@ use super::*;
 pub struct Ffi__ServiceRunnable {
     command: *mut c_char,
     service: *mut c_char,
-}
-
-impl <'a>convert::From<ServiceRunnable<'a>> for Ffi__ServiceRunnable {
-    fn from(runnable: ServiceRunnable) -> Ffi__ServiceRunnable {
-        match runnable {
-            ServiceRunnable::Command(cmd) => Ffi__ServiceRunnable {
-                command: CString::new(cmd).unwrap().into_raw(),
-                service: ptr::null_mut(),
-            },
-            ServiceRunnable::Service(svc) => Ffi__ServiceRunnable {
-                command: ptr::null_mut(),
-                service: CString::new(svc).unwrap().into_raw(),
-            },
-        }
-    }
 }
 
 impl <'a>convert::Into<ServiceRunnable<'a>> for Ffi__ServiceRunnable {
@@ -53,22 +37,6 @@ impl <'a>convert::Into<ServiceRunnable<'a>> for Ffi__ServiceRunnable {
 pub struct Ffi__ServiceAction {
     action: *mut c_char,
     runnable: Ffi__ServiceRunnable,
-}
-
-impl <'a>convert::From<HashMap<&'a str, ServiceRunnable<'a>>> for Ffi__Array<Ffi__ServiceAction> {
-    fn from(map: HashMap<&'a str, ServiceRunnable<'a>>) -> Ffi__Array<Ffi__ServiceAction> {
-        let mut arr = Vec::new();
-        let mut map = map;
-
-        for (action, runnable) in map.drain() {
-            arr.push(Ffi__ServiceAction {
-                action: CString::new(action).unwrap().into_raw(),
-                runnable: Ffi__ServiceRunnable::from(runnable),
-            });
-        }
-
-        Ffi__Array::from(arr)
-    }
 }
 
 impl <'a>convert::Into<HashMap<&'a str, ServiceRunnable<'a>>> for Ffi__Array<Ffi__ServiceAction> {
@@ -93,22 +61,6 @@ pub struct Ffi__ServiceMappedAction {
     mapped_action: *mut c_char,
 }
 
-impl <'a>convert::From<HashMap<&'a str, &'a str>> for Ffi__Array<Ffi__ServiceMappedAction> {
-    fn from(map: HashMap<&'a str, &'a str>) -> Ffi__Array<Ffi__ServiceMappedAction> {
-        let mut arr = Vec::new();
-        let mut map = map;
-
-        for (action, mapped_action) in map.drain() {
-            arr.push(Ffi__ServiceMappedAction {
-                action: CString::new(action).unwrap().into_raw(),
-                mapped_action: CString::new(mapped_action).unwrap().into_raw(),
-            });
-        }
-
-        Ffi__Array::from(arr)
-    }
-}
-
 impl <'a>convert::Into<HashMap<&'a str, &'a str>> for Ffi__Array<Ffi__ServiceMappedAction> {
     fn into(self) -> HashMap<&'a str, &'a str> {
         let actions_vec: Vec<_> = self.into();
@@ -125,42 +77,10 @@ impl <'a>convert::Into<HashMap<&'a str, &'a str>> for Ffi__Array<Ffi__ServiceMap
     }
 }
 
-#[repr(C)]
-pub struct Ffi__Service {
-    actions: Ffi__Array<Ffi__ServiceAction>,
-    mapped_actions: *const Ffi__Array<Ffi__ServiceMappedAction>,
-}
-
-impl <'a>convert::From<Service<'a>> for Ffi__Service {
-    fn from(service: Service) -> Ffi__Service {
-        Ffi__Service {
-            actions: Ffi__Array::from(service.actions),
-            mapped_actions: if let Some(mapped) = service.mapped_actions {
-                Box::into_raw(Box::new(Ffi__Array::from(mapped)))
-            } else {
-                ptr::null()
-            },
-        }
-    }
-}
-
-impl <'a>convert::Into<Service<'a>> for Ffi__Service {
-    fn into(self) -> Service<'a> {
-        Service {
-            actions: self.actions.into(),
-            mapped_actions: if self.mapped_actions.is_null() {
-                None
-            } else {
-                Some(trypanic!(readptr!(self.mapped_actions; HashMap<&'a str, &'a str>, "mapped_actions array")))
-            }
-        }
-    }
-}
-
 #[no_mangle]
 pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable,
                                       mapped_actions: *mut Ffi__ServiceMappedAction,
-                                      mapped_actions_len: size_t) -> *mut Ffi__Service {
+                                      mapped_actions_len: size_t) -> *mut Service {
     let runnable: ServiceRunnable = trynull!(catch_unwind(|| ffi_runnable.into()));
     let mapped_actions = if !mapped_actions.is_null() {
         Some(trynull!(catch_unwind(|| Ffi__Array {
@@ -172,15 +92,15 @@ pub extern "C" fn service_new_service(ffi_runnable: Ffi__ServiceRunnable,
         None
     };
 
-    let ffi_svc = trynull!(catch_unwind(|| Service::new_service(runnable, mapped_actions).into()));
-    Box::into_raw(Box::new(ffi_svc))
+    let svc = Service::new_service(runnable, mapped_actions);
+    Box::into_raw(Box::new(svc))
 }
 
 #[no_mangle]
 pub extern "C" fn service_new_map(actions_ptr: *mut Ffi__ServiceAction,
                                   actions_len: size_t,
                                   mapped_actions_ptr: *mut Ffi__ServiceMappedAction,
-                                  mapped_actions_len: size_t) -> *mut Ffi__Service {
+                                  mapped_actions_len: size_t) -> *mut Service {
     let actions: HashMap<_, _> = trynull!(catch_unwind(|| Ffi__Array {
         ptr: actions_ptr,
         length: actions_len,
@@ -196,33 +116,29 @@ pub extern "C" fn service_new_map(actions_ptr: *mut Ffi__ServiceAction,
         None
     };
 
-    let ffi_svc = trynull!(catch_unwind(|| Service::new_map(actions, mapped_actions).into()));
-    Box::into_raw(Box::new(ffi_svc))
+    let svc = Service::new_map(actions, mapped_actions);
+    Box::into_raw(Box::new(svc))
 }
 
 #[no_mangle]
-pub extern "C" fn service_action(service_ptr: *mut Ffi__Service, host_ptr: *const Host, action_ptr: *const c_char) -> *const Ffi__CommandResult {
-    let service = trynull!(readptr!(service_ptr; Service, "Service struct"));
+pub extern "C" fn service_action(service_ptr: *mut Service, host_ptr: *const Host, action_ptr: *const c_char) -> *const Ffi__CommandResult {
+    let service = Leaky::new(trynull!(readptr!(service_ptr, "Service pointer")));
     let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
     let action = trynull!(ptrtostr!(action_ptr, "action string"));
 
-    let result = match trynull!(service.action(&mut host, action)) {
+    match trynull!(service.action(&mut host, action)) {
         Some(result) => {
             let ffi_r = trynull!(catch_unwind(|| result.into()));
             Box::into_raw(Box::new(ffi_r))
         },
         None => ptr::null(),
-    };
+    }
+}
 
-    // When we convert the FFI service pointer into a Service, we
-    // convert the C string pointers into &str's, which have the same
-    // lifetime as the service binding. To avoid freeing this memory
-    // when the binding goes out of scope, we convert the Service
-    // back to an FFI Service and write it to the pointer.
-    let ffi_svc = trynull!(catch_unwind(|| service.into()));
-    unsafe { ptr::write(&mut *service_ptr, ffi_svc); }
-
-    result
+#[no_mangle]
+pub extern "C" fn service_free(service_ptr: *mut Service) -> uint8_t {
+    tryrc!(boxptr!(service_ptr, "Service pointer"));
+    0
 }
 
 #[cfg(test)]
@@ -234,27 +150,15 @@ mod tests {
     use czmq::{ZMsg, ZSys};
     #[cfg(feature = "remote-run")]
     use host::ffi::host_close;
-    use {Service, ServiceRunnable};
+    use service::{ServiceRunnable, ServiceRunnableOwned};
     use std::collections::HashMap;
-    use std::ffi::{CStr, CString};
+    #[cfg(feature = "remote-run")]
+    use std::ffi::CStr;
+    use std::ffi::CString;
     use std::{ptr, str};
     #[cfg(feature = "remote-run")]
     use std::thread;
     use super::*;
-
-    #[test]
-    fn test_convert_service_runnable_cmd() {
-        let ffi_runnable = Ffi__ServiceRunnable::from(ServiceRunnable::Command("test"));
-        assert_eq!(str::from_utf8(unsafe { CStr::from_ptr(ffi_runnable.command) }.to_bytes()).unwrap(), "test");
-        assert_eq!(ffi_runnable.service, ptr::null_mut());
-    }
-
-    #[test]
-    fn test_convert_service_runnable_svc() {
-        let ffi_runnable = Ffi__ServiceRunnable::from(ServiceRunnable::Service("test"));
-        assert_eq!(str::from_utf8(unsafe { CStr::from_ptr(ffi_runnable.service) }.to_bytes()).unwrap(), "test");
-        assert_eq!(ffi_runnable.command, ptr::null_mut());
-    }
 
     #[test]
     fn test_convert_ffi_service_runnable_cmd() {
@@ -284,63 +188,54 @@ mod tests {
 
     #[test]
     fn test_convert_service_actions() {
-        let mut actions = HashMap::new();
-        actions.insert("test", ServiceRunnable::Service("test"));
-
-        let ffi_actions = Ffi__Array::from(actions);
+        let mut arr = Vec::new();
+        arr.push(Ffi__ServiceAction {
+            action: CString::new("test").unwrap().into_raw(),
+            runnable: Ffi__ServiceRunnable {
+                command: ptr::null_mut(),
+                service: CString::new("test").unwrap().into_raw(),
+            },
+        });
+        let ffi_actions = Ffi__Array::from(arr);
         let actions: HashMap<_, _> = ffi_actions.into();
 
-        match actions.get("test").unwrap() {
-            &ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),
+        match *actions.get("test").unwrap() {
+            ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),
             _ => panic!("Unexpected Runnable variant"),
         }
     }
 
     #[test]
     fn test_convert_service_mapped_actions() {
-        let mut actions = HashMap::new();
-        actions.insert("test", "mapped_test");
-
-        let ffi_actions = Ffi__Array::from(actions);
+        let mut arr = Vec::new();
+        arr.push(Ffi__ServiceMappedAction {
+            action: CString::new("test").unwrap().into_raw(),
+            mapped_action: CString::new("mapped_test").unwrap().into_raw(),
+        });
+        let ffi_actions = Ffi__Array::from(arr);
         let actions: HashMap<_, _> = ffi_actions.into();
 
         assert_eq!(actions.get("test").unwrap(), &"mapped_test");
     }
 
     #[test]
-    fn test_convert_service() {
-        let mut actions = HashMap::new();
-        actions.insert("test", ServiceRunnable::Service("test"));
-
-        let mut mapped = HashMap::new();
-        mapped.insert("test", "mapped_test");
-
-        let ffi_service: Ffi__Service = Service {
-            actions: actions,
-            mapped_actions: Some(mapped),
-        }.into();
-        let service: Service = ffi_service.into();
-
-        match service.actions.get("test").unwrap() {
-            &ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),
-            _ => panic!("Unexpected Runnable variant"),
-        }
-
-        assert_eq!(service.mapped_actions.unwrap().get("test").unwrap(), &"mapped_test");
-    }
-
-    #[test]
     fn test_service_new_service() {
-        let ffi_runnable = Ffi__ServiceRunnable::from(ServiceRunnable::Service("test"));
+        let runnable = Ffi__ServiceRunnable {
+            command: ptr::null_mut(),
+            service: CString::new("test").unwrap().into_raw(),
+        };
 
-        let mut mapped = HashMap::new();
-        mapped.insert("test", "mapped_test");
-        let ffi_mapped = Ffi__Array::from(mapped);
+        let mut arr = Vec::new();
+        arr.push(Ffi__ServiceMappedAction {
+            action: CString::new("test").unwrap().into_raw(),
+            mapped_action: CString::new("mapped_test").unwrap().into_raw(),
+        });
+        let ffi_mapped = Ffi__Array::from(arr);
 
-        let service = readptr!(service_new_service(ffi_runnable, ffi_mapped.ptr, ffi_mapped.length); Service, "Service struct").unwrap();
+        let service = readptr!(service_new_service(runnable, ffi_mapped.ptr, ffi_mapped.length), "Service pointer").unwrap();
 
-        match service.actions.get("_").unwrap() {
-            &ServiceRunnable::Service(svc) => assert_eq!(svc, "test"),
+        match *service.actions.get("_").unwrap() {
+            ServiceRunnableOwned::Service(ref svc) => assert_eq!(svc, "test"),
             _ => panic!("Unexpected Runnable variant"),
         }
 
@@ -349,14 +244,20 @@ mod tests {
 
     #[test]
     fn test_service_new_map() {
-        let mut map = HashMap::new();
-        map.insert("test", ServiceRunnable::Command("test"));
-        let ffi_map = Ffi__Array::from(map);
+        let mut arr = Vec::new();
+        arr.push(Ffi__ServiceAction {
+            action: CString::new("test").unwrap().into_raw(),
+            runnable: Ffi__ServiceRunnable {
+                command: CString::new("test").unwrap().into_raw(),
+                service: ptr::null_mut(),
+            },
+        });
+        let ffi_map = Ffi__Array::from(arr);
 
-        let service = readptr!(service_new_map(ffi_map.ptr, ffi_map.length, ptr::null_mut(), 0); Service, "Service struct").unwrap();
+        let service = readptr!(service_new_map(ffi_map.ptr, ffi_map.length, ptr::null_mut(), 0), "Service pointer").unwrap();
 
-        match service.actions.get("test").unwrap() {
-            &ServiceRunnable::Command(cmd) => assert_eq!(cmd, "test"),
+        match *service.actions.get("test").unwrap() {
+            ServiceRunnableOwned::Command(ref cmd) => assert_eq!(cmd, "test"),
             _ => panic!("Unexpected Runnable variant"),
         }
 
@@ -388,20 +289,24 @@ mod tests {
         });
 
         let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
-        let ffi_service = service_new_service(Ffi__ServiceRunnable::from(ServiceRunnable::Service("nginx")), ptr::null_mut(), 0);
-        assert!(!ffi_service.is_null());
+
+        let runnable = Ffi__ServiceRunnable {
+            command: ptr::null_mut(),
+            service: CString::new("nginx").unwrap().into_raw(),
+        };
+
+        let service = service_new_service(runnable, ptr::null_mut(), 0);
+        assert!(!service.is_null());
+
         let action_ptr = CString::new("start").unwrap().into_raw();
-
-        let result_ptr = service_action(ffi_service, host, action_ptr);
-        assert!(!result_ptr.is_null());
-        let result = unsafe { ptr::read(result_ptr) };
+        let result = readptr!(service_action(service, host, action_ptr), "CommandResult pointer").unwrap();
         assert_eq!(result.exit_code, 0);
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(result.stdout).to_bytes()).unwrap() }, "Service started...");
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(result.stderr).to_bytes()).unwrap() }, "");
+        assert_eq!(unsafe { CStr::from_ptr(result.stdout).to_str().unwrap() }, "Service started...");
+        assert_eq!(unsafe { CStr::from_ptr(result.stderr).to_str().unwrap() }, "");
 
-        let result_ptr = service_action(ffi_service, host, action_ptr);
-        assert!(result_ptr.is_null());
+        assert!(service_action(service, host, action_ptr).is_null());
 
+        assert_eq!(service_free(service), 0);
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }

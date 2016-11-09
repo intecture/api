@@ -64,14 +64,12 @@ PHP_METHOD(File, exists) {
 
     php_file *intern = Z_FILE_OBJ_P(getThis());
 
-    bool *exists = file_exists(intern->file, host->host);
+    int exists = file_exists(intern->file, host->host);
 
-    if (!exists) {
+    if (exists < 0) {
         zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
-        return;
     }
-
-    if (*exists == true) {
+    else if (exists == 1) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -291,14 +289,14 @@ PHP_METHOD(File, get_mode) {
 
     php_file *intern = Z_FILE_OBJ_P(getThis());
 
-    uint16_t *mode = file_get_mode(intern->file, host->host);
+    int16_t mode = file_get_mode(intern->file, host->host);
 
-    if (!mode) {
+    if (mode < 0) {
         zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
         return;
     }
 
-    RETURN_LONG(*mode);
+    RETURN_LONG(mode);
 }
 
 PHP_METHOD(File, set_mode) {

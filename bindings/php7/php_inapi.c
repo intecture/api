@@ -59,6 +59,10 @@ zend_object *inapi_command_create(zend_class_entry *ce) {
 
 void inapi_command_free(zend_object *object TSRMLS_DC) {
     php_command *command = (php_command *)((char *)object - XtOffsetOf(php_command, std));
+    if (command->command) {
+        int rc = command_free(command->command);
+        assert(rc == 0);
+    }
     zend_object_std_dtor(object);
 }
 
@@ -91,6 +95,10 @@ zend_object *inapi_directory_create(zend_class_entry *ce) {
 
 void inapi_directory_free(zend_object *object TSRMLS_DC) {
     php_directory *directory = (php_directory *)((char *)object - XtOffsetOf(php_directory, std));
+    if (directory->directory) {
+        int rc = directory_free(directory->directory);
+        assert(rc == 0);
+    }
     zend_object_std_dtor(object);
 }
 
@@ -125,6 +133,10 @@ zend_object *inapi_file_create(zend_class_entry *ce) {
 
 void inapi_file_free(zend_object *object TSRMLS_DC) {
     php_file *file = (php_file *)((char *)object - XtOffsetOf(php_file, std));
+    if (file->file) {
+        int rc = file_free(file->file);
+        assert(rc == 0);
+    }
     zend_object_std_dtor(object);
 }
 
@@ -182,6 +194,10 @@ zend_object *inapi_package_create(zend_class_entry *ce) {
 
 void inapi_package_free(zend_object *object TSRMLS_DC) {
     php_package *package = (php_package *)((char *)object - XtOffsetOf(php_package, std));
+    if (package->package) {
+        int rc = package_free(package->package);
+        assert(rc == 0);
+    }
     zend_object_std_dtor(object);
 }
 
@@ -208,6 +224,10 @@ zend_object *inapi_payload_create(zend_class_entry *ce) {
 
 void inapi_payload_free(zend_object *object TSRMLS_DC) {
     php_payload *payload = (php_payload *)((char *)object - XtOffsetOf(php_payload, std));
+    if (payload->payload) {
+        int rc = payload_free(payload->payload);
+        assert(rc == 0);
+    }
     zend_object_std_dtor(object);
 }
 
@@ -233,6 +253,10 @@ zend_object *inapi_service_create(zend_class_entry *ce) {
 
 void inapi_service_free(zend_object *object TSRMLS_DC) {
     php_service *service = (php_service *)((char *)object - XtOffsetOf(php_service, std));
+    if (service->service) {
+        int rc = service_free(service->service);
+        assert(rc == 0);
+    }
     zend_object_std_dtor(object);
 }
 
@@ -291,6 +315,10 @@ zend_object *inapi_template_create(zend_class_entry *ce) {
 
 void inapi_template_free(zend_object *object TSRMLS_DC) {
     php_template *template = (php_template *)((char *)object - XtOffsetOf(php_template, std));
+    if (template->template) {
+        int rc = template_free(template->template);
+        assert(rc == 0);
+    }
     zend_object_std_dtor(object);
 }
 

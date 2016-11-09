@@ -140,6 +140,12 @@ PHP_METHOD(Service, action) {
         add_assoc_long(return_value, "exit_code", result->exit_code);
         add_assoc_string(return_value, "stdout", result->stdout);
         add_assoc_string(return_value, "stderr", result->stderr);
+
+        int rc = command_result_free(result);
+        if (rc != 0) {
+            zend_throw_exception(inapi_ce_service_ex, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            return;
+        }
     } else {
         RETURN_NULL();
     }

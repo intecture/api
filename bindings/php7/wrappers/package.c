@@ -55,14 +55,13 @@ PHP_METHOD(Package, is_installed) {
     }
 
     php_package *intern = Z_PKG_OBJ_P(getThis());
-    bool *installed = package_is_installed(intern->package);
+    int installed = package_is_installed(intern->package);
 
-    if (!installed) {
+    if (installed < 0) {
         zend_throw_exception(inapi_ce_package_ex, geterr(), 1000 TSRMLS_CC);
         return;
     }
-
-    if (*installed == true) {
+    else if (installed == 1) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -91,6 +90,12 @@ PHP_METHOD(Package, install) {
         add_assoc_long(return_value, "exit_code", result->exit_code);
         add_assoc_string(return_value, "stdout", result->stdout);
         add_assoc_string(return_value, "stderr", result->stderr);
+
+        int rc = command_result_free(result);
+        if (rc != 0) {
+            zend_throw_exception(inapi_ce_package_ex, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            return;
+        }
     } else {
         RETURN_NULL();
     }
@@ -111,13 +116,19 @@ PHP_METHOD(Package, uninstall) {
     }
 
     php_package *intern = Z_PKG_OBJ_P(getThis());
-    CommandResult *result = package_install(intern->package, host->host);
+    CommandResult *result = package_uninstall(intern->package, host->host);
 
     if (result) {
         array_init(return_value);
         add_assoc_long(return_value, "exit_code", result->exit_code);
         add_assoc_string(return_value, "stdout", result->stdout);
         add_assoc_string(return_value, "stderr", result->stderr);
+
+        int rc = command_result_free(result);
+        if (rc != 0) {
+            zend_throw_exception(inapi_ce_package_ex, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            return;
+        }
     } else {
         RETURN_NULL();
     }

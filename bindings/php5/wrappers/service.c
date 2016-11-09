@@ -70,6 +70,10 @@ zend_object_value create_php_service(zend_class_entry *class_type TSRMLS_DC) {
 
 void free_php_service(void *object TSRMLS_DC) {
     php_service *service = (php_service*)object;
+    if (service->service) {
+        int rc = service_free(service->service);
+        assert(rc == 0);
+    }
     efree(service);
 }
 
@@ -277,6 +281,12 @@ PHP_METHOD(Service, action) {
         add_assoc_long(return_value, "exit_code", result->exit_code);
         add_assoc_string(return_value, "stdout", result->stdout, 1);
         add_assoc_string(return_value, "stderr", result->stderr, 1);
+
+        rtn = command_result_free(result);
+        if (rtn != 0) {
+            zend_throw_exception(inapi_ce_service_exception, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            return;
+        }
     } else {
         RETURN_NULL();
     }

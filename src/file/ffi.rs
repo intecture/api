@@ -12,7 +12,7 @@
 use error;
 use ffi_helpers::Leaky;
 use host::Host;
-use libc::{c_char, uint8_t, uint16_t, uint64_t};
+use libc::{c_char, int8_t, int16_t, uint8_t, uint16_t, uint64_t};
 #[cfg(feature = "remote-run")]
 use libc::c_int;
 use std::{convert, ptr};
@@ -22,30 +22,8 @@ use std::fs;
 #[cfg(feature = "remote-run")]
 use std::os::unix::io::FromRawFd;
 use std::panic::catch_unwind;
-use std::path::PathBuf;
 use super::*;
 use zfilexfer::FileOptions;
-
-#[repr(C)]
-pub struct Ffi__File {
-    path: *const c_char,
-}
-
-impl convert::From<File> for Ffi__File {
-    fn from(file: File) -> Ffi__File {
-        Ffi__File {
-            path: CString::new(file.path.to_str().unwrap()).unwrap().into_raw(),
-        }
-    }
-}
-
-impl convert::Into<File> for Ffi__File {
-    fn into(self) -> File {
-        File {
-            path: PathBuf::from(trypanic!(ptrtostr!(self.path, "path string"))),
-        }
-    }
-}
 
 #[repr(C)]
 #[derive(Debug)]
@@ -87,44 +65,34 @@ impl convert::From<FileOwner> for Ffi__FileOwner {
     }
 }
 
-impl convert::Into<FileOwner> for Ffi__FileOwner {
-    fn into(self) -> FileOwner {
-        FileOwner {
-            user_name: trypanic!(ptrtostr!(self.user_name, "user name string")).into(),
-            user_uid: self.user_uid as u64,
-            group_name: trypanic!(ptrtostr!(self.group_name, "group name string")).into(),
-            group_gid: self.group_gid as u64,
-        }
-    }
-}
-
 #[no_mangle]
-pub extern "C" fn file_new(host_ptr: *const Host, path_ptr: *const c_char) -> *mut Ffi__File {
+pub extern "C" fn file_new(host_ptr: *const Host, path_ptr: *const c_char) -> *mut File {
     let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
     let path = trynull!(ptrtostr!(path_ptr, "path string"));
 
     let file = trynull!(File::new(&mut host, path));
-    let ffi_file: Ffi__File = trynull!(catch_unwind(|| file.into()));
-    Box::into_raw(Box::new(ffi_file))
+    Box::into_raw(Box::new(file))
 }
 
 #[no_mangle]
-pub extern "C" fn file_exists(file_ptr: *const Ffi__File, host_ptr: *const Host) -> *mut uint8_t {
-    let file = trynull!(readptr!(file_ptr; File, "File struct"));
-    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
+pub extern "C" fn file_exists(file_ptr: *const File, host_ptr: *const Host) -> int8_t {
+    let file = Leaky::new(tryrc!(readptr!(file_ptr, "File pointer"), -1));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer"), -1));
 
-    let result = if trynull!(file.exists(&mut host)) { 1 } else { 0 };
-
-    Box::into_raw(Box::new(result))
+    if tryrc!(file.exists(&mut host), -1) {
+        1
+    } else {
+        0
+    }
 }
 
 #[cfg(feature = "remote-run")]
 #[no_mangle]
-pub extern "C" fn file_upload(file_ptr: *const Ffi__File,
+pub extern "C" fn file_upload(file_ptr: *const File,
                               host_ptr: *const Host,
                               local_path_ptr: *const c_char,
                               file_options_ptr: *const Ffi__FileOptions) -> uint8_t {
-    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let file = Leaky::new(tryrc!(readptr!(file_ptr, "File pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let local_path = tryrc!(ptrtostr!(local_path_ptr, "local path string"));
     let opts = match readptr!(file_options_ptr; Vec<FileOptions>, "FileOptions array") {
@@ -139,11 +107,11 @@ pub extern "C" fn file_upload(file_ptr: *const Ffi__File,
 
 #[cfg(feature = "remote-run")]
 #[no_mangle]
-pub extern "C" fn file_upload_file(file_ptr: *const Ffi__File,
+pub extern "C" fn file_upload_file(file_ptr: *const File,
                                    host_ptr: *const Host,
                                    file_descriptor: c_int,
                                    file_options_ptr: *const Ffi__FileOptions) -> uint8_t {
-    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let file = Leaky::new(tryrc!(readptr!(file_ptr, "File pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     if file_descriptor == 0 {
@@ -163,8 +131,8 @@ pub extern "C" fn file_upload_file(file_ptr: *const Ffi__File,
 }
 
 #[no_mangle]
-pub extern "C" fn file_delete(file_ptr: *const Ffi__File, host_ptr: *const Host) -> uint8_t {
-    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+pub extern "C" fn file_delete(file_ptr: *const File, host_ptr: *const Host) -> uint8_t {
+    let file = Leaky::new(tryrc!(readptr!(file_ptr, "File pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     tryrc!(file.delete(&mut host));
@@ -173,23 +141,24 @@ pub extern "C" fn file_delete(file_ptr: *const Ffi__File, host_ptr: *const Host)
 }
 
 #[no_mangle]
-pub extern "C" fn file_mv(file_ptr: *mut Ffi__File, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
-    let mut file = tryrc!(readptr!(file_ptr; File, "File struct"));
+pub extern "C" fn file_mv(file_ptr: *mut File, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
+    let mut file = tryrc!(boxptr!(file_ptr, "File pointer"));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
 
     tryrc!(file.mv(&mut host, new_path));
 
     // Write mutated File path back to pointer
-    let ffi_file = tryrc!(catch_unwind(|| file.into()));
-    unsafe { ptr::write(&mut *file_ptr, ffi_file); }
+    let new_file_ptr = Box::into_raw(file);
+    unsafe { ptr::swap(file_ptr, new_file_ptr); }
 
-    0
+    // Free old file ptr, which has been swapped into `new_file_ptr`
+    file_free(new_file_ptr)
 }
 
 #[no_mangle]
-pub extern "C" fn file_copy(file_ptr: *const Ffi__File, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
-    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+pub extern "C" fn file_copy(file_ptr: *const File, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
+    let file = Leaky::new(tryrc!(readptr!(file_ptr, "File pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
 
@@ -199,8 +168,8 @@ pub extern "C" fn file_copy(file_ptr: *const Ffi__File, host_ptr: *const Host, n
 }
 
 #[no_mangle]
-pub extern "C" fn file_get_owner(file_ptr: *const Ffi__File, host_ptr: *const Host) -> *mut Ffi__FileOwner {
-    let file = trynull!(readptr!(file_ptr; File, "File struct"));
+pub extern "C" fn file_get_owner(file_ptr: *const File, host_ptr: *const Host) -> *mut Ffi__FileOwner {
+    let file = Leaky::new(trynull!(readptr!(file_ptr, "File pointer")));
     let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let owner = trynull!(file.get_owner(&mut host));
@@ -210,11 +179,11 @@ pub extern "C" fn file_get_owner(file_ptr: *const Ffi__File, host_ptr: *const Ho
 }
 
 #[no_mangle]
-pub extern "C" fn file_set_owner(file_ptr: *const Ffi__File,
+pub extern "C" fn file_set_owner(file_ptr: *const File,
                                  host_ptr: *const Host,
                                  user_ptr: *const c_char,
                                  group_ptr: *const c_char) -> uint8_t {
-    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+    let file = Leaky::new(tryrc!(readptr!(file_ptr, "File pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let user = tryrc!(ptrtostr!(user_ptr, "user string"));
     let group = tryrc!(ptrtostr!(group_ptr, "group string"));
@@ -225,18 +194,16 @@ pub extern "C" fn file_set_owner(file_ptr: *const Ffi__File,
 }
 
 #[no_mangle]
-pub extern "C" fn file_get_mode(file_ptr: *const Ffi__File, host_ptr: *const Host) -> *mut uint16_t {
-    let file = trynull!(readptr!(file_ptr; File, "File struct"));
-    let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
+pub extern "C" fn file_get_mode(file_ptr: *const File, host_ptr: *const Host) -> int16_t {
+    let file = Leaky::new(tryrc!(readptr!(file_ptr, "File pointer"), -1));
+    let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer"), -1));
 
-    let result = trynull!(file.get_mode(&mut host));
-
-    Box::into_raw(Box::new(result))
+    tryrc!(file.get_mode(&mut host), -1) as i16
 }
 
 #[no_mangle]
-pub extern "C" fn file_set_mode(file_ptr: *const Ffi__File, host_ptr: *const Host, mode: uint16_t) -> uint8_t {
-    let file = tryrc!(readptr!(file_ptr; File, "File struct"));
+pub extern "C" fn file_set_mode(file_ptr: *const File, host_ptr: *const Host, mode: uint16_t) -> uint8_t {
+    let file = Leaky::new(tryrc!(readptr!(file_ptr, "File pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     tryrc!(file.set_mode(&mut host, mode as u16));
@@ -244,71 +211,29 @@ pub extern "C" fn file_set_mode(file_ptr: *const Ffi__File, host_ptr: *const Hos
     0
 }
 
+#[no_mangle]
+pub extern "C" fn file_free(file_ptr: *mut File) -> uint8_t {
+    tryrc!(boxptr!(file_ptr, "File pointer"));
+    0
+}
+
 #[cfg(test)]
 mod tests {
-    use {File, FileOptions, FileOwner, Host};
     #[cfg(feature = "remote-run")]
     use czmq::{ZMsg, ZSys};
+    use file::FileOwner;
     #[cfg(feature = "remote-run")]
     use host::ffi::host_close;
     #[cfg(feature = "remote-run")]
-    use libc::{uint8_t, uint16_t};
+    use host::Host;
     use std::ffi::{CStr, CString};
+    #[cfg(feature = "remote-run")]
     use std::path::Path;
     use std::str;
     use super::*;
     #[cfg(feature = "remote-run")]
     use std::thread;
-
-    // XXX local-run tests require FS mocking
-
-    #[cfg(feature = "local-run")]
-    #[test]
-    fn test_convert_file() {
-        let path: Option<String> = None;
-        let mut host = Host::local(path).unwrap();
-        // XXX Without FS mocking this could potentially fail where
-        // /path/to/file is a real path to a directory.
-        let file = File::new(&mut host, "/path/to/file").unwrap();
-        let ffi_file = Ffi__File::from(file);
-
-        assert_eq!(ptrtostr!(ffi_file.path, "path string").unwrap(), "/path/to/file");
-    }
-
-    #[cfg(feature = "remote-run")]
-    #[test]
-    fn test_convert_file() {
-        ZSys::init();
-
-        let (client, mut server) = ZSys::create_pipe().unwrap();
-
-        let agent_mock = thread::spawn(move || {
-            server.recv_str().unwrap().unwrap();
-
-            let msg = ZMsg::new();
-            msg.addstr("Ok").unwrap();
-            msg.addstr("1").unwrap();
-            msg.send(&mut server).unwrap();
-        });
-
-        let mut host = Host::test_new(None, Some(client), None, None);
-        let file = File::new(&mut host, "/path/to/file").unwrap();
-        let ffi_file = Ffi__File::from(file);
-
-        assert_eq!(ptrtostr!(ffi_file.path, "path string").unwrap(), "/path/to/file");
-
-        agent_mock.join().unwrap();
-    }
-
-    #[test]
-    fn test_convert_ffi_file() {
-        let ffi_file = Ffi__File {
-            path: CString::new("/path/to/file").unwrap().into_raw(),
-        };
-        let file: File = ffi_file.into();
-
-        assert_eq!(file.path, Path::new("/path/to/file"));
-    }
+    use zfilexfer::FileOptions;
 
     #[test]
     fn test_convert_ffi_file_options() {
@@ -334,28 +259,12 @@ mod tests {
             group_name: "Cow".to_string(),
             group_gid: 456
         };
-        let ffi_owner = Ffi__FileOwner::from(owner);
+        let ffi_owner: Ffi__FileOwner = owner.into();
 
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_owner.user_name).to_bytes()).unwrap() }, "Moo");
+        assert_eq!(unsafe { CStr::from_ptr(ffi_owner.user_name).to_str().unwrap() }, "Moo");
         assert_eq!(ffi_owner.user_uid, 123);
-        assert_eq!(unsafe { str::from_utf8(CStr::from_ptr(ffi_owner.group_name).to_bytes()).unwrap() }, "Cow");
+        assert_eq!(unsafe { CStr::from_ptr(ffi_owner.group_name).to_str().unwrap() }, "Cow");
         assert_eq!(ffi_owner.group_gid, 456);
-    }
-
-    #[test]
-    fn test_convert_ffi_fileowner() {
-        let ffi_owner = Ffi__FileOwner {
-            user_name: CString::new("Moo").unwrap().into_raw(),
-            user_uid: 123,
-            group_name: CString::new("Cow").unwrap().into_raw(),
-            group_gid: 456
-        };
-        let owner: FileOwner = ffi_owner.into();
-
-        assert_eq!(&owner.user_name, "Moo");
-        assert_eq!(owner.user_uid, 123);
-        assert_eq!(&owner.group_name, "Cow");
-        assert_eq!(owner.group_gid, 456);
     }
 
     #[cfg(feature = "remote-run")]
@@ -377,7 +286,7 @@ mod tests {
         let host = Box::into_raw(Box::new(Host::test_new(None, Some(client), None, None)));
 
         let path = CString::new("/path/to/file").unwrap().into_raw();
-        let file = readptr!(file_new(host, path); File, "File struct").unwrap();
+        let file = readptr!(file_new(host, path), "File pointer").unwrap();
         assert_eq!(file.path, Path::new("/path/to/file"));
 
         assert_eq!(host_close(host), 0);
@@ -437,9 +346,10 @@ mod tests {
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(host, path);
         assert!(!file.is_null());
-        let exists: uint8_t = readptr!(file_exists(file, host), "bool").unwrap();
-        assert_eq!(exists, 0);
 
+        assert_eq!(file_exists(file, host), 0);
+
+        assert_eq!(file_free(file), 0);
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
@@ -468,8 +378,10 @@ mod tests {
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(host, path);
         assert!(!file.is_null());
+
         assert_eq!(file_delete(file, host), 0);
 
+        assert_eq!(file_free(file), 0);
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
@@ -496,7 +408,7 @@ mod tests {
             reply.addstr("user").unwrap();
             reply.addstr("123").unwrap();
             reply.addstr("group").unwrap();
-            reply.addstr("123").unwrap();
+            reply.addstr("456").unwrap();
             reply.send(&mut server).unwrap();
         });
 
@@ -506,12 +418,13 @@ mod tests {
         let file = file_new(host, path);
         assert!(!file.is_null());
 
-        let owner = readptr!(file_get_owner(file, host); FileOwner, "FileOwner struct").unwrap();
-        assert_eq!(owner.user_name, "user");
+        let owner = readptr!(file_get_owner(file, host), "FileOwner struct").unwrap();
+        assert_eq!(unsafe { CStr::from_ptr(owner.user_name).to_str().unwrap() }, "user");
         assert_eq!(owner.user_uid, 123);
-        assert_eq!(owner.group_name, "group");
-        assert_eq!(owner.group_gid, 123);
+        assert_eq!(unsafe { CStr::from_ptr(owner.group_name).to_str().unwrap() }, "group");
+        assert_eq!(owner.group_gid, 456);
 
+        assert_eq!(file_free(file), 0);
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
@@ -545,10 +458,12 @@ mod tests {
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(host, path);
         assert!(!file.is_null());
+
         let user = CString::new("user").unwrap().into_raw();
         let group = CString::new("group").unwrap().into_raw();
         assert_eq!(file_set_owner(file, host, user, group), 0);
 
+        assert_eq!(file_free(file), 0);
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
@@ -581,9 +496,10 @@ mod tests {
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(host, path);
         assert!(!file.is_null());
-        let mode: uint16_t = readptr!(file_get_mode(file, host), "mode string").unwrap();
-        assert_eq!(mode, 755);
 
+        assert_eq!(file_get_mode(file, host), 755);
+
+        assert_eq!(file_free(file), 0);
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }
@@ -616,8 +532,10 @@ mod tests {
         let path = CString::new("/path/to/file").unwrap().into_raw();
         let file = file_new(host, path);
         assert!(!file.is_null());
+
         assert_eq!(file_set_mode(file, host, 644), 0);
 
+        assert_eq!(file_free(file), 0);
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();
     }

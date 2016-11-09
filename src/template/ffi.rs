@@ -9,38 +9,13 @@
 //! FFI interface for File
 
 use error::Error;
+use ffi_helpers::Leaky;
 use libc::{c_char, c_void, uint8_t};
 use mustache;
 use std::{convert, ptr};
 use std::os::raw::c_int;
 use std::os::unix::io::IntoRawFd;
-use std::panic::catch_unwind;
 use super::*;
-
-#[repr(C)]
-pub struct Ffi__Template {
-    inner: *mut c_void,
-}
-
-impl convert::From<Template> for Ffi__Template {
-    fn from(template: Template) -> Ffi__Template {
-        Ffi__Template {
-            inner: Box::into_raw(Box::new(template.inner)) as *mut c_void,
-        }
-    }
-}
-
-impl convert::Into<Template> for Ffi__Template {
-    fn into(self) -> Template {
-        Template {
-            inner: if self.inner.is_null() {
-                panic!(Error::NullPtr("Template inner ptr"));
-            } else {
-                unsafe { ptr::read(self.inner as *mut mustache::Template) }
-            }
-        }
-    }
-}
 
 #[repr(C)]
 pub struct Ffi__MapBuilder {
@@ -89,27 +64,32 @@ impl convert::Into<mustache::VecBuilder> for Ffi__VecBuilder {
 }
 
 #[no_mangle]
-pub extern "C" fn template_new(path_ptr: *const c_char) -> *mut Ffi__Template {
+pub extern "C" fn template_new(path_ptr: *const c_char) -> *mut Template {
     let path = trynull!(ptrtostr!(path_ptr, "path string"));
     let template = trynull!(Template::new(path));
-    let ffi_template: Ffi__Template = trynull!(catch_unwind(|| template.into()));
-    Box::into_raw(Box::new(ffi_template))
+    Box::into_raw(Box::new(template))
 }
 
 #[no_mangle]
-pub extern "C" fn template_render_map(template_ptr: *const Ffi__Template, builder_ptr: *mut Ffi__MapBuilder) -> c_int {
-    let template = tryrc!(readptr!(template_ptr; Template, "Template struct"), 0);
+pub extern "C" fn template_render_map(template_ptr: *const Template, builder_ptr: *mut Ffi__MapBuilder) -> c_int {
+    let template = Leaky::new(tryrc!(readptr!(template_ptr, "Template pointer"), 0));
     let builder = tryrc!(readptr!(builder_ptr as *mut Ffi__MapBuilder; mustache::MapBuilder, "MapBuilder struct"), 0);
     let fh = tryrc!(template.render_data(&builder.build()), 0);
     fh.into_raw_fd()
 }
 
 #[no_mangle]
-pub extern "C" fn template_render_vec(template_ptr: *const Ffi__Template, builder_ptr: *mut Ffi__VecBuilder) -> c_int {
-    let template = tryrc!(readptr!(template_ptr; Template, "Template struct"), 0);
+pub extern "C" fn template_render_vec(template_ptr: *const Template, builder_ptr: *mut Ffi__VecBuilder) -> c_int {
+    let template = Leaky::new(tryrc!(readptr!(template_ptr, "Template pointer"), 0));
     let builder = tryrc!(readptr!(builder_ptr as *mut Ffi__VecBuilder; mustache::VecBuilder, "VecBuilder struct"), 0);
     let fh = tryrc!(template.render_data(&builder.build()), 0);
     fh.into_raw_fd()
+}
+
+#[no_mangle]
+pub extern "C" fn template_free(template_ptr: *mut Template) -> uint8_t {
+    tryrc!(boxptr!(template_ptr, "Template pointer"));
+    0
 }
 
 #[no_mangle]
@@ -230,17 +210,6 @@ mod tests {
     use template::Template;
 
     #[test]
-    fn test_convert_template() {
-        let tempdir = TempDir::new("test_template_ffi_new").unwrap();
-        let path = format!("{}/tpl.mustache", tempdir.path().to_str().unwrap());
-        fs::File::create(&path).unwrap();
-
-        let template = Template::new(&path).unwrap();
-        let ffi_template = Ffi__Template::from(template);
-        let _: Template = ffi_template.into();
-    }
-
-    #[test]
     fn test_new() {
         let path = CString::new("/path/to/nowhere").unwrap().into_raw();
         assert!(template_new(path).is_null());
@@ -250,7 +219,9 @@ mod tests {
         fs::File::create(&path).unwrap();
 
         let path_ptr = CString::new(path.as_bytes()).unwrap().into_raw();
-        readptr!(template_new(path_ptr); Template, "Template struct").unwrap();
+        let template = template_new(path_ptr);
+        assert!(!template.is_null());
+        assert_eq!(template_free(template), 0);
     }
 
     #[test]
@@ -266,7 +237,7 @@ mod tests {
         let mut fh = fs::File::create(&template_path).unwrap();
         fh.write_all(template_str.as_bytes()).unwrap();
 
-        let template = Template::new(&template_path).unwrap().into();
+        let template = Template::new(&template_path).unwrap();
         let fd = template_render_map(Box::into_raw(Box::new(template)), m);
         assert!(fd != 0);
         let mut fh = unsafe { fs::File::from_raw_fd(fd) };

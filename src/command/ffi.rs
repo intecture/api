@@ -10,7 +10,7 @@
 
 use ffi_helpers::Leaky;
 use host::Host;
-use libc::c_char;
+use libc::{c_char, uint8_t};
 use std::convert;
 use std::ffi::CString;
 use std::panic::catch_unwind;
@@ -19,8 +19,8 @@ use super::{Command, CommandResult};
 #[repr(C)]
 pub struct Ffi__CommandResult {
     pub exit_code: i32,
-    pub stdout: *const c_char,
-    pub stderr: *const c_char,
+    pub stdout: *mut c_char,
+    pub stderr: *mut c_char,
 }
 
 impl convert::From<CommandResult> for Ffi__CommandResult {
@@ -48,6 +48,24 @@ pub extern "C" fn command_exec(cmd_ptr: *mut Command, host_ptr: *mut Host) -> *m
     let ffi_result: Ffi__CommandResult = trynull!(catch_unwind(|| result.into()));
 
     Box::into_raw(Box::new(ffi_result))
+}
+
+#[no_mangle]
+pub extern "C" fn command_free(cmd_ptr: *mut Command) -> uint8_t {
+    tryrc!(boxptr!(cmd_ptr, "Command pointer"));
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn command_result_free(result_ptr: *mut Ffi__CommandResult) -> uint8_t {
+    let result = tryrc!(boxptr!(result_ptr, "CommandResult pointer"));
+    if !result.stdout.is_null() {
+        unsafe { CString::from_raw(result.stdout) };
+    }
+    if !result.stderr.is_null() {
+        unsafe { CString::from_raw(result.stderr) };
+    }
+    0
 }
 
 #[cfg(test)]
@@ -78,9 +96,10 @@ mod tests {
 
     #[test]
     fn test_new() {
-        let cmd_cstr = CString::new("moo").unwrap();
-        let cmd = unsafe { ptr::read(command_new(cmd_cstr.as_ptr())) };
+        let cmd_ptr = command_new(CString::new("moo").unwrap().into_raw());
+        let cmd = unsafe { ptr::read(cmd_ptr) };
         assert_eq!(cmd.cmd, "moo");
+        assert_eq!(command_free(cmd_ptr), 0);
 
         assert!(command_new(ptr::null()).is_null());
         assert_eq!(unsafe { CStr::from_ptr(ERRMSG).to_str().unwrap() }, "Received null when we expected a command string pointer");
@@ -98,6 +117,8 @@ mod tests {
         assert!(!ffi_result.is_null());
         let result = unsafe { ptr::read(ffi_result) };
         assert_eq!(result.exit_code, 0);
+        assert_eq!(command_result_free(ffi_result), 0);
+        assert_eq!(command_free(cmd), 0);
     }
 
     #[cfg(feature = "remote-run")]
@@ -136,6 +157,9 @@ mod tests {
 
         let stderr = ptrtostr!(result.stderr, "stderr").unwrap();
         assert_eq!(stderr, "err");
+
+        assert_eq!(command_result_free(ffi_result), 0);
+        assert_eq!(command_free(command), 0);
 
         assert_eq!(host_close(host), 0);
         agent_mock.join().unwrap();

@@ -77,7 +77,7 @@ pub use payload::Payload;
 #[cfg(feature = "remote-run")]
 pub use payload::config::Config as PayloadConfig;
 #[cfg(feature = "remote-run")]
-pub use payload::ffi::{payload_new, payload_build, payload_run};
+pub use payload::ffi::{payload_new, payload_build, payload_run, payload_free};
 pub use project::{Language, ProjectConfig};
 pub use serde_json::Value;
 pub use service::{Service, ServiceRunnable};

@@ -79,6 +79,10 @@ zend_object_value create_php_file(zend_class_entry *class_type TSRMLS_DC) {
 
 void free_php_file(void *object TSRMLS_DC) {
     php_file *file = (php_file*)object;
+    if (file->file) {
+        int rc = file_free(file->file);
+        assert(rc == 0);
+    }
     efree(file);
 }
 
@@ -145,14 +149,12 @@ PHP_METHOD(File, exists) {
         return;
     }
 
-    bool *exists = file_exists(intern->file, host->host);
+    int exists = file_exists(intern->file, host->host);
 
-    if (!exists) {
+    if (exists < 0) {
         zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
-        return;
     }
-
-    if (*exists == true) {
+    else if (exists == 1) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -380,14 +382,14 @@ PHP_METHOD(File, get_mode) {
         return;
     }
 
-    uint16_t *mode = file_get_mode(intern->file, host->host);
+    int16_t mode = file_get_mode(intern->file, host->host);
 
-    if (!mode) {
+    if (mode < 0) {
         zend_throw_exception(inapi_ce_file_exception, geterr(), 1000 TSRMLS_CC);
         return;
     }
 
-    RETURN_LONG(*mode);
+    RETURN_LONG(mode);
 }
 
 PHP_METHOD(File, set_mode) {

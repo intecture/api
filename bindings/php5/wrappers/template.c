@@ -69,6 +69,10 @@ zend_object_value create_php_template(zend_class_entry *class_type TSRMLS_DC) {
 
 void free_php_template(void *object TSRMLS_DC) {
     php_template *template = (php_template*)object;
+    if (template->template) {
+        int rc = template_free(template->template);
+        assert(rc == 0);
+    }
     efree(template);
 }
 

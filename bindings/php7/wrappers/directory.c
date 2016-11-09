@@ -62,14 +62,12 @@ PHP_METHOD(Directory, exists) {
     }
 
     php_directory *intern = Z_DIR_OBJ_P(getThis());
-    bool *result = directory_exists(intern->directory, host->host);
+    int result = directory_exists(intern->directory, host->host);
 
-    if (!result) {
+    if (result < 0) {
         zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
-        return;
     }
-
-    if (*result == true) {
+    else if (result == 1) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -252,14 +250,14 @@ PHP_METHOD(Directory, get_mode) {
     }
 
     php_directory *intern = Z_DIR_OBJ_P(getThis());
-    uint16_t *mode = directory_get_mode(intern->directory, host->host);
+    int16_t mode = directory_get_mode(intern->directory, host->host);
 
-    if (!mode) {
+    if (mode < 0) {
         zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
         return;
     }
 
-    RETURN_LONG(*mode);
+    RETURN_LONG(mode);
 }
 
 PHP_METHOD(Directory, set_mode) {

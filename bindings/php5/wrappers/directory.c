@@ -76,6 +76,10 @@ zend_object_value create_php_directory(zend_class_entry *class_type TSRMLS_DC) {
 
 void free_php_directory(void *object TSRMLS_DC) {
     php_directory *directory = (php_directory*)object;
+    if (directory->directory) {
+        int rc = directory_free(directory->directory);
+        assert(rc == 0);
+    }
     efree(directory);
 }
 
@@ -142,14 +146,12 @@ PHP_METHOD(Directory, exists) {
         return;
     }
 
-    bool *result = directory_exists(intern->directory, host->host);
+    int result = directory_exists(intern->directory, host->host);
 
-    if (!result) {
+    if (result < 0) {
         zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
-        return;
     }
-
-    if (*result == true) {
+    else if (result == 1) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -358,14 +360,14 @@ PHP_METHOD(Directory, get_mode) {
         return;
     }
 
-    uint16_t *mode = directory_get_mode(intern->directory, host->host);
+    int16_t mode = directory_get_mode(intern->directory, host->host);
 
-    if (!mode) {
+    if (mode < 0) {
         zend_throw_exception(inapi_ce_directory_exception, geterr(), 1000 TSRMLS_CC);
         return;
     }
 
-    RETURN_LONG(*mode);
+    RETURN_LONG(mode);
 }
 
 PHP_METHOD(Directory, set_mode) {

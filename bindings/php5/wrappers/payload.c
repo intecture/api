@@ -69,6 +69,10 @@ zend_object_value create_php_payload(zend_class_entry *class_type TSRMLS_DC) {
 
 void free_php_payload(void *object TSRMLS_DC) {
     php_payload *payload = (php_payload*)object;
+    if (payload->payload) {
+        int rc = payload_free(payload->payload);
+        assert(rc == 0);
+    }
     efree(payload);
 }
 

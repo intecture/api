@@ -78,6 +78,10 @@ zend_object_value create_php_package(zend_class_entry *class_type TSRMLS_DC) {
 
 void free_php_package(void *object TSRMLS_DC) {
     php_package *package = (php_package*)object;
+    if (package->package) {
+        int rc = package_free(package->package);
+        assert(rc == 0);
+    }
     efree(package);
 }
 
@@ -137,14 +141,12 @@ PHP_METHOD(Package, is_installed) {
 
     intern = (php_package*)zend_object_store_get_object(getThis() TSRMLS_CC);
 
-    bool *installed = package_is_installed(intern->package);
+    int installed = package_is_installed(intern->package);
 
-    if (!installed) {
+    if (installed < 0) {
         zend_throw_exception(inapi_ce_package_exception, geterr(), 1000 TSRMLS_CC);
-        return;
     }
-
-    if (*installed == true) {
+    else if (installed == 1) {
         RETURN_TRUE;
     } else {
         RETURN_FALSE;
@@ -175,6 +177,12 @@ PHP_METHOD(Package, install) {
         add_assoc_long(return_value, "exit_code", result->exit_code);
         add_assoc_string(return_value, "stdout", result->stdout, 1);
         add_assoc_string(return_value, "stderr", result->stderr, 1);
+
+        rtn = command_result_free(result);
+        if (rtn != 0) {
+            zend_throw_exception(inapi_ce_package_exception, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            return;
+        }
     } else {
         RETURN_NULL();
     }
@@ -197,13 +205,19 @@ PHP_METHOD(Package, uninstall) {
         return;
     }
 
-    CommandResult *result = package_install(intern->package, host->host);
+    CommandResult *result = package_uninstall(intern->package, host->host);
 
     if (result) {
         array_init(return_value);
         add_assoc_long(return_value, "exit_code", result->exit_code);
         add_assoc_string(return_value, "stdout", result->stdout, 1);
         add_assoc_string(return_value, "stderr", result->stderr, 1);
+
+        rtn = command_result_free(result);
+        if (rtn != 0) {
+            zend_throw_exception(inapi_ce_package_exception, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            return;
+        }
     } else {
         RETURN_NULL();
     }

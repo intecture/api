@@ -67,8 +67,12 @@ zend_object_value create_php_command(zend_class_entry *class_type TSRMLS_DC) {
 }
 
 void free_php_command(void *object TSRMLS_DC) {
-  php_command *command = (php_command*)object;
-  efree(command);
+    php_command *command = (php_command*)object;
+    if (command->command) {
+        int rc = command_free(command->command);
+        assert(rc == 0);
+    }
+    efree(command);
 }
 
 /*
@@ -137,4 +141,10 @@ PHP_METHOD(Command, exec) {
     add_assoc_long(return_value, "exit_code", result->exit_code);
     add_assoc_string(return_value, "stdout", result->stdout, 1);
     add_assoc_string(return_value, "stderr", result->stderr, 1);
+
+    rtn = command_result_free(result);
+    if (rtn != 0) {
+        zend_throw_exception(inapi_ce_command_exception, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+        return;
+    }
 }

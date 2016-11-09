@@ -9,71 +9,31 @@
 use ffi_helpers::{Ffi__Array, Leaky};
 use host::Host;
 use libc::{c_char, size_t, uint8_t};
-use project::Language;
-use std::{convert, ptr};
-use std::ffi::CString;
 use std::panic::catch_unwind;
-use std::path::PathBuf;
 use super::*;
 
-#[repr(C)]
-pub struct Ffi__Payload {
-    path: *const c_char,
-    artifact: *const c_char,
-    language: Language,
-}
-
-impl convert::From<Payload> for Ffi__Payload {
-    fn from(payload: Payload) -> Ffi__Payload {
-        Ffi__Payload {
-            path: CString::new(payload.path.to_str().unwrap()).unwrap().into_raw(),
-            artifact: if let Some(a) = payload.artifact {
-                CString::new(a).unwrap().into_raw()
-            } else {
-                ptr::null()
-            },
-            language: payload.language,
-        }
-    }
-}
-
-impl convert::Into<Payload> for Ffi__Payload {
-    fn into(self) -> Payload {
-        let path: String = trypanic!(ptrtostr!(self.path, "path string")).into();
-
-        Payload {
-            path: PathBuf::from(&path),
-            artifact: if self.artifact.is_null() {
-                None
-            } else {
-                Some(trypanic!(ptrtostr!(self.artifact, "artifact string")).into())
-            },
-            language: self.language,
-        }
-    }
-}
-
 #[no_mangle]
-pub extern "C" fn payload_new(payload_artifact_ptr: *const c_char) -> *mut Ffi__Payload {
+pub extern "C" fn payload_new(payload_artifact_ptr: *const c_char) -> *mut Payload {
     let payload_artifact = trynull!(ptrtostr!(payload_artifact_ptr, "payload::artifact string"));
     let payload = trynull!(Payload::new(&payload_artifact));
-    let ffi_payload: Ffi__Payload = trynull!(catch_unwind(|| payload.into()));
-    Box::into_raw(Box::new(ffi_payload))
+    Box::into_raw(Box::new(payload))
 }
 
 #[no_mangle]
-pub extern "C" fn payload_build(ffi_payload_ptr: *mut Ffi__Payload) -> uint8_t {
-    let payload = tryrc!(readptr!(ffi_payload_ptr; Payload, "Payload struct"));
+pub extern "C" fn payload_build(payload_ptr: *mut Payload) -> uint8_t {
+    let payload = Leaky::new(tryrc!(readptr!(payload_ptr, "Payload pointer")));
+
     tryrc!(payload.build());
+
     0
 }
 
 #[no_mangle]
-pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload,
+pub extern "C" fn payload_run(payload_ptr: *mut Payload,
                               host_ptr: *mut Host,
                               ffi_user_args: *mut *const c_char,
                               ffi_user_args_len: size_t) -> uint8_t {
-    let payload = tryrc!(readptr!(ffi_payload_ptr; Payload, "Payload struct"));
+    let payload = Leaky::new(tryrc!(readptr!(payload_ptr, "Payload pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
 
     let user_args = if ffi_user_args.is_null() {
@@ -93,6 +53,12 @@ pub extern "C" fn payload_run(ffi_payload_ptr: *mut Ffi__Payload,
 
     tryrc!(payload.run(&mut host, user_args));
 
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn payload_free(payload_ptr: *mut Payload) -> uint8_t {
+    tryrc!(boxptr!(payload_ptr, "Payload pointer"));
     0
 }
 
@@ -133,7 +99,9 @@ mod tests {
         buf.pop();
 
         let payload_artifact = CString::new(buf.to_str().unwrap()).unwrap();
-        assert!(!payload_new(payload_artifact.as_ptr()).is_null());
+        let payload = payload_new(payload_artifact.as_ptr());
+        assert!(!payload.is_null());
+        assert_eq!(payload_free(payload), 0);
     }
 
     #[test]
@@ -158,6 +126,7 @@ mod tests {
         let payload_ptr = payload_new(payload_artifact.as_ptr());
         assert!(!payload_ptr.is_null());
         assert_eq!(payload_build(payload_ptr), 0);
+        assert_eq!(payload_free(payload_ptr), 0);
     }
 
     #[test]
@@ -196,6 +165,7 @@ mod tests {
         let mut host = Host::test_new(None, None, None, None);
         assert_eq!(payload_run(payload_ptr, &mut host, &mut ptr::null(), 0), 0);
 
+        assert_eq!(payload_free(payload_ptr), 0);
         handle.join().unwrap();
     }
 

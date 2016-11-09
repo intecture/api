@@ -215,11 +215,23 @@ extern Command *command_new(const char *cmd_str);
 extern CommandResult *command_exec(Command *cmd, Host *host);
 
 /**
+ * @brief Free a Command pointer's memory.
+ * @param cmd The Command pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int command_free(Command *cmd);
+
+/**
+ * @brief Free a CommandResult pointer's memory.
+ * @param result The CommandResult pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int command_result_free(CommandResult *result);
+
+/**
  * @brief Container for operating on a file.
  */
-typedef struct _File {
-    const char *path; /**< Absolute path to file on managed host */
-} File;
+typedef void File;
 
 /**
  * @brief Options for controlling file upload behaviour.
@@ -261,9 +273,9 @@ extern File *file_new(Host *host, const char *path);
  * @brief Check if the file exists.
  * @param file The File struct you wish to check.
  * @param host The Host struct you wish to check the file on.
- * @return bool Whether the file exists.
+ * @return Boolean on success (0 or 1) and -1 on error.
  */
-extern bool *file_exists(File *file, Host *host);
+extern int file_exists(File *file, Host *host);
 
 /**
  * @brief Upload a file to the managed host.
@@ -354,7 +366,7 @@ extern int file_copy(File *file, Host *host, const char *new_path);
  * @brief Get the file's owner.
  * @param file The File struct you wish to query.
  * @param host The Host struct you wish to query a file on.
- * @return FileOwner A FileOwner struct.
+ * @return A FileOwner struct.
  */
 extern FileOwner *file_get_owner(File *file, Host *host);
 
@@ -372,9 +384,9 @@ extern int file_set_owner(File *file, Host *host, const char *user, const char *
  * @brief Get the file's permissions mask.
  * @param file The File struct you wish to query.
  * @param host The Host struct you wish to query a file on.
- * @return uint16_t The permissions mask.
+ * @return The permissions mask, or -1 on error.
  */
-extern uint16_t *file_get_mode(File *file, Host *host);
+extern int16_t file_get_mode(File *file, Host *host);
 
 /**
  * @brief Set the file's permissions mask.
@@ -386,11 +398,16 @@ extern uint16_t *file_get_mode(File *file, Host *host);
 extern int file_set_mode(File *file, Host *host, uint16_t mode);
 
 /**
+ * @brief Free a File pointer's memory.
+ * @param file The File pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int file_free(File *file);
+
+/**
  * @brief Container for operating on a directory.
  */
-typedef struct _Directory {
-    const char *path; /**< Absolute path to dir on managed host */
-} Directory;
+typedef void Directory;
 
 /**
  * @brief Options for controlling directory operations.
@@ -420,9 +437,9 @@ extern Directory *directory_new(Host *host, const char *path);
  * @brief Check if the directory exists.
  * @param dir The Directory struct you wish to check.
  * @param host The Host struct you wish to check the directory on.
- * @return bool Whether the file exists.
+ * @return Boolean on success (0 or 1) and -1 on error.
  */
-extern bool *directory_exists(Directory *dir, Host *host);
+extern int directory_exists(Directory *dir, Host *host);
 
 /**
  * @brief Create a directory.
@@ -457,7 +474,7 @@ extern int directory_mv(Directory *dir, Host *host, char *new_path);
  * @brief Get the directory's owner.
  * @param dir The Directory struct you wish to query.
  * @param host The Host struct you wish to query a dir on.
- * @return FileOwner A FileOwner struct.
+ * @return A FileOwner struct.
  */
 extern FileOwner *directory_get_owner(Directory *dir, Host *host);
 
@@ -475,9 +492,9 @@ extern int directory_set_owner(Directory *dir, Host *host, char *user, char *gro
  * @brief Get the directory's permissions mask.
  * @param dir The Directory struct you wish to query.
  * @param host The Host struct you wish to query a directory on.
- * @return uint16_t The permissions mask.
+ * @return The permissions mask, or -1 on error.
  */
-extern uint16_t *directory_get_mode(Directory *dir, Host *host);
+extern int16_t directory_get_mode(Directory *dir, Host *host);
 
 /**
  * @brief Set the directory's permissions mask.
@@ -487,6 +504,13 @@ extern uint16_t *directory_get_mode(Directory *dir, Host *host);
  * @return Return code - zero on success, non-zero on error.
  */
 extern int directory_set_mode(Directory *dir, Host *host, uint16_t mode);
+
+/**
+ * @brief Free a Directory pointer's memory.
+ * @param dir The Directory pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int directory_free(Directory *dir);
 
 /**
  * @brief A list of supported Package providers.
@@ -506,11 +530,7 @@ enum Providers {
  * @brief The primitive for installing and manging software packages
  * on a managed host.
  */
-typedef struct _Package {
-    const char *name; /**< The name of the package, e.g. `nginx` */
-    enum Providers provider; /**< The package source */
-    bool installed; /**< Package installed bool */
-} Package;
+typedef void Package;
 
 /**
  * @brief Create a new Package struct.
@@ -537,22 +557,22 @@ extern Package *package_new(Host *host, char *name, enum Providers providers);
 /**
  * @brief Check if the package is installed.
  * @param package The Package struct.
- * @return Boolean indicating whether the package is currently installed (true) or not (false).
+ * @return Boolean on success (0 or 1) and -1 on error.
  *
  * #### Usage Example
  *
  * @code
  * Package *package = package_new(host, "nginx", "default");
  * assert(package);
- * bool *result = package_is_installed(package);
- * if (result) {
+ * int result = package_is_installed(package);
+ * if (result == 1) {
  *     printf("Package is installed!");
  * } else {
  *     printf("Package is not installed");
  * }
  * @endcode
  */
-extern bool *package_is_installed(Package *package);
+extern int package_is_installed(Package *package);
 
 /**
  * @brief Install the package.
@@ -569,6 +589,13 @@ extern CommandResult *package_install(Package *package, Host *host);
  * @return The CommandResult struct for the operation, or NULL if nothing was done.
  */
 extern CommandResult *package_uninstall(Package *package, Host *host);
+
+/**
+ * @brief Free a Package pointer's memory.
+ * @param package The Package pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int package_free(Package *package);
 
 /**
  * @brief Runnables are the executable items that a Service calls
@@ -622,10 +649,7 @@ typedef struct _ServiceMappedActionArray {
 /**
  * @brief The primitive for controlling services on a managed host.
  */
-typedef struct _Service {
-    ServiceActionArray actions; /**< Action Runnables */
-    ServiceMappedActionArray *mapped_actions; /**< Action aliases */
-} Service;
+typedef void Service;
 
 /**
  * @brief Create a new Service with a single Runnable.
@@ -689,11 +713,16 @@ extern Service *service_new_map(ServiceAction *actions, size_t actions_len, Serv
 extern CommandResult *service_action(Service *service, Host *host, char *action);
 
 /**
+ * @brief Free a Service pointer's memory.
+ * @param service The Service pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int service_free(Service *service);
+
+/**
  * @brief The primitive for opening and rendering templates.
  */
-typedef struct _Template {
-    void *inner; /**< Template internals */
-} Template;
+typedef void Template;
 
 /**
  * @brief Template helper for building a hash data structure.
@@ -754,6 +783,13 @@ extern int template_render_map(Template *template, MapBuilder *builder);
  * @return File descriptor - zero is error.
  */
 extern int template_render_vec(Template *template, VecBuilder *builder);
+
+/**
+ * @brief Free a Template pointer's memory.
+ * @param template The Template pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int template_free(Template *template);
 
 /**
  * @brief Create a new MapBuilder instance that allows you to build
@@ -838,26 +874,13 @@ extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
 extern int vec_push_map(VecBuilder *builder, MapBuilder *value);
 
 /**
- * @brief The payload's programming language.
- */
-enum Language {
-    C,
-    Php,
-    Rust,
-};
-
-/**
  * @brief Payloads are self-contained projects that encapsulate a
  * specific feature or system function. Think of them as reusable
  * chunks of code that can be run across multiple hosts. Any time you
  * have a task that you want to repeat, it should probably go into a
  * payload.
  */
-typedef struct _Payload {
-    const char *path; /**< Path to the payload directory */
-    const char *artifact; /**< Name of the executable/source file to run */
-    enum Language language; /**< Language the payload is written in */
-} Payload;
+typedef void Payload;
 
 /**
  * @brief Create a new Payload using the payload::artifact notation.
@@ -890,5 +913,12 @@ extern int payload_build(Payload *payload);
  * @return Return code - zero on success, non-zero on error.
  */
 extern int payload_run(Payload *payload, Host *host, const char **user_args, size_t user_args_len);
+
+/**
+ * @brief Free a Payload pointer's memory.
+ * @param payload The Payload pointer.
+ * @return Return code - zero on success, non-zero on error.
+ */
+extern int payload_free(Payload *payload);
 
 #endif
