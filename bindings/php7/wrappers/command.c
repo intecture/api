@@ -68,8 +68,8 @@ PHP_METHOD(Command, exec) {
     add_assoc_string(return_value, "stdout", result->stdout);
     add_assoc_string(return_value, "stderr", result->stderr);
 
-    rtn = command_result_free(result);
-    if (rtn != 0) {
+    int rc = command_result_free(result);
+    if (rc != 0) {
         zend_throw_exception(inapi_ce_command_ex, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
         return;
     }
