@@ -22,8 +22,16 @@ endif
 c: install
 	install -m 0644 bindings/c/inapi.h $(USRPATH)/include/
 
-php: c
-	cd bindings/php
+php5: c
+	cd bindings/php5
+	phpize
+	./configure
+	make
+	make install
+	cd ../..
+
+php7: c
+	cd bindings/php7
 	phpize
 	./configure
 	make
