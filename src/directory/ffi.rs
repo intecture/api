@@ -12,7 +12,7 @@ use ffi_helpers::Leaky;
 use file::ffi::Ffi__FileOwner;
 use host::Host;
 use libc::{c_char, int8_t, int16_t, uint8_t, uint16_t};
-use std::{convert, ptr};
+use std::convert;
 use std::panic::catch_unwind;
 use super::*;
 
@@ -84,18 +84,12 @@ pub extern "C" fn directory_delete(dir_ptr: *const Directory,
 
 #[no_mangle]
 pub extern "C" fn directory_mv(dir_ptr: *mut Directory, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
-    let mut directory = tryrc!(boxptr!(dir_ptr, "Directory struct"));
+    let mut directory = Leaky::new(tryrc!(boxptr!(dir_ptr, "Directory pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
 
     tryrc!(directory.mv(&mut host, new_path));
-
-    // Write mutated Directory path back to pointer
-    let new_dir_ptr = Box::into_raw(directory);
-    unsafe { ptr::swap(dir_ptr, new_dir_ptr); }
-
-    // Free old dir ptr, which has been swapped into `new_dir_ptr`
-    directory_free(new_dir_ptr)
+    0
 }
 
 #[no_mangle]

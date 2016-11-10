@@ -66,18 +66,10 @@ pub extern "C" fn package_is_installed(pkg_ptr: *const Package) -> int8_t {
 
 #[no_mangle]
 pub extern "C" fn package_install(pkg_ptr: *mut Package, host_ptr: *const Host) -> *mut Ffi__CommandResult {
-    let mut pkg = trynull!(boxptr!(pkg_ptr, "Package pointer"));
+    let mut pkg = Leaky::new(trynull!(boxptr!(pkg_ptr, "Package pointer")));
     let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = trynull!(pkg.install(&mut host));
-
-    // Write mutated Package state back to pointer
-    let new_pkg_ptr = Box::into_raw(pkg);
-    unsafe { ptr::swap(pkg_ptr, new_pkg_ptr); }
-
-    // Free old pkg ptr, which has been swapped into `new_pkg_ptr`
-    package_free(new_pkg_ptr);
-
     match result {
         Some(r) => {
             let ffi_r: Ffi__CommandResult = trynull!(catch_unwind(|| r.into()));
@@ -89,18 +81,10 @@ pub extern "C" fn package_install(pkg_ptr: *mut Package, host_ptr: *const Host) 
 
 #[no_mangle]
 pub extern "C" fn package_uninstall(pkg_ptr: *mut Package, host_ptr: *const Host) -> *mut Ffi__CommandResult {
-    let mut pkg = trynull!(boxptr!(pkg_ptr, "Package pointer"));
+    let mut pkg = Leaky::new(trynull!(boxptr!(pkg_ptr, "Package pointer")));
     let mut host = Leaky::new(trynull!(readptr!(host_ptr, "Host pointer")));
 
     let result = trynull!(pkg.uninstall(&mut host));
-
-    // Write mutated Package state back to pointer
-    let new_pkg_ptr = Box::into_raw(pkg);
-    unsafe { ptr::swap(pkg_ptr, new_pkg_ptr); }
-
-    // Free old pkg ptr, which has been swapped into `new_pkg_ptr`
-    package_free(new_pkg_ptr);
-
     match result {
         Some(r) => {
             let ffi_r: Ffi__CommandResult = trynull!(catch_unwind(|| r.into()));

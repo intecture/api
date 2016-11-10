@@ -142,18 +142,13 @@ pub extern "C" fn file_delete(file_ptr: *const File, host_ptr: *const Host) -> u
 
 #[no_mangle]
 pub extern "C" fn file_mv(file_ptr: *mut File, host_ptr: *const Host, new_path_ptr: *const c_char) -> uint8_t {
-    let mut file = tryrc!(boxptr!(file_ptr, "File pointer"));
+    let mut file = Leaky::new(tryrc!(boxptr!(file_ptr, "File pointer")));
     let mut host = Leaky::new(tryrc!(readptr!(host_ptr, "Host pointer")));
     let new_path = tryrc!(ptrtostr!(new_path_ptr, "new path string"));
 
     tryrc!(file.mv(&mut host, new_path));
 
-    // Write mutated File path back to pointer
-    let new_file_ptr = Box::into_raw(file);
-    unsafe { ptr::swap(file_ptr, new_file_ptr); }
-
-    // Free old file ptr, which has been swapped into `new_file_ptr`
-    file_free(new_file_ptr)
+    0
 }
 
 #[no_mangle]
