@@ -99,7 +99,8 @@ fn merge_values(into: Value, mut from: Value, parent_from: &Value) -> Result<Val
         Value::Array(mut a) => {
             if from.is_array() {
                 a.append(from.as_array_mut().unwrap());
-            } else {
+            }
+            else if !from.is_null() {
                 a.push(from);
             }
 
@@ -124,12 +125,16 @@ fn merge_values(into: Value, mut from: Value, parent_from: &Value) -> Result<Val
                     value = try!(query_value(&parent_from, value)).unwrap_or(Value::Null);
                 }
 
+                let mut merge_val = Value::Null;
+
                 if key.ends_with("!") {
                     key.pop();
                 }
                 else if let Some(o1) = from.find(&key) {
-                    value = try!(merge_values(value, o1.clone(), &parent_from));
+                    merge_val = o1.clone();
                 }
+
+                value = try!(merge_values(value, merge_val, &parent_from));
 
                 new.insert(key, value);
             }
