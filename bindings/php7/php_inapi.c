@@ -412,6 +412,13 @@ PHP_MINIT_FUNCTION(inapi)
     inapi_package_handlers.free_obj = inapi_package_free;
 
     inapi_ce_package = zend_register_internal_class(&ce_package);
+    zend_declare_class_constant_long(inapi_ce_package, "PROVIDER_APT", 12, 1 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_package, "PROVIDER_DNF", 12, 2 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_package, "PROVIDER_HOMEBREW", 17, 3 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_package, "PROVIDER_MACPORTS", 17, 4 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_package, "PROVIDER_PKG", 12, 5 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_package, "PROVIDER_PORTS", 14, 6 TSRMLS_CC);
+    zend_declare_class_constant_long(inapi_ce_package, "PROVIDER_YUM", 12, 7 TSRMLS_CC);
 
     INIT_CLASS_ENTRY(ce_package_ex, "Intecture\\PackageException", NULL);
     inapi_ce_package_ex = zend_register_internal_class_ex(&ce_package_ex, zend_exception_get_default());
