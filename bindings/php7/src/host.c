@@ -113,7 +113,7 @@ PHP_METHOD(Host, data) {
     }
 
     php_host *intern = Z_HOST_OBJ_P(getThis());
-    RETURN_ZVAL(&intern->data, false, false);
+    RETURN_ZVAL(&intern->data, true, false);
 }
 
 void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {

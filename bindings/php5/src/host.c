@@ -191,7 +191,7 @@ PHP_METHOD(Host, data) {
     }
 
     intern = (php_host*)zend_object_store_get_object(getThis() TSRMLS_CC);
-    RETURN_ZVAL(intern->data, false, false);
+    RETURN_ZVAL(intern->data, true, false);
 }
 
 void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC) {
