@@ -238,7 +238,7 @@ typedef void File;
  */
 typedef struct _FileOptions {
     const char *backup_existing; /**< Backup any existing file during upload using the provided suffix */
-    uint64_t *chunk_size; /**< Size, in bytes, of each file chunk to be uploaded (default 1024b) */
+    uint64_t chunk_size; /**< Size, in bytes, of each file chunk to be uploaded. Set to 0 for default chunk size (1024b) */
 } FileOptions;
 
 /**

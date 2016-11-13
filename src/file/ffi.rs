@@ -29,7 +29,7 @@ use zfilexfer::FileOptions;
 #[derive(Debug)]
 pub struct Ffi__FileOptions {
     backup_existing: *const c_char,
-    chunk_size: *const uint64_t,
+    chunk_size: uint64_t,
 }
 
 impl convert::Into<Vec<FileOptions>> for Ffi__FileOptions {
@@ -39,8 +39,8 @@ impl convert::Into<Vec<FileOptions>> for Ffi__FileOptions {
             let suffix: String = trypanic!(ptrtostr!(self.backup_existing, "suffix string")).into();
             opts.push(FileOptions::BackupExisting(suffix));
         }
-        if self.chunk_size != ptr::null() {
-            opts.push(FileOptions::ChunkSize(trypanic!(readptr!(self.chunk_size, "chunk size int"))));
+        if self.chunk_size > 0 {
+            opts.push(FileOptions::ChunkSize(self.chunk_size));
         }
         opts
     }
@@ -234,7 +234,7 @@ mod tests {
     fn test_convert_ffi_file_options() {
         let ffi_file_options = Ffi__FileOptions {
             backup_existing: CString::new("_bak").unwrap().into_raw(),
-            chunk_size: &123,
+            chunk_size: 123,
         };
         let file_options: Vec<FileOptions> = ffi_file_options.into();
 
