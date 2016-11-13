@@ -31,7 +31,7 @@ PHP_METHOD(Command, __construct) {
     Command *command = command_new(cmd);
 
     if (!command) {
-        zend_throw_exception(inapi_ce_command_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_command_ex, geterr(), 1000);
         return;
     }
 
@@ -50,7 +50,7 @@ PHP_METHOD(Command, exec) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_command_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_command_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -59,7 +59,7 @@ PHP_METHOD(Command, exec) {
     CommandResult *result = command_exec(intern->command, host->host);
 
     if (!result) {
-        zend_throw_exception(inapi_ce_command_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_command_ex, geterr(), 1000);
         return;
     }
 
@@ -70,7 +70,7 @@ PHP_METHOD(Command, exec) {
 
     int rc = command_result_free(result);
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_command_ex, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_command_ex, "Could not free internal CommandResult struct", 1001);
         return;
     }
 }

@@ -33,7 +33,7 @@ PHP_METHOD(Payload, __construct) {
     Payload *payload = payload_new(payload_artifact);
 
     if (!payload) {
-        zend_throw_exception(inapi_ce_payload_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_payload_ex, geterr(), 1000);
         return;
     }
 
@@ -51,7 +51,7 @@ PHP_METHOD(Payload, build) {
     int rc = payload_build(intern->payload);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_payload_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_payload_ex, geterr(), 1000);
         return;
     }
 }
@@ -69,7 +69,7 @@ PHP_METHOD(Payload, run) {
 
     host = check_host(zhost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_payload_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_payload_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -89,7 +89,7 @@ PHP_METHOD(Payload, run) {
     int rc = payload_run(intern->payload, host->host, user_args, args_len);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_payload_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_payload_ex, geterr(), 1000);
         return;
     }
 }

@@ -32,14 +32,14 @@ PHP_METHOD(Directory, __construct) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
     Directory *directory = directory_new(host->host, path);
 
     if (!directory) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
         return;
     }
 
@@ -57,20 +57,21 @@ PHP_METHOD(Directory, exists) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
     php_directory *intern = Z_DIR_OBJ_P(getThis());
     int result = directory_exists(intern->directory, host->host);
 
-    if (result < 0) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
-    }
-    else if (result == 1) {
+    if (result == 1) {
         RETURN_TRUE;
-    } else {
+    }
+    else if (result == 0) {
         RETURN_FALSE;
+    } else {
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
+        return;
     }
 }
 
@@ -85,7 +86,7 @@ PHP_METHOD(Directory, create) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -100,8 +101,8 @@ PHP_METHOD(Directory, create) {
                     c_opts.do_recursive = true;
                     break;
                 default:
-                    zend_throw_exception(inapi_ce_directory_ex, "Invalid option key - must be Directory constant", 1001 TSRMLS_CC);
-                    break;
+                    zend_throw_exception(inapi_ce_directory_ex, "Invalid option key - must be Directory constant", 1001);
+                    return;
             }
         } ZEND_HASH_FOREACH_END();
     }
@@ -110,7 +111,7 @@ PHP_METHOD(Directory, create) {
     int rc = directory_create(intern->directory, host->host, &c_opts);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
         return;
     }
 }
@@ -126,7 +127,7 @@ PHP_METHOD(Directory, delete) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -141,8 +142,8 @@ PHP_METHOD(Directory, delete) {
                     c_opts.do_recursive = true;
                     break;
                 default:
-                    zend_throw_exception(inapi_ce_directory_ex, "Invalid option key - must be Directory constant", 1001 TSRMLS_CC);
-                    break;
+                    zend_throw_exception(inapi_ce_directory_ex, "Invalid option key - must be Directory constant", 1001);
+                    return;
             }
         } ZEND_HASH_FOREACH_END();
     }
@@ -151,7 +152,7 @@ PHP_METHOD(Directory, delete) {
     int rc = directory_delete(intern->directory, host->host, &c_opts);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
         return;
     }
 }
@@ -168,7 +169,7 @@ PHP_METHOD(Directory, mv) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -176,7 +177,7 @@ PHP_METHOD(Directory, mv) {
     int rc = directory_mv(intern->directory, host->host, new_path);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
         return;
     }
 }
@@ -191,7 +192,7 @@ PHP_METHOD(Directory, get_owner) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -199,7 +200,7 @@ PHP_METHOD(Directory, get_owner) {
     FileOwner *owner = directory_get_owner(intern->directory, host->host);
 
     if (!owner) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
         return;
     }
 
@@ -222,7 +223,7 @@ PHP_METHOD(Directory, set_owner) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -230,7 +231,7 @@ PHP_METHOD(Directory, set_owner) {
     int rc = directory_set_owner(intern->directory, host->host, user, group);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
         return;
     }
 }
@@ -245,7 +246,7 @@ PHP_METHOD(Directory, get_mode) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -253,7 +254,7 @@ PHP_METHOD(Directory, get_mode) {
     int16_t mode = directory_get_mode(intern->directory, host->host);
 
     if (mode < 0) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
         return;
     }
 
@@ -271,7 +272,7 @@ PHP_METHOD(Directory, set_mode) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -279,7 +280,7 @@ PHP_METHOD(Directory, set_mode) {
     int rc = directory_set_mode(intern->directory, host->host, mode);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_directory_ex, geterr(), 1000);
         return;
     }
 }

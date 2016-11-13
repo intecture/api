@@ -32,7 +32,7 @@ PHP_METHOD(Template, __construct) {
     Template *template = template_new(path);
 
     if (!template) {
-        zend_throw_exception(inapi_ce_template_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_template_ex, geterr(), 1000);
         return;
     }
 
@@ -58,7 +58,7 @@ PHP_METHOD(Template, render) {
         rc = build_map(ht, hbuilder TSRMLS_CC);
 
         if (rc != 0) {
-            zend_throw_exception(inapi_ce_template_ex, geterr(), 1000 TSRMLS_CC);
+            zend_throw_exception(inapi_ce_template_ex, geterr(), 1000);
             return;
         }
 
@@ -68,7 +68,7 @@ PHP_METHOD(Template, render) {
         rc = build_vec(ht, vbuilder TSRMLS_CC);
 
         if (rc != 0) {
-            zend_throw_exception(inapi_ce_template_ex, geterr(), 1000 TSRMLS_CC);
+            zend_throw_exception(inapi_ce_template_ex, geterr(), 1000);
             return;
         }
 
@@ -76,7 +76,7 @@ PHP_METHOD(Template, render) {
     }
 
     if (fd == 0) {
-        zend_throw_exception(inapi_ce_template_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_template_ex, geterr(), 1000);
         return;
     }
 
@@ -150,7 +150,7 @@ int build_map(HashTable *ht, MapBuilder *builder TSRMLS_DC) {
         else if (Z_TYPE_P(zv) == IS_NULL) {
             rc = map_insert_bool(builder, key, false);
         } else {
-            zend_throw_exception(inapi_ce_template_ex, "Array value cannot be a resource or object", 1001 TSRMLS_CC);
+            // zend_throw_exception(inapi_ce_template_ex, "Array value cannot be a resource or object", 1001);
             rc = -1;
         }
 
@@ -208,7 +208,7 @@ int build_vec(HashTable *ht, VecBuilder *builder TSRMLS_DC) {
         else if (Z_TYPE_P(zv) == IS_NULL) {
             rc = vec_push_bool(builder, false);
         } else {
-            zend_throw_exception(inapi_ce_template_ex, "Array value cannot be a resource or object", 1001 TSRMLS_CC);
+            // zend_throw_exception(inapi_ce_template_ex, "Array value cannot be a resource or object", 1001);
             rc = -1;
         }
 

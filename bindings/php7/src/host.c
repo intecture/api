@@ -33,14 +33,14 @@ PHP_METHOD(Host, connect) {
     Host *host = host_connect(path);
 
     if (!host) {
-        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000);
         return;
     }
 
     void *data = host_data(host);
 
     if (!data) {
-        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000);
         return;
     }
 
@@ -62,14 +62,14 @@ PHP_METHOD(Host, connect_endpoint) {
     Host *host = host_connect_endpoint(hostname, api_port, upload_port);
 
     if (!host) {
-        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000);
         return;
     }
 
     void *data = host_data(host);
 
     if (!data) {
-        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000);
         return;
     }
 
@@ -90,14 +90,14 @@ PHP_METHOD(Host, connect_payload) {
     Host *host = host_connect_payload(api_endpoint, file_endpoint);
 
     if (!host) {
-        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000);
         return;
     }
 
     void *data = host_data(host);
 
     if (!data) {
-        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_host_ex, geterr(), 1000);
         return;
     }
 
@@ -162,7 +162,7 @@ void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC
                 int retval = get_value_type(a->ptr[i], NULL);
 
                 if (retval < 0) {
-                    zend_throw_exception(inapi_ce_host_ex, geterr(), 1000 TSRMLS_CC);
+                    zend_throw_exception(inapi_ce_host_ex, geterr(), 1000);
                     return;
                 }
 

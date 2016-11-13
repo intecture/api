@@ -62,7 +62,7 @@ PHP_METHOD(Service, __construct) {
     switch (Z_TYPE_P(zactions)) {
         case IS_OBJECT:
             if (!instanceof_function(Z_OBJCE_P(zactions), inapi_ce_service_runnable TSRMLS_CC)) {
-                zend_throw_exception(inapi_ce_service_ex, "The first argument must be an instance of Intecture\\ServiceRunnable", 1001 TSRMLS_CC);
+                zend_throw_exception(inapi_ce_service_ex, "The first argument must be an instance of Intecture\\ServiceRunnable", 1001);
                 return;
             }
 
@@ -70,7 +70,7 @@ PHP_METHOD(Service, __construct) {
             service = service_new_service(runnable->service_runnable, mapped_actions, mapped_count);
 
             if (!service) {
-                zend_throw_exception(inapi_ce_service_ex, geterr(), 1000 TSRMLS_CC);
+                zend_throw_exception(inapi_ce_service_ex, geterr(), 1000);
                 return;
             }
 
@@ -89,7 +89,7 @@ PHP_METHOD(Service, __construct) {
             ZEND_HASH_FOREACH_STR_KEY_VAL(ht, zk, zv) {
                 if (zk) {
                     if (Z_TYPE_P(zv) != IS_OBJECT || !instanceof_function(Z_OBJCE_P(zv), inapi_ce_service_runnable TSRMLS_CC)) {
-                        zend_throw_exception(inapi_ce_service_ex, "Array values must be instances of Intecture\\ServiceRunnable", 1001 TSRMLS_CC);
+                        zend_throw_exception(inapi_ce_service_ex, "Array values must be instances of Intecture\\ServiceRunnable", 1001);
                         return;
                     }
 
@@ -103,7 +103,7 @@ PHP_METHOD(Service, __construct) {
             service = service_new_map(actions, actions_count, mapped_actions, mapped_count);
 
             if (!service) {
-                zend_throw_exception(inapi_ce_service_ex, geterr(), 1000 TSRMLS_CC);
+                zend_throw_exception(inapi_ce_service_ex, geterr(), 1000);
                 return;
             }
 
@@ -111,7 +111,8 @@ PHP_METHOD(Service, __construct) {
             break;
 
         default:
-            zend_throw_exception(inapi_ce_service_ex, "The first argument must be an instance of Intecture\\ServiceRunnable", 1001 TSRMLS_CC);
+            zend_throw_exception(inapi_ce_service_ex, "The first argument must be an instance of Intecture\\ServiceRunnable", 1001);
+            return;
     }
 }
 
@@ -127,7 +128,7 @@ PHP_METHOD(Service, action) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_service_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_service_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -143,7 +144,7 @@ PHP_METHOD(Service, action) {
 
         int rc = command_result_free(result);
         if (rc != 0) {
-            zend_throw_exception(inapi_ce_service_ex, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            zend_throw_exception(inapi_ce_service_ex, "Could not free internal CommandResult struct", 1001);
             return;
         }
     } else {
@@ -178,6 +179,7 @@ PHP_METHOD(Service, action) {
             strncpy(intern->service_runnable.service, runnable, runnable_len);
             break;
         default:
-            zend_throw_exception(inapi_ce_service_ex, "Invalid Runnable type. Must be RUNNABLE_COMMAND or RUNNABLE_SERVICE.", 1002 TSRMLS_CC);
+            zend_throw_exception(inapi_ce_service_ex, "Invalid Runnable type. Must be RUNNABLE_COMMAND or RUNNABLE_SERVICE.", 1002);
+            return;
     }
  }

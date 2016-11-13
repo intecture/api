@@ -34,14 +34,14 @@ PHP_METHOD(Package, __construct) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_package_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_package_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
     Package *package = package_new(host->host, name, providers);
 
     if (!package) {
-        zend_throw_exception(inapi_ce_package_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_package_ex, geterr(), 1000);
         return;
     }
 
@@ -58,7 +58,7 @@ PHP_METHOD(Package, is_installed) {
     int installed = package_is_installed(intern->package);
 
     if (installed < 0) {
-        zend_throw_exception(inapi_ce_package_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_package_ex, geterr(), 1000);
         return;
     }
     else if (installed == 1) {
@@ -78,7 +78,7 @@ PHP_METHOD(Package, install) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_package_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_package_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -93,7 +93,7 @@ PHP_METHOD(Package, install) {
 
         int rc = command_result_free(result);
         if (rc != 0) {
-            zend_throw_exception(inapi_ce_package_ex, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            zend_throw_exception(inapi_ce_package_ex, "Could not free internal CommandResult struct", 1001);
             return;
         }
     } else {
@@ -111,7 +111,7 @@ PHP_METHOD(Package, uninstall) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_package_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_package_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -126,7 +126,7 @@ PHP_METHOD(Package, uninstall) {
 
         int rc = command_result_free(result);
         if (rc != 0) {
-            zend_throw_exception(inapi_ce_package_ex, "Could not free internal CommandResult struct", 1001 TSRMLS_CC);
+            zend_throw_exception(inapi_ce_package_ex, "Could not free internal CommandResult struct", 1001);
             return;
         }
     } else {
