@@ -18,7 +18,7 @@
 #include <php.h>
 #include <inapi.h>
 
-int parse_opts(zval *opts, FileOptions *fopts TSRMLS_DC);
+FileOptions *parse_opts(zval *opts TSRMLS_DC);
 
 PHP_METHOD(File, __construct);
 PHP_METHOD(File, exists);

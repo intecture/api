@@ -24,7 +24,7 @@ void inapi_init_file_exception(TSRMLS_D);
 zend_object_value create_php_file(zend_class_entry *class_type TSRMLS_DC);
 void free_php_file(void *object TSRMLS_DC);
 
-int parse_opts(zval *opts, FileOptions *fopts TSRMLS_DC);
+FileOptions *parse_opts(zval *opts TSRMLS_DC);
 
 PHP_METHOD(File, __construct);
 PHP_METHOD(File, exists);

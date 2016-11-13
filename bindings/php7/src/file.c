@@ -32,19 +32,18 @@ PHP_METHOD(File, __construct) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
     File *file = file_new(host->host, path);
 
     if (!file) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 
     php_file *intern = Z_FILE_OBJ_P(getThis());
-
     intern->file = file;
 }
 
@@ -58,7 +57,7 @@ PHP_METHOD(File, exists) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -66,13 +65,14 @@ PHP_METHOD(File, exists) {
 
     int exists = file_exists(intern->file, host->host);
 
-    if (exists < 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
-    }
-    else if (exists == 1) {
+    if (exists == 1) {
         RETURN_TRUE;
-    } else {
+    }
+    else if (exists == 0) {
         RETURN_FALSE;
+    } else {
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
+        return;
     }
 }
 
@@ -89,22 +89,21 @@ PHP_METHOD(File, upload) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
-    FileOptions c_opts;
-    int rc = parse_opts(opts, &c_opts TSRMLS_CC);
-    if (rc != 0) {
+    FileOptions *c_opts = parse_opts(opts TSRMLS_CC);
+    if (!c_opts) {
         return;
     }
 
     php_file *intern = Z_FILE_OBJ_P(getThis());
 
-    rc = file_upload(intern->file, host->host, path, &c_opts);
+    int rc = file_upload(intern->file, host->host, path, c_opts);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 }
@@ -121,22 +120,21 @@ PHP_METHOD(File, upload_file) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
-    FileOptions c_opts;
-    int rc = parse_opts(opts, &c_opts TSRMLS_CC);
-    if (rc != 0) {
+    FileOptions *c_opts = parse_opts(opts TSRMLS_CC);
+    if (!c_opts) {
         return;
     }
 
     php_file *intern = Z_FILE_OBJ_P(getThis());
 
-    rc = file_upload_file(intern->file, host->host, fd, &c_opts);
+    int rc = file_upload_file(intern->file, host->host, fd, c_opts);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 }
@@ -151,7 +149,7 @@ PHP_METHOD(File, delete) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -160,7 +158,7 @@ PHP_METHOD(File, delete) {
     int rc = file_delete(intern->file, host->host);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 }
@@ -177,7 +175,7 @@ PHP_METHOD(File, mv) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -186,7 +184,7 @@ PHP_METHOD(File, mv) {
     int rc = file_mv(intern->file, host->host, new_path);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 }
@@ -203,7 +201,7 @@ PHP_METHOD(File, copy) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -212,7 +210,7 @@ PHP_METHOD(File, copy) {
     int rc = file_copy(intern->file, host->host, new_path);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 }
@@ -227,7 +225,7 @@ PHP_METHOD(File, get_owner) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -236,7 +234,7 @@ PHP_METHOD(File, get_owner) {
     FileOwner *owner = file_get_owner(intern->file, host->host);
 
     if (!owner) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 
@@ -259,7 +257,7 @@ PHP_METHOD(File, set_owner) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -268,7 +266,7 @@ PHP_METHOD(File, set_owner) {
     int rc = file_set_owner(intern->file, host->host, user, group);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 }
@@ -283,7 +281,7 @@ PHP_METHOD(File, get_mode) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -292,7 +290,7 @@ PHP_METHOD(File, get_mode) {
     int16_t mode = file_get_mode(intern->file, host->host);
 
     if (mode < 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 
@@ -310,7 +308,7 @@ PHP_METHOD(File, set_mode) {
 
     host = check_host(phost TSRMLS_CC);
     if (!host) {
-        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, "The first argument must be an instance of Intecture\\Host", 1000);
         return;
     }
 
@@ -319,38 +317,39 @@ PHP_METHOD(File, set_mode) {
     int rc = file_set_mode(intern->file, host->host, mode);
 
     if (rc != 0) {
-        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000 TSRMLS_CC);
+        zend_throw_exception(inapi_ce_file_ex, geterr(), 1000);
         return;
     }
 }
 
-int parse_opts(zval *opts, FileOptions *fopts TSRMLS_DC) {
+FileOptions *parse_opts(zval *opts TSRMLS_DC) {
     zval *zv;
     zend_string *zk;
     ulong i;
 
-    fopts->backup_existing = NULL;
-    fopts->chunk_size = NULL;
+    FileOptions *c_opts = emalloc(sizeof(FileOptions));
+    c_opts->backup_existing = NULL;
+    c_opts->chunk_size = 0;
 
     if (opts) {
         ZEND_HASH_FOREACH_KEY_VAL(Z_ARRVAL_P(opts), i, zk, zv) {
             if (zk) { // HASH_KEY_IS_STRING
-                zend_throw_exception(inapi_ce_file_ex, "Invalid option key - must be File constant", 1001 TSRMLS_CC);
-                return 1;
+                zend_throw_exception(inapi_ce_file_ex, "Invalid option key - must be File constant", 1001);
+                return NULL;
             } else {
                 switch (i) {
                     case OPT_BACKUP_EXISTING:
-                        fopts->backup_existing = Z_STRVAL_P(zv);
+                        c_opts->backup_existing = strdup(Z_STRVAL_P(zv));
                         break;
                     case OPT_CHUNK_SIZE:
-                        fopts->chunk_size = (unsigned long long *) Z_LVAL_P(zv);
+                        c_opts->chunk_size = (unsigned long long)Z_LVAL_P(zv);
                     default:
-                        zend_throw_exception(inapi_ce_file_ex, "Invalid option key - must be File constant", 1001 TSRMLS_CC);
-                        return 1;
+                        zend_throw_exception(inapi_ce_file_ex, "Invalid option key - must be File constant", 1001);
+                        return NULL;
                 }
             }
         } ZEND_HASH_FOREACH_END();
     }
 
-    return 0;
+    return c_opts;
 }
