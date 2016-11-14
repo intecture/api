@@ -64,7 +64,7 @@ pub extern "C" fn payload_free(payload_ptr: *mut Payload) -> uint8_t {
 
 #[cfg(test)]
 mod tests {
-    use czmq::{ZSock, ZSockType};
+    use czmq::{ZSock, SocketType};
     use host::Host;
     use host::ffi::host_close;
     use payload::config::Config;
@@ -154,7 +154,7 @@ mod tests {
         let payload_name_clone = payload_name.clone();
 
         let handle = thread::spawn(move || {
-            let s = ZSock::new(ZSockType::DEALER);
+            let s = ZSock::new(SocketType::DEALER);
             s.connect(&format!("ipc://{}/main_api.ipc", payload_name_clone)).unwrap();
             s.recv_str().unwrap().unwrap();
         });

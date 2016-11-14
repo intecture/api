@@ -28,7 +28,7 @@ pub mod telemetry;
 pub use self::telemetry::TelemetryTarget;
 
 #[cfg(feature = "remote-run")]
-use czmq::{ZCert, ZMsg, ZSock, ZSockType};
+use czmq::{ZCert, ZMsg, ZSock, SocketType};
 #[cfg(feature = "remote-run")]
 use error::Error;
 use error::Result;
@@ -109,14 +109,14 @@ impl Host {
         let user_cert = try!(ZCert::load("user.crt"));
         let server_cert = try!(Self::lookup_server_cert(hostname, &user_cert));
 
-        let mut api_sock = ZSock::new(ZSockType::REQ);
+        let mut api_sock = ZSock::new(SocketType::REQ);
         user_cert.apply(&mut api_sock);
         api_sock.set_curve_serverkey(server_cert.public_txt());
         api_sock.set_sndtimeo(Some(1800000));
         api_sock.set_rcvtimeo(Some(1800000));
         try!(api_sock.connect(&format!("tcp://{}:{}", hostname, api_port)));
 
-        let mut file_sock = ZSock::new(ZSockType::DEALER);
+        let mut file_sock = ZSock::new(SocketType::DEALER);
         user_cert.apply(&mut file_sock);
         file_sock.set_curve_serverkey(server_cert.public_txt());
         file_sock.set_sndtimeo(Some(1800000));
@@ -137,10 +137,10 @@ impl Host {
     #[cfg(feature = "remote-run")]
     /// Create a new Host specifically for use inside a payload.
     pub fn connect_payload(api_endpoint: &str, file_endpoint: &str) -> Result<Host> {
-        let api_sock = ZSock::new(ZSockType::DEALER);
+        let api_sock = ZSock::new(SocketType::DEALER);
         try!(api_sock.connect(api_endpoint));
 
-        let file_sock = ZSock::new(ZSockType::DEALER);
+        let file_sock = ZSock::new(SocketType::DEALER);
         try!(file_sock.connect(file_endpoint));
 
         let data_json = try!(api_sock.recv_str()).unwrap();
@@ -168,7 +168,7 @@ impl Host {
     fn lookup_server_cert(hostname: &str, user_cert: &ZCert) -> Result<ZCert> {
         let auth_cert = try!(ZCert::load("auth.crt"));
 
-        let mut auth_sock = ZSock::new(ZSockType::REQ);
+        let mut auth_sock = ZSock::new(SocketType::REQ);
         user_cert.apply(&mut auth_sock);
         auth_sock.set_curve_serverkey(auth_cert.public_txt());
         auth_sock.set_sndtimeo(Some(10000));
@@ -307,7 +307,7 @@ impl HostSendRecv for Host {
 #[cfg(feature = "remote-run")]
 #[cfg(test)]
 mod tests {
-    use czmq::{ZMsg, ZSock, ZSockType, ZSys};
+    use czmq::{ZMsg, ZSock, SocketType, ZSys};
     use serde_json;
     use std::fs;
     use std::thread;
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn test_connect_payload() {
-        let api = ZSock::new(ZSockType::DEALER);
+        let api = ZSock::new(SocketType::DEALER);
         let port = api.bind("tcp://127.0.0.1:*").unwrap();
         let api_endpoint = format!("tcp://127.0.0.1:{}", port);
 

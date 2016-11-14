@@ -31,7 +31,7 @@ impl MockEnv {
         cert.save_secret(".auth_secret.crt").unwrap();
 
         ZSys::init();
-        let mut sock = ZSock::new(::czmq::ZSockType::REP);
+        let mut sock = ZSock::new(::czmq::SocketType::REP);
         let cert = ZCert::load(".auth_secret.crt").unwrap();
         cert.apply(&mut sock);
         sock.set_curve_server(true);

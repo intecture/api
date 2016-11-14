@@ -29,7 +29,7 @@
 pub mod config;
 pub mod ffi;
 
-use czmq::{ZMsg, ZPoller, ZSock, ZSockType, ZSys};
+use czmq::{ZMsg, ZPoller, ZSock, SocketType, ZSys};
 use error::{Error, Result};
 use host::{Host,HostSendRecv};
 use project::Language;
@@ -171,11 +171,11 @@ impl Payload {
 
         let artifact_default = self.artifact.as_ref().map(|a| &**a).unwrap_or("main");
         let api_endpoint = format!("ipc://{}/{}_api.ipc", self.path.to_str().unwrap(), artifact_default);
-        let mut api_pipe = ZSock::new(ZSockType::DEALER);
+        let mut api_pipe = ZSock::new(SocketType::DEALER);
         try!(api_pipe.bind(&api_endpoint));
 
         let file_endpoint = format!("ipc://{}/{}_file.ipc", self.path.to_str().unwrap(), artifact_default);
-        let mut file_pipe = ZSock::new(ZSockType::DEALER);
+        let mut file_pipe = ZSock::new(SocketType::DEALER);
         try!(file_pipe.bind(&file_endpoint));
 
         let (mut parent, child) = try!(ZSys::create_pipe());
@@ -321,7 +321,7 @@ impl Payload {
 
 #[cfg(test)]
 mod tests {
-    use czmq::{ZSock, ZSockType};
+    use czmq::{ZSock, SocketType};
     use host::Host;
     use project::Language;
     use std::fs;
@@ -436,7 +436,7 @@ mod tests {
         let payload_name_clone = payload_name.clone();
 
         let handle = thread::spawn(move || {
-            let s = ZSock::new(ZSockType::DEALER);
+            let s = ZSock::new(SocketType::DEALER);
             s.connect(&format!("ipc://{}/main_api.ipc", payload_name_clone)).unwrap();
             s.recv_str().unwrap().unwrap();
         });
