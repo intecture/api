@@ -73,7 +73,7 @@ impl Template {
     /// Render template to file using a Data instance.
     pub fn render_data(&self, data: &mustache::Data) -> Result<fs::File> {
         let mut fh = try!(tempfile());
-        self.inner.render_data(&mut fh, data);
+        self.inner.render_data(&mut fh, data)?;
 
         // Reset cursor to beginning of file for reading
         try!(fh.seek(SeekFrom::Start(0)));

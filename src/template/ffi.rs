@@ -252,10 +252,10 @@ mod tests {
         assert_eq!(map_insert_str(m, CString::new("key").unwrap().into_raw(), CString::new("value").unwrap().into_raw()), 0);
         assert!(!m.is_null());
 
-        let template = mustache::compile_str("{{key}}");
+        let template = mustache::compile_str("{{key}}").unwrap();
         let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
         let mut result = Vec::new();
-        template.render_data(&mut result, &m.build());
+        template.render_data(&mut result, &m.build()).unwrap();
         assert_eq!(result, b"value");
     }
 
@@ -265,10 +265,10 @@ mod tests {
         assert_eq!(map_insert_bool(m, CString::new("key").unwrap().into_raw(), 1), 0);
         assert!(!m.is_null());
 
-        let template = mustache::compile_str("{{#key}}true{{/key}}");
+        let template = mustache::compile_str("{{#key}}true{{/key}}").unwrap();
         let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
         let mut result = Vec::new();
-        template.render_data(&mut result, &m.build());
+        template.render_data(&mut result, &m.build()).unwrap();
         assert_eq!(result, b"true");
     }
 
@@ -281,10 +281,10 @@ mod tests {
         let m = map_new();
         assert_eq!(map_insert_vec(m, CString::new("list").unwrap().into_raw(), v), 0);
 
-        let template = mustache::compile_str("{{#list}}{{.}}{{/list}}");
+        let template = mustache::compile_str("{{#list}}{{.}}{{/list}}").unwrap();
         let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
         let mut result = Vec::new();
-        template.render_data(&mut result, &m.build());
+        template.render_data(&mut result, &m.build()).unwrap();
         assert_eq!(result, b"val1val2");
     }
 
@@ -297,109 +297,103 @@ mod tests {
         assert_eq!(map_insert_str(m, CString::new("one").unwrap().into_raw(), CString::new("two").unwrap().into_raw()), 0);
         assert_eq!(map_insert_map(m, CString::new("nested").unwrap().into_raw(), c), 0);
 
-        let template = mustache::compile_str("{{#nested}}{{key}}{{/nested}}{{one}}");
+        let template = mustache::compile_str("{{#nested}}{{key}}{{/nested}}{{one}}").unwrap();
         let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
         let mut result = Vec::new();
-        template.render_data(&mut result, &m.build());
+        template.render_data(&mut result, &m.build()).unwrap();
         assert_eq!(result, b"valuetwo");
     }
 
-    //
-    // XXX These tests are not passing, I think because of bugs in
-    // Mustache lib.
-    // https://github.com/nickel-org/rust-mustache/issues/41
-    //
-    //
-    // #[test]
-    // fn test_render_vec() {
-    //     let tempdir = TempDir::new("template_test_render").unwrap();
-    //     let template_path = format!("{}/template.mustache", tempdir.path().to_str().unwrap());
-    //
-    //     let template_str = "Hello, {{#list}}{{.}},{{/list}}!".to_string();
-    //     let v = vec_new();
-    //     assert_eq!(vec_push_str(v, CString::new("Jasper Beardly").unwrap().into_raw()), 0);
-    //     assert!(!v.is_null());
-    //     assert_eq!(vec_push_str(v, CString::new("Sea Capt'n").unwrap().into_raw()), 0);
-    //     assert!(!v.is_null());
-    //
-    //     let mut fh = fs::File::create(&template_path).unwrap();
-    //     fh.write_all(template_str.as_bytes()).unwrap();
-    //
-    //     let template = Template::new(&template_path).unwrap().into();
-    //     let fd = template_render_vec(Box::into_raw(Box::new(template)), v);
-    //     assert!(fd != 0);
-    //     let mut fh = unsafe { fs::File::from_raw_fd(fd) };
-    //     let mut content = String::new();
-    //     fh.read_to_string(&mut content).unwrap();
-    //     assert_eq!(content, "Hello, Jasper Beardly,Sea Capt'n,!");
-    // }
+    #[test]
+    fn test_render_vec() {
+        let tempdir = TempDir::new("template_test_render").unwrap();
+        let template_path = format!("{}/template.mustache", tempdir.path().to_str().unwrap());
 
-    // #[test]
-    // fn test_vec_push_str() {
-    //     let v = vec_new();
-    //     assert_eq!(vec_push_str(v, CString::new("value").unwrap().into_raw()), 0);
-    //     assert!(!v.is_null());
-    //
-    //     let m = map_new();
-    //     assert_eq!(map_insert_vec(m, CString::new("list").unwrap().into_raw(), v), 0);
-    //     assert!(!m.is_null());
-    //
-    //     let template = mustache::compile_str("{{#list}}{{.}}{{/list}}");
-    //     let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
-    //     let mut result = Vec::new();
-    //     template.render_data(&mut result, &m.build());
-    //     assert_eq!(result, b"value");
-    // }
+        let template_str = "Hello {{#.}}{{.}}, {{/.}}!".to_string();
+        let v = vec_new();
+        assert_eq!(vec_push_str(v, CString::new("Jasper Beardly").unwrap().into_raw()), 0);
+        assert!(!v.is_null());
+        assert_eq!(vec_push_str(v, CString::new("Sea Captain").unwrap().into_raw()), 0);
+        assert!(!v.is_null());
 
-    // #[test]
-    // fn test_vec_push_bool() {
-    //     let v = vec_new();
-    //     assert_eq!(vec_push_bool(v, 1), 0);
-    //     assert!(!v.is_null());
-    //
-    //     let m = map_new();
-    //     assert_eq!(map_insert_vec(m, CString::new("list").unwrap().into_raw(), v), 0);
-    //     assert!(!m.is_null());
-    //
-    //     let template = mustache::compile_str("{{#list}}{{#.}}true{{/.}}{{/list}}");
-    //     let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
-    //     let mut result = Vec::new();
-    //     template.render_data(&mut result, &m.build());
-    //     assert_eq!(result, b"true");
-    // }
+        let mut fh = fs::File::create(&template_path).unwrap();
+        fh.write_all(template_str.as_bytes()).unwrap();
 
-    // #[test]
-    // fn test_vec_push_vec() {
-    //     let v = vec_new();
-    //     assert_eq!(vec_push_str(v, CString::new("val1").unwrap().into_raw()), 0);
-    //     assert_eq!(vec_push_str(v, CString::new("val2").unwrap().into_raw()), 0);
-    //
-    //     let v1 = vec_new();
-    //     assert_eq!(vec_push_vec(v1, v), 0);
-    //
-    //     let m = map_new();
-    //     assert_eq!(map_insert_vec(m, CString::new("list").unwrap().into_raw(), v1), 0);
-    //     assert!(!m.is_null());
-    //
-    //     let template = mustache::compile_str("{{#list}}{{#.}}{{.}}{{/.}}{{/list}}").unwrap();
-    //     let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
-    //     let mut result = Vec::new();
-    //     template.render_data(&mut result, &m.build());
-    //     assert_eq!(result, b"val1val2");
-    // }
+        let template = Template::new(&template_path).unwrap().into();
+        let fd = template_render_vec(Box::into_raw(Box::new(template)), v);
+        assert!(fd != 0);
+        let mut fh = unsafe { fs::File::from_raw_fd(fd) };
+        let mut content = String::new();
+        fh.read_to_string(&mut content).unwrap();
+        assert_eq!(content, "Hello Jasper Beardly, Sea Captain, !");
+    }
 
-    // #[test]
-    // fn test_vec_push_map() {
-    //     let m = map_new();
-    //     assert_eq!(map_insert_str(m, CString::new("one").unwrap().into_raw(), CString::new("two").unwrap().into_raw()), 0);
-    //
-    //     let v = vec_new();
-    //     assert_eq!(vec_push_map(v, m), 0);
-    //
-    //     let template = mustache::compile_str("{{#.}}{{one}}{{/.}}");
-    //     let v: mustache::VecBuilder = readptr!(v, "VecBuilder struct").unwrap();
-    //     let mut result = Vec::new();
-    //     template.render_data(&mut result, &v.build());
-    //     assert_eq!(result, b"two");
-    // }
+    #[test]
+    fn test_vec_push_str() {
+        let v = vec_new();
+        assert_eq!(vec_push_str(v, CString::new("value").unwrap().into_raw()), 0);
+        assert!(!v.is_null());
+
+        let m = map_new();
+        assert_eq!(map_insert_vec(m, CString::new("list").unwrap().into_raw(), v), 0);
+        assert!(!m.is_null());
+
+        let template = mustache::compile_str("{{#list}}{{.}}{{/list}}").unwrap();
+        let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
+        let mut result = Vec::new();
+        template.render_data(&mut result, &m.build()).unwrap();
+        assert_eq!(result, b"value");
+    }
+
+    #[test]
+    fn test_vec_push_bool() {
+        let v = vec_new();
+        assert_eq!(vec_push_bool(v, 1), 0);
+        assert!(!v.is_null());
+
+        let m = map_new();
+        assert_eq!(map_insert_vec(m, CString::new("list").unwrap().into_raw(), v), 0);
+        assert!(!m.is_null());
+
+        let template = mustache::compile_str("{{#list}}{{#.}}true{{/.}}{{/list}}").unwrap();
+        let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
+        let mut result = Vec::new();
+        template.render_data(&mut result, &m.build()).unwrap();
+        assert_eq!(result, b"true");
+    }
+
+    #[test]
+    fn test_vec_push_vec() {
+        let v = vec_new();
+        assert_eq!(vec_push_str(v, CString::new("val1").unwrap().into_raw()), 0);
+        assert_eq!(vec_push_str(v, CString::new("val2").unwrap().into_raw()), 0);
+
+        let v1 = vec_new();
+        assert_eq!(vec_push_vec(v1, v), 0);
+
+        let m = map_new();
+        assert_eq!(map_insert_vec(m, CString::new("list").unwrap().into_raw(), v1), 0);
+        assert!(!m.is_null());
+
+        let template = mustache::compile_str("{{#list}}{{#.}}{{.}}{{/.}}{{/list}}").unwrap();
+        let m = readptr!(m; mustache::MapBuilder, "MapBuilder struct").unwrap();
+        let mut result = Vec::new();
+        template.render_data(&mut result, &m.build()).unwrap();
+        assert_eq!(result, b"val1val2");
+    }
+
+    #[test]
+    fn test_vec_push_map() {
+        let m = map_new();
+        assert_eq!(map_insert_str(m, CString::new("one").unwrap().into_raw(), CString::new("two").unwrap().into_raw()), 0);
+
+        let v = vec_new();
+        assert_eq!(vec_push_map(v, m), 0);
+
+        let template = mustache::compile_str("{{#.}}{{one}}{{/.}}").unwrap();
+        let v = readptr!(v; mustache::VecBuilder, "VecBuilder struct").unwrap();
+        let mut result = Vec::new();
+        template.render_data(&mut result, &v.build()).unwrap();
+        assert_eq!(result, b"two");
+    }
 }
