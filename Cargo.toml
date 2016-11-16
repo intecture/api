@@ -28,7 +28,7 @@ rustc-serialize = "0.3"
 serde = "0.8"
 serde_json = "0.8"
 tempfile = "2.1"
-zdaemon = { git = "https://github.com/betweenlines/zdaemon.git", tag = "0.0.1" }
+zdaemon = { git = "https://github.com/betweenlines/zdaemon.git", branch = "dev" }
 # zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", tag = "0.0.1" }
 zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", branch = "dev" }
 # Feature `remote-run`
