@@ -6,20 +6,14 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-#[cfg(all(feature = "local-run", feature = "remote-run"))]
 fn main() {
-    panic!("Mutually exclusive features `local-run` and `remote-run`. You must only enable one.");
-}
+    let local = cfg!(feature = "local-run");
+    let remote = cfg!(feature = "remote-run");
 
-#[cfg(all(not(feature = "local-run"), not(feature = "remote-run")))]
-fn main() {
-    panic!("Missing feature `local-run` or `remote-run`. You must enable one.");
-}
-
-#[cfg(all(feature = "local-run", not(feature = "remote-run")))]
-fn main() {
-}
-
-#[cfg(all(feature = "remote-run", not(feature = "local-run")))]
-fn main() {
+    if local && remote {
+        panic!("Mutually exclusive features `local-run` and `remote-run`. You must only enable one.");
+    }
+    else if !local && !remote {
+        panic!("Missing feature `local-run` or `remote-run`. You must enable one.");
+    }
 }
