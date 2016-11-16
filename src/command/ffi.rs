@@ -107,7 +107,7 @@ mod tests {
     #[test]
     fn test_exec() {
         let path: Option<String> = None;
-        let mut host = Box::into_raw(Box::new(Host::local(path).unwrap()));
+        let host = Box::into_raw(Box::new(Host::local(path).unwrap()));
 
         let whoami = CString::new("whoami").unwrap();
         let cmd = command_new(whoami.into_raw());
