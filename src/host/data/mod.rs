@@ -173,9 +173,9 @@ fn query_value(data: &Value, value: Value) -> Result<Option<Value>> {
                         },
                         _ => return Err(Error::Generic("Query must be string".into())),
                     };
+                } else {
+                    return Ok(Some(v));
                 }
-
-                return Ok(Some(v));
             }
         },
         _ => return Ok(Some(value)),
@@ -201,8 +201,8 @@ mod tests {
         path.push("data");
         fs::create_dir(&path).unwrap();
         path.pop();
-        path.push("payloads/payload/data");
 
+        path.push("payloads/payload/data");
         fs::create_dir_all(&path).unwrap();
         path.pop();
         path.pop();
