@@ -51,7 +51,7 @@ script:
   - travis-cargo build
   - travis-cargo test
   - |
-      ln -s "$HOME/lib/libczmq.so.3" target/debug
+      ln -s "$HOME/lib/libczmq.so.4" target/debug
       ln -s "$HOME/lib/libzmq.so.5" target/debug
 
       cd bindings
