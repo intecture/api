@@ -111,7 +111,7 @@ PHP_METHOD(File, upload) {
 PHP_METHOD(File, upload_file) {
     zval *phost;
     php_host *host;
-    int fd;
+    zend_long fd;
     zval *opts = NULL;
 
     if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "zl|a", &phost, &fd, &opts) == FAILURE) {
