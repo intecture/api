@@ -264,7 +264,7 @@ fn parse(tokens: &mut Enumerate<IntoIter<Token>>, data: &Value) -> Result<bool> 
                              match previous.1 { Token::Cop(_) => false, _ => true} => (),
             Token::Lop(ref l) if match previous.0 { Token::Pointer(_) | Token::Value(_) | Token::GroupTerm => true, _ => false } &&
                              match previous.1 { Token::Lop(_) => false, _ => true} =>
-                if *l == LogicalOperator::And && !status {
+                if (*l == LogicalOperator::And && !status) || (*l == LogicalOperator::Or && status) {
                     break;
                 },
             Token::Pointer(_) |
