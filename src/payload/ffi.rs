@@ -71,8 +71,6 @@ mod tests {
     use project::Language;
     use std::ffi::CString;
     use std::{fs, ptr, thread};
-    use std::path::PathBuf;
-    use std::process::Command;
     use super::*;
     use tempdir::TempDir;
     use zdaemon::ConfigFile;
@@ -131,13 +129,25 @@ mod tests {
     }
 
     #[test]
+    fn test_build_run() {
+        let _ = ::_MOCK_ENV.init();
+
+        // These need to be run sequentially as env::set_current_dir
+        // is not thread-safe.
+        super::super::tests::test_build_c();
+        super::super::tests::test_run();
+        test_run();
+    }
+
+    // Don't run this test directly as there's a race condition
+    // between mod::test_run and ffi::test_run.
     fn test_run() {
         let _ = ::_MOCK_ENV.init();
 
         let tempdir = TempDir::new("test_payload_run").unwrap();
         let mut buf = tempdir.path().to_owned();
 
-        create_cargo_proj(&mut buf);
+        super::super::tests::create_cargo_proj(&mut buf);
 
         let conf = Config {
             author: "Dr. Hibbert".into(),
@@ -169,16 +179,5 @@ mod tests {
         assert_eq!(payload_free(payload_ptr), 0);
         assert_eq!(host_close(host), 0);
         handle.join().unwrap();
-    }
-
-    fn create_cargo_proj(buf: &mut PathBuf) {
-        buf.push("payload");
-
-        let status = Command::new("cargo")
-                             .args(&["new", buf.to_str().unwrap(), "--bin"])
-                             .status()
-                             .expect("Failed to execute process");
-
-        assert!(status.success());
     }
 }

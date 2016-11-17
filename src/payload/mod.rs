@@ -327,7 +327,6 @@ mod tests {
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
-    use std::process::Command;
     use std::thread;
     use super::*;
     use super::config::Config;
@@ -357,34 +356,7 @@ mod tests {
         assert!(Payload::new(buf.to_str().unwrap()).is_err());
     }
 
-    #[test]
-    fn test_build_rust() {
-        let _ = ::_MOCK_ENV.init();
-
-        let tempdir = TempDir::new("test_payload_build_rust").unwrap();
-        let mut buf = tempdir.path().to_owned();
-
-        create_cargo_proj(&mut buf);
-
-        let conf = Config {
-            author: "Dr. Hibbert".into(),
-            repository: "https://github.com/dhibbz/hehehe.git".into(),
-            language: Language::Rust,
-            dependencies: None,
-        };
-
-        buf.push("payload.json");
-        conf.save(&buf).unwrap();
-        buf.pop();
-
-        let payload = Payload::new(buf.to_str().unwrap()).unwrap();
-        payload.build().unwrap();
-    }
-
-    #[test]
-    fn test_build_c() {
-        let _ = ::_MOCK_ENV.init();
-
+    pub fn test_build_c() {
         let tempdir = TempDir::new("test_payload_build_c").unwrap();
         let mut buf = tempdir.path().to_owned();
 
@@ -412,10 +384,7 @@ mod tests {
         assert!(buf.exists());
     }
 
-    #[test]
-    fn test_run() {
-        let _ = ::_MOCK_ENV.init();
-
+    pub fn test_run() {
         let tempdir = TempDir::new("test_payload_run").unwrap();
         let mut buf = tempdir.path().to_owned();
 
@@ -448,14 +417,22 @@ mod tests {
         handle.join().unwrap();
     }
 
-    fn create_cargo_proj(buf: &mut PathBuf) {
-        buf.push("payload");
+    pub fn create_cargo_proj(buf: &mut PathBuf) {
+        buf.push("payload/src");
+        fs::create_dir_all(&buf).unwrap();
 
-        let status = Command::new("cargo")
-                             .args(&["new", buf.to_str().unwrap(), "--bin"])
-                             .status()
-                             .expect("Failed to execute process");
+        buf.push("main.rs");
+        let mut fh = fs::File::create(&buf).unwrap();
+        fh.write_all(b"fn main() {}").unwrap();
+        buf.pop();
+        buf.pop();
 
-        assert!(status.success());
+        buf.push("Cargo.toml");
+        let mut fh = fs::File::create(&buf).unwrap();
+        fh.write_all(b"[package]
+name = \"payload\"
+version = \"0.1.0\"
+authors = [\"Don Duck <quack@goosehat.rz>\"]").unwrap();
+        buf.pop();
     }
 }
