@@ -265,6 +265,13 @@ fn parse(tokens: &mut Enumerate<IntoIter<Token>>, data: &Value) -> Result<bool> 
             Token::Lop(ref l) if match previous.0 { Token::Pointer(_) | Token::Value(_) | Token::GroupTerm => true, _ => false } &&
                              match previous.1 { Token::Lop(_) => false, _ => true} =>
                 if (*l == LogicalOperator::And && !status) || (*l == LogicalOperator::Or && status) {
+                    // Consume remaining tokens in this group as
+                    // we've finished processing this group.
+                    for (_, t) in tokens {
+                        if t == Token::GroupTerm {
+                            break;
+                        }
+                    }
                     break;
                 },
             Token::Pointer(_) |
