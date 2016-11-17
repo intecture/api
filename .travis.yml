@@ -32,21 +32,19 @@ before_script:
 
       cd /tmp
 
-      curl -sSOL https://github.com/zeromq/zeromq4-1/archive/v4.1.5.tar.gz
-      tar zxf v4.1.5.tar.gz
-      cd zeromq4-1-4.1.5
+      curl -sSOL https://github.com/zeromq/libzmq/releases/download/v4.2.0/zeromq-4.2.0.tar.gz
+      tar zxf zeromq-4.2.0.tar.gz
+      cd zeromq-4.2.0
       ./autogen.sh
-      ./configure --prefix=$HOME --with-libsodium --silent
-      make --silent
-      make --silent install
+      ./configure --prefix=$HOME --with-libsodium
+      make && make install
       cd ..
 
-      git clone https://github.com/zeromq/czmq
-      cd czmq
-      ./autogen.sh
+      curl -sSOL https://github.com/zeromq/czmq/releases/download/v4.0.1/czmq-4.0.1.tar.gz
+      tar zxf czmq-4.0.1.tar.gz
+      cd czmq-4.0.1
       ./configure --prefix=$HOME --silent
-      make --silent
-      make --silent install
+      make && make install
       cd $TRAVIS_BUILD_DIR
 
 script:
