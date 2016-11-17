@@ -1,26 +1,25 @@
-CARGO := $(shell which cargo)
 TARGET = release
-USRPATH = /usr/local
+PREFIX = /usr/local
 LIBEXT = so
 
 all: remote
 
 local:
 ifeq ($(TARGET), release)
-	$(CARGO) build --release --no-default-features --features=local-run
+	cargo build --release --no-default-features --features=local-run
 else
-	$(CARGO) build --no-default-features --features=local-run
+	cargo build --no-default-features --features=local-run
 endif
 
 remote:
 ifeq ($(TARGET), release)
-	$(CARGO) build --release
+	cargo build --release
 else
-	$(CARGO) build
+	cargo build
 endif
 
 c: install
-	install -m 0644 bindings/c/inapi.h $(USRPATH)/include/
+	install -m 0644 bindings/c/inapi.h $(PREFIX)/include/
 
 php5: c
 	cd bindings/php5
@@ -39,24 +38,24 @@ php7: c
 	cd ../..
 
 install:
-	install -m 0644 target/$(TARGET)/libinapi.$(LIBEXT) $(USRPATH)/lib/
+	install -m 0644 target/$(TARGET)/libinapi.$(LIBEXT) $(PREFIX)/lib/
 
 uninstall:
-	rm -f $(USRPATH)/lib/libinapi.$(LIBEXT)
+	rm -f $(PREFIX)/lib/libinapi.$(LIBEXT)
 
 test-local:
 ifeq ($(TARGET), release)
-	$(CARGO) test --release --no-default-features --features=local-run
+	cargo test --release --no-default-features --features=local-run
 else
-	$(CARGO) test --no-default-features --features=local-run
+	cargo test --no-default-features --features=local-run
 endif
 
 test-remote:
 ifeq ($(TARGET), release)
-	$(CARGO) test --release
+	cargo test --release
 else
-	$(CARGO) test
+	cargo test
 endif
 
 clean:
-	$(CARGO) clean
+	cargo clean
