@@ -172,6 +172,7 @@ impl Payload {
         let artifact_default = self.artifact.as_ref().map(|a| &**a).unwrap_or("main");
         let api_endpoint = format!("ipc://{}/{}_api.ipc", self.path.to_str().unwrap(), artifact_default);
         let mut api_pipe = ZSock::new(SocketType::DEALER);
+        api_pipe.set_sndtimeo(Some(1000));
         try!(api_pipe.bind(&api_endpoint));
 
         let file_endpoint = format!("ipc://{}/{}_file.ipc", self.path.to_str().unwrap(), artifact_default);
@@ -179,6 +180,7 @@ impl Payload {
         try!(file_pipe.bind(&file_endpoint));
 
         let (mut parent, child) = try!(ZSys::create_pipe());
+
         let language = self.language.clone();
         let mut payload_path = self.path.clone();
         let artifact = self.artifact.clone();
@@ -268,7 +270,22 @@ impl Payload {
 
         // Send data to payload
         let json = try!(serde_json::to_string(host.data()));
-        try!(api_pipe.send_str(&json));
+        match api_pipe.send_str(&json) {
+            Ok(_) => (),
+            // If we can't send data to the child proc, something has
+            // gone very wrong. In order not to lose the child error,
+            // we'll attempt to receive it now, or return CZMQ error
+            // otherwise.
+            Err(e) => {
+                parent.set_rcvtimeo(Some(500));
+                if parent.wait().is_ok() {
+                    let cmd_result: Result<()> = handle.join()?;
+                    cmd_result?;
+                }
+
+                return Err(e.into());
+            }
+        }
 
         let mut poller = try!(ZPoller::new());
         try!(poller.add(&mut parent));
