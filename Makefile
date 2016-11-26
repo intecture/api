@@ -1,6 +1,5 @@
 TARGET = release
 PREFIX = /usr/local
-LIBEXT = so
 
 all: remote
 
@@ -38,10 +37,18 @@ php7: c
 	cd ../..
 
 install:
-	install -m 0644 target/$(TARGET)/libinapi.$(LIBEXT) $(PREFIX)/lib/
+	if [ -f target/$(TARGET)/libinapi.dylib ]; then \
+		install -m 0644 target/$(TARGET)/libinapi.dylib $(PREFIX)/lib/; \
+	else \
+		install -m 0644 target/$(TARGET)/libinapi.so $(PREFIX)/lib/; \
+	fi
 
 uninstall:
-	rm -f $(PREFIX)/lib/libinapi.$(LIBEXT)
+	if [ -f $(PREFIX)/lib/libinapi.dylib ]; then \
+		rm -f $(PREFIX)/lib/libinapi.dylib; \
+	else \
+		rm -f $(PREFIX)/lib/libinapi.so; \
+	fi
 
 test-local:
 ifeq ($(TARGET), release)
