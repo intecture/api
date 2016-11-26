@@ -13,11 +13,11 @@ if test "$PHP_INAPI" != "no"; then
         INAPI_INC_DIR=$PHP_INAPI/../include
       else
         AC_MSG_CHECKING([for inapi files in default path])
-        for p in /usr/local /usr; do
+        for p in /usr/local/lib /usr/lib64 /usr/lib; do
           for e in so dylib; do
-            if test -r $p/lib/$SEARCH_FOR.$e; then
-              INAPI_LIB_DIR=$p/lib
-              INAPI_INC_DIR=$p/include
+            if test -r $p/$SEARCH_FOR.$e; then
+              INAPI_LIB_DIR=$p
+              INAPI_INC_DIR=$p/../include
               AC_MSG_RESULT(found in $p)
             fi
           done
