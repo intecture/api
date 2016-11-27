@@ -21,6 +21,8 @@ pub enum Language {
 pub struct ProjectConfig {
     pub language: Language,
     pub auth_server: String,
+    pub auth_api_port: u32,
+    pub auth_update_port: u32,
 }
 
 impl ConfigFile for ProjectConfig {}

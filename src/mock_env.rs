@@ -40,7 +40,9 @@ impl MockEnv {
 
         let config = ProjectConfig {
             language: Language::Rust,
-            auth_server: format!("127.0.0.1:{}", port)
+            auth_server: "127.0.0.1".into(),
+            auth_api_port: 0,
+            auth_update_port: port as u32,
         };
         config.save("project.json").unwrap();
 

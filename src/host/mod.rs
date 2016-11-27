@@ -173,7 +173,7 @@ impl Host {
         auth_sock.set_curve_serverkey(auth_cert.public_txt());
         auth_sock.set_sndtimeo(Some(10000));
         auth_sock.set_rcvtimeo(Some(10000));
-        try!(auth_sock.connect(&format!("tcp://{}", ::PROJECT_CONFIG.auth_server)));
+        try!(auth_sock.connect(&format!("tcp://{}:{}", ::PROJECT_CONFIG.auth_server, ::PROJECT_CONFIG.auth_api_port)));
 
         // Get server cert from Auth server
         let msg = ZMsg::new();
