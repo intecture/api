@@ -54,7 +54,7 @@ impl BinResolver {
                 }
             }
 
-            Err(Error::Generic("No paths contained the requested binary.".to_string()))
+            Err(Error::Generic(format!("No paths contained the requested binary: {}", bin)))
         }
     }
 }
