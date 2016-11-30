@@ -1,4 +1,4 @@
-#!/usr/bin/env sh
+#!/bin/sh
 # Copyright 2015-2016 Intecture Developers. See the COPYRIGHT file at the
 # top-level directory of this distribution and at
 # https://intecture.io/COPYRIGHT.
@@ -109,7 +109,7 @@ do_install_c() {
 }
 
 do_install_php() {
-    if ! type php 2>&1 >/dev/null; then
+    if ! type php >/dev/null 2>&1; then
         echo "php-cli not found. You must install it first."
         exit 1
     fi
