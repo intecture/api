@@ -11,39 +11,11 @@
 set -u
 
 # Globals
-prefix=""
-libdir=""
-sysconfdir=""
+prefix="{{prefix}}"
+libdir="{{libdir}}"
+libext="{{libext}}"
+version="{{version}}"
 ostype="$(uname -s)"
-
-case "$ostype" in
-    Linux)
-        prefix="/usr"
-		libdir="$prefix/lib"
-        sysconfdir="/etc"
-
-		if [ -d "${libdir}64" ]; then
-			libdir="${libdir}64"
-		fi
-        ;;
-
-    FreeBSD)
-        prefix="/usr/local"
-		libdir="$prefix/lib"
-        sysconfdir="$prefix/etc"
-        ;;
-
-    Darwin)
-        prefix="/usr/local"
-		libdir="$prefix/lib"
-        sysconfdir="$prefix/etc"
-        ;;
-
-    *)
-        echo "unrecognized OS type: $ostype" >&2
-        exit 1
-        ;;
-esac
 
 do_install_c() {
     if ! $(pkg-config --exists libzmq); then
@@ -94,23 +66,15 @@ do_install_c() {
         install -m 644 include/zuuid.h $prefix/include/
     fi
 
-    local _libext="so"
-    if [ -f libinapi.dylib.0.3.0 ]; then
-        _libext="dylib"
-    fi
-
-    install -m 755 libinapi.$_libext.0.3.0 $libdir
-    rm -f $libdir/libinapi.$_libext.0
-    ln -s $libdir/libinapi.$_libext.0.3.0 $libdir/libinapi.$_libext.0
-    rm -f $libdir/libinapi.$_libext
-    ln -s $libdir/libinapi.$_libext.0.3.0 $libdir/libinapi.$_libext
+    install -m 755 libinapi.$libext.$version $libdir
+    ln -s $libdir/libinapi.$libext.$version $libdir/libinapi.$libext
 
     install -m 644 inapi.h $prefix/include/
 }
 
 do_install_php() {
     if ! type php >/dev/null 2>&1; then
-        echo "php-cli not found. You must install it first."
+        echo "PHP CLI not found. You must install it first."
         exit 1
     fi
 
