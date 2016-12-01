@@ -8,11 +8,11 @@
 
 use error::{Error, Result};
 use file::FileOwner;
+use host::telemetry::Netif;
 use regex::Regex;
 use std::{process, str};
 use std::path::Path;
 use super::default_base as default;
-use host::telemetry::Netif;
 
 pub fn file_get_owner<P: AsRef<Path>>(path: P) -> Result<FileOwner> {
     Ok(FileOwner {
