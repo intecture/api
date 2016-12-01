@@ -9,6 +9,7 @@
 use command::CommandResult;
 use error::{Error, Result};
 use file::FileOwner;
+use host::telemetry::{Netif, NetifIPv4, NetifIPv6, NetifStatus};
 use regex::Regex;
 use std::{process, str};
 use std::fs::File;
@@ -16,7 +17,6 @@ use std::io::prelude::*;
 use std::path::Path;
 use target::bin_resolver::BinResolver;
 use target::default_base as default;
-use host::telemetry::Netif;
 
 pub fn file_get_owner<P: AsRef<Path>>(path: P) -> Result<FileOwner> {
     Ok(FileOwner {
@@ -58,7 +58,8 @@ pub fn service_systemd(name: &str, action: &str) -> Result<Option<CommandResult>
         _ => (),
     }
 
-    Ok(Some(try!(default::command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("systemctl")), action, name)))))
+    let systemctl = BinResolver::resolve("systemctl")?;
+    Ok(Some(try!(default::command_exec(&format!("{} {} {}", systemctl.to_str().unwrap(), action, name)))))
 }
 
 pub fn memory() -> Result<u64> {
@@ -108,11 +109,78 @@ fn get_cpu_item(item: &str) -> Result<String> {
 }
 
 pub fn net() -> Result<Vec<Netif>> {
-    let if_pattern = r"(?m)^(?P<if>[a-z0-9]+)\s+Link encap:(Ethernet|Local Loopback)(?P<content>(?s).+?)\n\n";
-    let kv_pattern = r"^\s+(?P<key>[A-Za-z0-9]+)(?:\s|:)(?P<value>.+)";
-    let ipv4_pattern = r"^addr:(?P<ip>(?:[0-9]{1,3}\.){3}[0-9]{1,3})\s+(?:Bcast:[0-9.]{7,15}\s+)?Mask:(?P<mask>(?:[0-9]{1,3}\.){3}[0-9]{1,3})";
-    let ipv6_pattern = r"^addr:\s*(?P<ip>(?:[a-f0-9]{4}::(?:[a-f0-9]{1,4}:){3}[a-f0-9]{1,4})|(?:::1))/(?P<prefix>[0-9]+)\s+Scope:(?P<scope>[A-Za-z0-9]+)";
-    default::parse_net(if_pattern, kv_pattern, ipv4_pattern, ipv6_pattern)
+    match BinResolver::resolve("ip") {
+        Ok(ip_path) => {
+            let ip_out = process::Command::new(&ip_path).arg("addr").output()?;
+            let ip = str::from_utf8(&ip_out.stdout)?;
+
+            let if_regex = Regex::new(r"^[0-9]+:\s+([a-z0-9]+):.+?state\s([A-Z]+)")?;
+            let kv_regex = Regex::new(r"^\s+([a-z0-9/]+)\s(.+)")?;
+
+            let mut net = vec!();
+
+            for line in ip.lines() {
+                if let Some(cap) = if_regex.captures(line) {
+                    net.push(Netif {
+                        interface: cap.at(1).unwrap().into(),
+                        mac: None,
+                        inet: None,
+                        inet6: None,
+                        status: match cap.at(2).unwrap() {
+                            "UP" => Some(NetifStatus::Active),
+                            "DOWN" => Some(NetifStatus::Inactive),
+                            _ => None,
+                        },
+                    });
+                }
+                else if let Some(this) = net.last_mut() {
+                    if let Some(cap) = kv_regex.captures(line) {
+                        let mut words: Vec<&str> = cap.at(2).unwrap().split_whitespace().collect();
+
+                        match cap.at(1).unwrap() {
+                            "link/ether" if !words.is_empty() => this.mac = Some(words.remove(0).into()),
+                            "inet" if words.len() >= 3 => {
+                                let mut ip_mask: Vec<&str> = words.remove(0).split('/').collect();
+
+                                // Convert CIDR mask to subnet mask
+                                let cidr = ip_mask.remove(1).parse::<u8>()?;
+                                let mask: i64 = if cidr > 0 { 0x00 - (1 << (32 - cidr)) } else { 0xFFFFFFFF };
+                                let subnet_mask = format!("{}.{}.{}.{}",
+                                    mask >> 24 & 0xff,
+                                    mask >> 16 & 0xff,
+                                    mask >> 8 & 0xff,
+                                    mask & 0xff
+                                );
+
+                                this.inet = Some(NetifIPv4 {
+                                    address: ip_mask.remove(0).into(),
+                                    netmask: subnet_mask,
+                                });
+                            },
+                            "inet6" if words.len() >= 3 => {
+                                let mut ip_prefix: Vec<&str> = words.remove(0).split('/').collect();
+                                this.inet6 = Some(NetifIPv6 {
+                                    address: ip_prefix.remove(0).into(),
+                                    prefixlen: ip_prefix.remove(0).parse()?,
+                                    scopeid: Some(words.remove(1).into()),
+                                });
+                            }
+                            _ => (),
+                        }
+                    }
+                }
+            }
+
+            Ok(net)
+        },
+        Err(_) => {
+            let if_pattern = r"(?m)^(?P<if>[a-z0-9]+)\s+Link encap:(Ethernet|Local Loopback)(?P<content>(?s).+?)\n\n";
+            let kv_pattern = r"^\s+(?P<key>[A-Za-z0-9]+)(?:\s|:)(?P<value>.+)";
+            let ipv4_pattern = r"^addr:(?P<ip>(?:[0-9]{1,3}\.){3}[0-9]{1,3})\s+(?:Bcast:[0-9.]{7,15}\s+)?Mask:(?P<mask>(?:[0-9]{1,3}\.){3}[0-9]{1,3})";
+            let ipv6_pattern = r"^addr:\s*(?P<ip>(?:[a-f0-9]{4}::(?:[a-f0-9]{1,4}:){3}[a-f0-9]{1,4})|(?:::1))/(?P<prefix>[0-9]+)\s+Scope:(?P<scope>[A-Za-z0-9]+)";
+            default::parse_nettools_net(if_pattern, kv_pattern, ipv4_pattern, ipv6_pattern)
+        }
+    }
 }
 
 #[cfg(test)]

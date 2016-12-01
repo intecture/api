@@ -42,9 +42,10 @@ pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
         }
 
         // XXX `update-rc.d` enable/disable is marked as unstable
+        let update_rcd = BinResolver::resolve("update-rc.d")?;
         match action {
-            "enable" if !enabled => Ok(Some(try!(default::command_exec(&format!("{} {} enable", try!(BinResolver::resolve("update-rc.d")), name))))),
-            "disable" if enabled => Ok(Some(try!(default::command_exec(&format!("{} {} disable", try!(BinResolver::resolve("update-rc.d")), name))))),
+            "enable" if !enabled => Ok(Some(default::command_exec(&format!("{} {} enable", update_rcd.to_str().unwrap(), name))?)),
+            "disable" if enabled => Ok(Some(default::command_exec(&format!("{} {} disable", update_rcd.to_str().unwrap(), name))?)),
             _ => Ok(None)
         }
     } else {

@@ -37,7 +37,7 @@ pub fn net() -> Result<Vec<Netif>> {
     let kv_pattern = r"^\s+(?P<key>[a-z0-9]+)(?:\s|:\s|=)(?P<value>.+)";
     let ipv4_pattern = r"^(?P<ip>(?:[0-9]{1,3}\.){3}[0-9]{1,3}) netmask (?P<mask>0x[a-f0-9]{8})";
     let ipv6_pattern = r"^(?P<ip>(?:[a-f0-9]{4}::(?:[a-f0-9]{1,4}:){3}[a-f0-9]{1,4})|::1)(?:%[a-z]+[0-9]+)? prefixlen (?P<prefix>[0-9]+)(?: scopeid (?P<scope>[a-z0-9]+))?\s*$";
-    default::parse_net(if_pattern, kv_pattern, ipv4_pattern, ipv6_pattern)
+    default::parse_nettools_net(if_pattern, kv_pattern, ipv4_pattern, ipv6_pattern)
 }
 
 pub fn get_sysctl_item(item: &str) -> Result<String> {

@@ -16,11 +16,12 @@ use target::default_base as default;
 
 pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
     if action == "enable" || action == "disable" {
-        let result = try!(default::command_exec(&format!("{} {}", &try!(BinResolver::resolve("chkconfig")), name)));
+        let chkconfig = BinResolver::resolve("chkconfig")?;
+        let result = default::command_exec(&format!("{} {}", chkconfig.to_str().unwrap(), name))?;
 
         match action {
-            "enable" if result.exit_code != 0 => Ok(Some(try!(default::command_exec(&format!("{} {} on", &try!(BinResolver::resolve("chkconfig")), name))))),
-            "disable" if result.exit_code == 0 => Ok(Some(try!(default::command_exec(&format!("{} {} off", &try!(BinResolver::resolve("chkconfig")), name))))),
+            "enable" if result.exit_code != 0 => Ok(Some(try!(default::command_exec(&format!("{} {} on", chkconfig.to_str().unwrap(), name))))),
+            "disable" if result.exit_code == 0 => Ok(Some(try!(default::command_exec(&format!("{} {} off", chkconfig.to_str().unwrap(), name))))),
             _ => Ok(None)
         }
     } else {

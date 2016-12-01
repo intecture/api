@@ -9,12 +9,12 @@
 use command::CommandResult;
 use error::{Error, Result};
 use host::Host;
+use host::telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
 use package::providers::{ProviderFactory, Providers};
 use regex::Regex;
 use std::{fs, process, str};
 use std::path::Path;
 use target::bin_resolver::BinResolver;
-use host::telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
 
 pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Providers> {
     for p in providers {
@@ -208,7 +208,7 @@ pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
     Ok(fs)
 }
 
-pub fn parse_net(if_pattern: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pattern: &str) -> Result<Vec<Netif>> {
+pub fn parse_nettools_net(if_pattern: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pattern: &str) -> Result<Vec<Netif>> {
     let ifconfig_out = try!(process::Command::new(&try!(BinResolver::resolve("ifconfig"))).output());
     let ifconfig = try!(str::from_utf8(&ifconfig_out.stdout));
 
@@ -223,13 +223,13 @@ pub fn parse_net(if_pattern: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pa
     let mut net = vec!();
 
     for cap in if_regex.captures_iter(ifconfig) {
-        net.push(try!(parse_netif(cap.name("if").unwrap(), cap.name("content").unwrap(), kv_pattern, ipv4_pattern, ipv6_pattern)));
+        net.push(try!(parse_nettools_netif(cap.name("if").unwrap(), cap.name("content").unwrap(), kv_pattern, ipv4_pattern, ipv6_pattern)));
     }
 
     Ok(net)
 }
 
-fn parse_netif(iface: &str, content: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pattern: &str) -> Result<Netif> {
+fn parse_nettools_netif(iface: &str, content: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pattern: &str) -> Result<Netif> {
     let mut netif = Netif {
         interface: iface.to_string(),
         mac: None,
