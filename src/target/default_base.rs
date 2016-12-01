@@ -122,8 +122,9 @@ pub fn file_set_mode<P: AsRef<Path>>(path: P, mode: u16) -> Result<()> {
 }
 
 pub fn service_action(name: &str, action: &str) -> Result<Option<CommandResult>> {
+    let service = BinResolver::resolve("service")?;
     if action == "start" || action == "stop" {
-        let status = try!(command_exec(&format!("{} {} status", &try!(BinResolver::resolve("service")), name)));
+        let status = command_exec(&format!("{} {} status", service.to_str().unwrap(), name))?;
         // XXX Non-zero exit code may not necessarily indicate that the
         // service is stopped?
         if (status.exit_code == 0 && action == "start") || (status.exit_code != 0 && action == "stop") {
@@ -131,7 +132,7 @@ pub fn service_action(name: &str, action: &str) -> Result<Option<CommandResult>>
         }
     }
 
-    Ok(Some(try!(command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("service")), name, action)))))
+    Ok(Some(try!(command_exec(&format!("{} {} {}", service.to_str().unwrap(), name, action)))))
 }
 
 pub fn hostname() -> Result<String> {

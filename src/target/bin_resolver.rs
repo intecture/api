@@ -25,22 +25,20 @@ lazy_static! {
 }
 
 pub struct BinResolver {
-    paths: HashMap<String, String>,
+    cache: HashMap<String, PathBuf>,
 }
 
 impl BinResolver {
     fn new() -> BinResolver {
         BinResolver {
-            paths: HashMap::new(),
+            cache: HashMap::new(),
         }
     }
 
-    pub fn resolve(bin: &str) -> Result<String> {
+    pub fn resolve(bin: &str) -> Result<PathBuf> {
         let mut br = RESOLVER.lock().unwrap();
 
-        if br.paths.contains_key(bin) {
-            Ok(br.paths.get(bin).unwrap().to_string())
-        } else {
+        if !br.cache.contains_key(bin) {
             for path in BIN_PATHS.into_iter() {
                 let mut buf = PathBuf::from(path);
 
@@ -48,14 +46,16 @@ impl BinResolver {
                     buf.push(bin);
 
                     if buf.is_file() {
-                        br.paths.insert(bin.to_string(), buf.to_str().unwrap().to_string());
-                        return Ok(buf.to_str().unwrap().to_string());
+                        br.cache.insert(bin.into(), buf);
+                        break;
                     }
                 }
             }
-
-            Err(Error::Generic(format!("No paths contained the requested binary: {}", bin)))
         }
+
+        Ok(br.cache.get(bin)
+                   .ok_or(Error::Generic(format!("No paths contained the requested binary: {}", bin)))?
+                   .to_owned())
     }
 }
 
