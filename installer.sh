@@ -73,10 +73,7 @@ do_install_c() {
 }
 
 do_install_php() {
-    if ! type php >/dev/null 2>&1; then
-        echo "PHP CLI not found. You must install it first."
-        exit 1
-    fi
+    need_cmd php
 
     do_install_c
 
@@ -128,9 +125,15 @@ do_uninstall() {
           $_phpdir/inapi.so
 }
 
+need_cmd() {
+    if ! command -v "$1" > /dev/null 2>&1
+    then err "need '$1' (command not found)"
+    fi
+}
+
 main() {
     if [ $# -eq 0 ]; then
-        echo "Usage: installer.sh <install-c|install-php|uninstall>"
+        echo "Usage: installer.sh <install|install-c|install-php|uninstall>"
         exit 0
     fi
 
