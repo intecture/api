@@ -25,7 +25,7 @@ pub mod linux_base;
 #[allow(dead_code)]
 pub mod redhat_base;
 
-#[cfg(all(target_family = "unix", feature = "local-run"))]
+#[cfg(all(any(target_os = "freebsd", target_os = "macos"), feature = "local-run"))]
 #[allow(dead_code)]
 pub mod unix_base;
 
