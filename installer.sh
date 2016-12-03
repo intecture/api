@@ -22,7 +22,7 @@ do_install_c() {
         install -m 755 lib/libzmq.so.5.1.0 $libdir
         ln -s $libdir/libzmq.so.5.1.0 $libdir/libzmq.so.5
         ln -s $libdir/libzmq.so.5.1.0 $libdir/libzmq.so
-		install -m 644 lib/pkgconfig/libzmq.pc $libdir/pkgconfig/
+        install -m 644 lib/pkgconfig/libzmq.pc $libdir/pkgconfig/
         install -m 644 include/zmq.h $prefix/include/
     fi
 
@@ -30,7 +30,7 @@ do_install_c() {
         install -m 755 lib/libczmq.so.4.0.0 $libdir
         ln -s $libdir/libczmq.so.4.0.0 $libdir/libczmq.so.4
         ln -s $libdir/libczmq.so.4.0.0 $libdir/libczmq.so
-		install -m 644 lib/pkgconfig/libczmq.pc $libdir/pkgconfig/
+        install -m 644 lib/pkgconfig/libczmq.pc $libdir/pkgconfig/
         install -m 644 include/czmq.h $prefix/include/
         install -m 644 include/czmq_library.h $prefix/include/
         install -m 644 include/czmq_prelude.h $prefix/include/
@@ -129,33 +129,33 @@ do_uninstall() {
 }
 
 main() {
-	if [ $# -eq 0 ]; then
-		echo "Usage: installer.sh <install-c|install-php|uninstall>"
-		exit 0
-	fi
+    if [ $# -eq 0 ]; then
+        echo "Usage: installer.sh <install-c|install-php|uninstall>"
+        exit 0
+    fi
 
-	case "$1" in
+    case "$1" in
         install)
             do_install_php
             ;;
 
-		install-c)
-			do_install_c
-			;;
+        install-c)
+            do_install_c
+            ;;
 
         install-php)
-			do_install_php
-			;;
+            do_install_php
+            ;;
 
-		uninstall)
-			do_uninstall
-			;;
+        uninstall)
+            do_uninstall
+            ;;
 
-		*)
-			echo "Unknown option $1"
-			exit 1
-			;;
-	esac
+        *)
+            echo "Unknown option $1"
+            exit 1
+            ;;
+    esac
 }
 
 main "$@"
