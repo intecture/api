@@ -135,6 +135,10 @@ main() {
 	fi
 
 	case "$1" in
+        install)
+            do_install_php
+            ;;
+
 		install-c)
 			do_install_c
 			;;
