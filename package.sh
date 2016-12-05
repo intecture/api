@@ -94,13 +94,11 @@ main() {
     phpize
     ./configure --prefix=$prefix --libdir=$libdir
     $make
-    $make install
 
     cd ../php7
     phpize
     ./configure --prefix=$prefix --libdir=$libdir
     $make
-    $make install
     cd "$_tmpdir"
 
     local _version=$(grep -m1 -E '^version\s?=\s?\"[0-9.]+\"' "$_cargodir/Cargo.toml" | awk '{split($3, a, "\""); print a[2]}')
