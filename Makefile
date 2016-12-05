@@ -1,5 +1,6 @@
 TARGET = release
 PREFIX = /usr/local
+LIBDIR = "$(PREFIX)/lib"
 
 all: remote
 
@@ -38,16 +39,16 @@ php7: c
 
 install:
 	if [ -f target/$(TARGET)/libinapi.dylib ]; then \
-		install -m 0644 target/$(TARGET)/libinapi.dylib $(PREFIX)/lib/; \
+		install -m 0644 target/$(TARGET)/libinapi.dylib $(LIBDIR)/; \
 	else \
-		install -m 0644 target/$(TARGET)/libinapi.so $(PREFIX)/lib/; \
+		install -m 0644 target/$(TARGET)/libinapi.so $(LIBDIR)/; \
 	fi
 
 uninstall:
-	if [ -f $(PREFIX)/lib/libinapi.dylib ]; then \
-		rm -f $(PREFIX)/lib/libinapi.dylib; \
+	if [ -f $(LIBDIR)/libinapi.dylib ]; then \
+		rm -f $(LIBDIR)/libinapi.dylib; \
 	else \
-		rm -f $(PREFIX)/lib/libinapi.so; \
+		rm -f $(LIBDIR)/libinapi.so; \
 	fi
 
 test-local:
