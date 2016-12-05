@@ -193,12 +193,18 @@ void unwrap_value(void *value, enum DataType dtype, zval *return_value TSRMLS_DC
                 int retval = get_value_type(value, json_p);
                 assert(retval > -1);
                 enum DataType dtype = (enum DataType)retval;
-                void *v = get_value(value, dtype, json_p);
-                assert(v);
 
-                zval val;
-                unwrap_value(v, dtype, &val TSRMLS_CC);
-                add_assoc_zval(return_value, k->ptr[i], &val);
+                // Only attempt to get value if it isn't null (DataType[0])
+                if (dtype > 0) {
+                    void *v = get_value(value, dtype, json_p);
+                    assert(v);
+
+                    zval val;
+                    unwrap_value(v, dtype, &val TSRMLS_CC);
+                    add_assoc_zval(return_value, k->ptr[i], &val);
+                } else {
+                    add_assoc_null(return_value, k->ptr[i]);
+                }
             }
             break;
     }
