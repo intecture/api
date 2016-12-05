@@ -27,9 +27,17 @@ pub fn file_get_mode<P: AsRef<Path>>(path: P) -> Result<u16> {
     Ok(try!(default::file_stat(path, vec!["-f", "%Lp"])).parse::<u16>().unwrap())
 }
 
-pub fn version() -> Result<String> {
+pub fn version() -> Result<(String, u32, u32)> {
     let output = try!(process::Command::new("uname").arg("-r").output());
-    Ok(str::from_utf8(&output.stdout).unwrap().trim().to_string())
+    let version_str = str::from_utf8(&output.stdout).unwrap().trim();
+    let regex = Regex::new(r"([0-9]+)\.([0-9]+)-[A-Z]+").unwrap();
+    if let Some(cap) = regex.captures(version_str) {
+        let version_maj = cap.at(1).unwrap().parse()?;
+        let version_min = cap.at(2).unwrap().parse()?;
+        Ok((version_str.into(), version_maj, version_min))
+    } else {
+        Err(Error::Generic("Could not match OS version".into()))
+    }
 }
 
 pub fn net() -> Result<Vec<Netif>> {

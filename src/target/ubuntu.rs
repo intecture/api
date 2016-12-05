@@ -11,17 +11,17 @@ use directory::DirectoryTarget;
 use error::{Error, Result};
 use file::{FileTarget, FileOwner};
 use host::Host;
+use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 use package::PackageTarget;
 use package::providers::Providers;
 use regex::Regex;
 use serde_json::Value;
 use service::ServiceTarget;
 use std::env;
-use std::fs::File;
-use std::io::Read;
 use std::path::Path;
+use std::process;
 use super::{debian_base as debian, default_base as default, linux_base as linux};
-use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
+use target::bin_resolver::BinResolver;
 
 pub struct UbuntuTarget;
 
@@ -173,7 +173,7 @@ impl TelemetryTarget for UbuntuTarget {
         let cpu_vendor = try!(linux::cpu_vendor());
         let cpu_brand = try!(linux::cpu_brand_string());
         let hostname = try!(default::hostname());
-        let os_version = try!(telemetry_version());
+        let (version_str, version_maj, version_min, version_patch) = try!(version());
 
         let telemetry = Telemetry::new(
             Cpu::new(
@@ -185,22 +185,28 @@ impl TelemetryTarget for UbuntuTarget {
             &hostname,
             try!(linux::memory()),
             try!(linux::net()),
-            Os::new(env::consts::ARCH, "debian", "ubuntu", &os_version),
+            Os::new(env::consts::ARCH, "debian", "ubuntu", &version_str, version_maj, version_min, version_patch),
         );
 
         Ok(telemetry.into_value())
     }
 }
 
-fn telemetry_version() -> Result<String> {
-    let mut fh = try!(File::open("/etc/lsb-release"));
-    let mut fc = String::new();
-    fh.read_to_string(&mut fc).unwrap();
+fn version() -> Result<(String, u32, u32, u32)> {
+    let out = process::Command::new(BinResolver::resolve("lsb_release")?).arg("-sd").output()?;
+    let desc = String::from_utf8(out.stdout).or(Err(Error::Generic("Could not read OS description".into())))?;
 
-    let regex = Regex::new(r"(?m)^DISTRIB_RELEASE=([0-9.]+)$").unwrap();
-    if let Some(cap) = regex.captures(&fc) {
-        Ok(cap.at(1).unwrap().to_string())
+    let regex = Regex::new(r"([0-9]+)\.([0-9]+)\.([0-9]+)( LTS)?").unwrap();
+    if let Some(cap) = regex.captures(&desc) {
+        let version_maj = cap.at(1).unwrap().parse()?;
+        let version_min = cap.at(2).unwrap().parse()?;
+        let version_patch = cap.at(3).unwrap().parse()?;
+        let mut version_str = format!("{}.{}.{}", version_maj, version_min, version_patch);
+        if cap.at(4).is_some() {
+            version_str.push_str(" LTS");
+        }
+        Ok((version_str, version_maj, version_min, version_patch))
     } else {
-        Err(Error::Generic("Could not match OS version".to_string()))
+        Err(Error::Generic("Could not match OS version".into()))
     }
 }

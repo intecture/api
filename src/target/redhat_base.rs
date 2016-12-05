@@ -29,15 +29,19 @@ pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
     }
 }
 
-pub fn version() -> Result<String> {
+pub fn version() -> Result<(String, u32, u32, u32)> {
     let mut fh = try!(File::open("/etc/redhat-release"));
     let mut fc = String::new();
     fh.read_to_string(&mut fc).unwrap();
 
-    let regex = Regex::new(r"release ([0-9.]+)").unwrap();
+    let regex = Regex::new(r"release ([0-9]+)\.([0-9]+)\.([0-9]+)").unwrap();
     if let Some(cap) = regex.captures(&fc) {
-        Ok(cap.at(1).unwrap().to_string())
+        let version_maj = cap.at(1).unwrap().parse()?;
+        let version_min = cap.at(2).unwrap().parse()?;
+        let version_patch = cap.at(3).unwrap().parse()?;
+        let version_str = format!("{}.{}.{}", version_maj, version_min, version_patch);
+        Ok((version_str, version_maj, version_min, version_patch))
     } else {
-        Err(Error::Generic("Could not match OS version".to_string()))
+        Err(Error::Generic("Could not match OS version".into()))
     }
 }

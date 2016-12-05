@@ -11,6 +11,7 @@ use directory::DirectoryTarget;
 use error::{Error, Result};
 use file::{FileTarget, FileOwner};
 use host::Host;
+use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 use package::PackageTarget;
 use package::providers::Providers;
 use regex::Regex;
@@ -21,7 +22,6 @@ use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::Path;
 use super::{default_base as default, Target, unix_base as unix};
-use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 
 //
 // Command
@@ -210,7 +210,7 @@ impl TelemetryTarget for Target {
         let cpu_vendor = try!(telemetry_cpu_vendor());
         let cpu_brand = try!(unix::get_sysctl_item("hw\\.model"));
         let hostname = try!(default::hostname());
-        let os_version = try!(unix::version());
+        let (version_str, version_maj, version_min) = try!(unix::version());
 
         let telemetry = Telemetry::new(
             Cpu::new(
@@ -222,7 +222,7 @@ impl TelemetryTarget for Target {
             &hostname,
             try!(try!(unix::get_sysctl_item("hw\\.physmem")).parse::<u64>()),
             try!(unix::net()),
-            Os::new(env::consts::ARCH, "unix", "freebsd", &os_version),
+            Os::new(env::consts::ARCH, "unix", "freebsd", &version_str, version_maj, version_min, 0),
         );
 
         Ok(telemetry.into_value())

@@ -105,7 +105,10 @@ impl Telemetry {
         os.insert("arch".into(), to_value(self.os.arch));
         os.insert("family".into(), to_value(self.os.family));
         os.insert("platform".into(), to_value(self.os.platform));
-        os.insert("version".into(), to_value(self.os.version));
+        os.insert("version_str".into(), to_value(self.os.version_str));
+        os.insert("version_maj".into(), to_value(self.os.version_maj));
+        os.insert("version_min".into(), to_value(self.os.version_min));
+        os.insert("version_patch".into(), to_value(self.os.version_patch));
 
         let mut telemetry: Map<String, Value> = Map::new();
         telemetry.insert("cpu".into(), to_value(cpu));
@@ -190,17 +193,23 @@ pub struct Os {
     pub arch: String,
     pub family: String,
     pub platform: String,
-    pub version: String,
+    pub version_str: String,
+    pub version_maj: u32,
+    pub version_min: u32,
+    pub version_patch: u32,
 }
 
 #[cfg(feature = "local-run")]
 impl Os {
-    pub fn new(arch: &str, family: &str, platform: &str, version: &str) -> Os {
+    pub fn new(arch: &str, family: &str, platform: &str, version_str: &str, version_maj: u32, version_min: u32, version_patch: u32) -> Os {
         Os {
-            arch: arch.to_string(),
-            family: family.to_string(),
-            platform: platform.to_string(),
-            version: version.to_string(),
+            arch: arch.into(),
+            family: family.into(),
+            platform: platform.into(),
+            version_str: version_str.into(),
+            version_maj: version_maj,
+            version_min: version_min,
+            version_patch: version_patch,
         }
     }
 }
@@ -209,14 +218,11 @@ impl Os {
 mod tests {
     #[cfg(feature = "local-run")]
     use Host;
-    #[cfg(feature = "local-run")]
-    use super::*;
 
     #[cfg(feature = "local-run")]
     #[test]
     fn test_telemetry_init() {
         let path: Option<String> = None;
-        let mut host = Host::local(path).unwrap();
-        assert!(Telemetry::init(&mut host).is_ok());
+        assert!(Host::local(path).is_ok());
     }
 }

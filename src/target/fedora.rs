@@ -170,7 +170,7 @@ impl TelemetryTarget for FedoraTarget {
         let cpu_vendor = try!(linux::cpu_vendor());
         let cpu_brand = try!(linux::cpu_brand_string());
         let hostname = try!(default::hostname());
-        let os_version = try!(redhat::version());
+        let (version_str, version_maj, version_min, version_patch) = try!(redhat::version());
 
         let telemetry = Telemetry::new(
             Cpu::new(
@@ -182,7 +182,15 @@ impl TelemetryTarget for FedoraTarget {
             &hostname,
             try!(linux::memory()),
             try!(linux::net()),
-            Os::new(env::consts::ARCH, "redhat", "fedora", &os_version),
+            Os::new(
+                env::consts::ARCH,
+                "redhat",
+                "fedora",
+                &version_str,
+                version_maj,
+                version_min,
+                version_patch
+            ),
         );
 
         Ok(telemetry.into_value())

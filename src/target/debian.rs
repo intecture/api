@@ -8,19 +8,19 @@
 
 use command::{CommandResult, CommandTarget};
 use directory::DirectoryTarget;
-use error::Result;
+use error::{Error, Result};
 use file::{FileTarget, FileOwner};
 use host::Host;
+use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 use package::PackageTarget;
 use package::providers::Providers;
 use serde_json::Value;
 use service::ServiceTarget;
-use std::env;
-use std::fs::File;
-use std::io::Read;
+use std::{env, str};
 use std::path::Path;
+use std::process;
 use super::{debian_base as debian, default_base as default, linux_base as linux};
-use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
+use target::bin_resolver::BinResolver;
 
 pub struct DebianTarget;
 
@@ -172,7 +172,7 @@ impl TelemetryTarget for DebianTarget {
         let cpu_vendor = try!(linux::cpu_vendor());
         let cpu_brand = try!(linux::cpu_brand_string());
         let hostname = try!(default::hostname());
-        let os_version = try!(telemetry_version());
+        let (version_str, version_maj, version_min) = try!(version());
 
         let telemetry = Telemetry::new(
             Cpu::new(
@@ -184,16 +184,18 @@ impl TelemetryTarget for DebianTarget {
             &hostname,
             try!(linux::memory()),
             try!(linux::net()),
-            Os::new(env::consts::ARCH, "debian", "debian", &os_version),
+            Os::new(env::consts::ARCH, "debian", "debian", &version_str, version_maj, version_min, 0), // No known patch version
         );
 
         Ok(telemetry.into_value())
     }
 }
 
-fn telemetry_version() -> Result<String> {
-    let mut fh = try!(File::open("/etc/debian_version"));
-    let mut fc = String::new();
-    fh.read_to_string(&mut fc).unwrap();
-    Ok(fc)
+fn version() -> Result<(String, u32, u32)> {
+    let out = process::Command::new(BinResolver::resolve("lsb_release")?).arg("-sr").output()?;
+    let version_str = str::from_utf8(&out.stdout).or(Err(Error::Generic("Could not read OS version".into())))?.trim();
+    let mut parts = version_str.split('.');
+    let version_maj = parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32`. Got: {}", version_str)))?.parse()?;
+    let version_min = parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32`. Got: {}", version_str)))?.parse()?;
+    Ok((version_str.into(), version_maj, version_min))
 }

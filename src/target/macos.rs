@@ -11,6 +11,7 @@ use directory::DirectoryTarget;
 use error::{Error, Result};
 use file::{FileTarget, FileOwner};
 use host::Host;
+use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 use package::PackageTarget;
 use package::providers::Providers;
 use serde_json::Value;
@@ -18,7 +19,7 @@ use service::ServiceTarget;
 use std::{env, process, str};
 use std::path::Path;
 use super::{default_base as default, Target, unix_base as unix};
-use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
+use target::bin_resolver::BinResolver;
 
 // This implementation is legacy. More work is required to support
 // modern launchd implementations.
@@ -201,7 +202,7 @@ impl TelemetryTarget for Target {
         let cpu_vendor = try!(unix::get_sysctl_item("machdep\\.cpu\\.vendor"));
         let cpu_brand = try!(unix::get_sysctl_item("machdep\\.cpu\\.brand_string"));
         let hostname = try!(default::hostname());
-        let telemetry_version = try!(telemetry_version());
+        let (version_str, version_maj, version_min, version_patch) = try!(version());
 
         let telemetry = Telemetry::new(
             Cpu::new(
@@ -223,21 +224,23 @@ impl TelemetryTarget for Target {
             &hostname,
             try!(try!(unix::get_sysctl_item("hw\\.memsize")).parse::<u64>()),
             try!(unix::net()),
-            Os::new(env::consts::ARCH, "unix", "macos", &telemetry_version),
+            Os::new(env::consts::ARCH, "unix", "macos", &version_str, version_maj, version_min, version_patch),
         );
 
         Ok(telemetry.into_value())
     }
 }
 
-fn telemetry_version() -> Result<String> {
-    let output = try!(process::Command::new("sw_vers").arg("-productVersion").output());
-
-    if output.status.success() == false {
-        return Err(Error::Generic("Could not determine version".to_string()));
-    }
-
-    Ok(try!(str::from_utf8(&output.stdout)).trim().to_string())
+fn version() -> Result<(String, u32, u32, u32)> {
+    let out = process::Command::new(BinResolver::resolve("sw_vers")?).arg("-productVersion").output()?;
+    let version_str = str::from_utf8(&out.stdout).or(Err(Error::Generic("Could not read OS version".into())))?.trim().to_owned();
+    let (maj, min, patch) = {
+        let mut parts = version_str.split('.');
+        (parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32.u32`. Got: {}", version_str)))?.parse()?,
+         parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32.u32`. Got: {}", version_str)))?.parse()?,
+         parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32.u32`. Got: {}", version_str)))?.parse()?)
+    };
+    Ok((version_str, maj, min, patch))
 }
 
 #[cfg(test)]
