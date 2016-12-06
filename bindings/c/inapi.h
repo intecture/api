@@ -89,7 +89,7 @@ extern void *host_data(Host *host);
  * @param host The host connection you wish to close.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int host_close(Host *host);
+extern uint8_t host_close(Host *host);
 
 /**
  * @brief Potential data types for a given `Value`.
@@ -162,7 +162,7 @@ extern ValueKeysArray *get_value_keys(void *value, const char *pointer);
  * @param pointer [Optional] A JSON pointer to a nested value.
  * @return The `Value`'s data type, or -1 on error.
  */
-extern int get_value_type(void *value, const char *pointer);
+extern int8_t get_value_type(void *value, const char *pointer);
 
 /**
  * @brief The shell command primitive for running commands on a
@@ -219,14 +219,14 @@ extern CommandResult *command_exec(Command *cmd, Host *host);
  * @param cmd The Command pointer.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int command_free(Command *cmd);
+extern uint8_t command_free(Command *cmd);
 
 /**
  * @brief Free a CommandResult pointer's memory.
  * @param result The CommandResult pointer.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int command_result_free(CommandResult *result);
+extern uint8_t command_result_free(CommandResult *result);
 
 /**
  * @brief Container for operating on a file.
@@ -275,7 +275,7 @@ extern File *file_new(Host *host, const char *path);
  * @param host The Host struct you wish to check the file on.
  * @return Boolean on success (0 or 1) and -1 on error.
  */
-extern int file_exists(File *file, Host *host);
+extern int8_t file_exists(File *file, Host *host);
 
 /**
  * @brief Upload a file to the managed host.
@@ -308,7 +308,7 @@ extern int file_exists(File *file, Host *host);
  * // "/path/to/remote/file" and "/path/to/remote/file_bk"
  * @endcode
  */
-extern int file_upload(File *file, Host *host, const char *local_path, FileOptions *opts);
+extern uint8_t file_upload(File *file, Host *host, const char *local_path, FileOptions *opts);
 
 /**
  * @brief Upload a file descriptor to the managed host.
@@ -334,7 +334,7 @@ extern int file_upload(File *file, Host *host, const char *local_path, FileOptio
  * assert(rc == 0);
  * @endcode
  */
-extern int file_upload_file(File *file, Host *host, int file_descriptor, FileOptions *opts);
+extern uint8_t file_upload_file(File *file, Host *host, int file_descriptor, FileOptions *opts);
 
 /**
  * @brief Delete a file.
@@ -342,7 +342,7 @@ extern int file_upload_file(File *file, Host *host, int file_descriptor, FileOpt
  * @param host The Host struct you wish to delete a file on.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int file_delete(File *file, Host *host);
+extern uint8_t file_delete(File *file, Host *host);
 
 /**
  * @brief Move a file to a new path.
@@ -351,7 +351,7 @@ extern int file_delete(File *file, Host *host);
  * @param new_path The absolute file path you wish to move the file to.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int file_mv(File *file, Host *host, const char *new_path);
+extern uint8_t file_mv(File *file, Host *host, const char *new_path);
 
 /**
  * @brief Copy a file to a new path.
@@ -360,7 +360,7 @@ extern int file_mv(File *file, Host *host, const char *new_path);
  * @param new_path The absolute file path you wish to copy the file to.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int file_copy(File *file, Host *host, const char *new_path);
+extern uint8_t file_copy(File *file, Host *host, const char *new_path);
 
 /**
  * @brief Get the file's owner.
@@ -378,7 +378,7 @@ extern FileOwner *file_get_owner(File *file, Host *host);
  * @param group The group name of the new owner.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int file_set_owner(File *file, Host *host, const char *user, const char *group);
+extern uint8_t file_set_owner(File *file, Host *host, const char *user, const char *group);
 
 /**
  * @brief Get the file's permissions mask.
@@ -395,14 +395,14 @@ extern int16_t file_get_mode(File *file, Host *host);
  * @param mode The new mask you wish to apply to the file.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int file_set_mode(File *file, Host *host, uint16_t mode);
+extern uint8_t file_set_mode(File *file, Host *host, uint16_t mode);
 
 /**
  * @brief Free a File pointer's memory.
  * @param file The File pointer.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int file_free(File *file);
+extern uint8_t file_free(File *file);
 
 /**
  * @brief Container for operating on a directory.
@@ -439,7 +439,7 @@ extern Directory *directory_new(Host *host, const char *path);
  * @param host The Host struct you wish to check the directory on.
  * @return Boolean on success (0 or 1) and -1 on error.
  */
-extern int directory_exists(Directory *dir, Host *host);
+extern int8_t directory_exists(Directory *dir, Host *host);
 
 /**
  * @brief Create a directory.
@@ -449,7 +449,7 @@ extern int directory_exists(Directory *dir, Host *host);
  *     behaviour.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int directory_create(Directory *dir, Host *host, DirectoryOpts *opts);
+extern uint8_t directory_create(Directory *dir, Host *host, DirectoryOpts *opts);
 
 /**
  * @brief Delete a directory.
@@ -459,7 +459,7 @@ extern int directory_create(Directory *dir, Host *host, DirectoryOpts *opts);
  *     behaviour.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int directory_delete(Directory *dir, Host *host, DirectoryOpts *opts);
+extern uint8_t directory_delete(Directory *dir, Host *host, DirectoryOpts *opts);
 
 /**
  * @brief Move a directory to a new path.
@@ -468,7 +468,7 @@ extern int directory_delete(Directory *dir, Host *host, DirectoryOpts *opts);
  * @param new_path The absolute dir path you wish to move the dir to.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int directory_mv(Directory *dir, Host *host, char *new_path);
+extern uint8_t directory_mv(Directory *dir, Host *host, char *new_path);
 
 /**
  * @brief Get the directory's owner.
@@ -486,7 +486,7 @@ extern FileOwner *directory_get_owner(Directory *dir, Host *host);
  * @param group The group name of the new owner.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int directory_set_owner(Directory *dir, Host *host, char *user, char *group);
+extern uint8_t directory_set_owner(Directory *dir, Host *host, char *user, char *group);
 
 /**
  * @brief Get the directory's permissions mask.
@@ -503,14 +503,14 @@ extern int16_t directory_get_mode(Directory *dir, Host *host);
  * @param mode The new mask you wish to apply to the directory.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int directory_set_mode(Directory *dir, Host *host, uint16_t mode);
+extern uint8_t directory_set_mode(Directory *dir, Host *host, uint16_t mode);
 
 /**
  * @brief Free a Directory pointer's memory.
  * @param dir The Directory pointer.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int directory_free(Directory *dir);
+extern uint8_t directory_free(Directory *dir);
 
 /**
  * @brief A list of supported Package providers.
@@ -564,7 +564,7 @@ extern Package *package_new(Host *host, char *name, enum Providers providers);
  * @code
  * Package *package = package_new(host, "nginx", "default");
  * assert(package);
- * int result = package_is_installed(package);
+ * int8_t result = package_is_installed(package);
  * if (result == 1) {
  *     printf("Package is installed!");
  * } else {
@@ -572,7 +572,7 @@ extern Package *package_new(Host *host, char *name, enum Providers providers);
  * }
  * @endcode
  */
-extern int package_is_installed(Package *package);
+extern int8_t package_is_installed(Package *package);
 
 /**
  * @brief Install the package.
@@ -595,7 +595,7 @@ extern CommandResult *package_uninstall(Package *package, Host *host);
  * @param package The Package pointer.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int package_free(Package *package);
+extern uint8_t package_free(Package *package);
 
 /**
  * @brief Runnables are the executable items that a Service calls
@@ -717,7 +717,7 @@ extern CommandResult *service_action(Service *service, Host *host, char *action)
  * @param service The Service pointer.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int service_free(Service *service);
+extern uint8_t service_free(Service *service);
 
 /**
  * @brief The primitive for opening and rendering templates.
@@ -789,7 +789,7 @@ extern int template_render_vec(Template *template, VecBuilder *builder);
  * @param template The Template pointer.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int template_free(Template *template);
+extern uint8_t template_free(Template *template);
 
 /**
  * @brief Create a new MapBuilder instance that allows you to build
@@ -805,7 +805,7 @@ extern MapBuilder *map_new();
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int map_insert_str(MapBuilder *builder, const char *key, const char *value);
+extern uint8_t map_insert_str(MapBuilder *builder, const char *key, const char *value);
 
 /**
  * @brief Insert a boolean to the hash map.
@@ -814,7 +814,7 @@ extern int map_insert_str(MapBuilder *builder, const char *key, const char *valu
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int map_insert_bool(MapBuilder *builder, const char *key, bool value);
+extern uint8_t map_insert_bool(MapBuilder *builder, const char *key, bool value);
 
 /**
  * @brief Insert a vector (via VecBuilder) to the hash map.
@@ -823,7 +823,7 @@ extern int map_insert_bool(MapBuilder *builder, const char *key, bool value);
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int map_insert_vec(MapBuilder *builder, const char *key, VecBuilder *value);
+extern uint8_t map_insert_vec(MapBuilder *builder, const char *key, VecBuilder *value);
 
 /**
  * @brief Insert a nested hash map (via MapBuilder) to the hash map.
@@ -832,7 +832,7 @@ extern int map_insert_vec(MapBuilder *builder, const char *key, VecBuilder *valu
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int map_insert_map(MapBuilder *builder, const char *key, MapBuilder *value);
+extern uint8_t map_insert_map(MapBuilder *builder, const char *key, MapBuilder *value);
 
 /**
  * @brief Create a new VecBuilder instance that allows you to build
@@ -847,7 +847,7 @@ extern VecBuilder *vec_new();
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int vec_push_str(VecBuilder *builder, const char *value);
+extern uint8_t vec_push_str(VecBuilder *builder, const char *value);
 
 /**
  * @brief Insert a boolean to the vector.
@@ -855,7 +855,7 @@ extern int vec_push_str(VecBuilder *builder, const char *value);
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int vec_push_bool(VecBuilder *builder, bool value);
+extern uint8_t vec_push_bool(VecBuilder *builder, bool value);
 
 /**
  * @brief Insert a nested vector (via VecBuilder) to the vector.
@@ -863,7 +863,7 @@ extern int vec_push_bool(VecBuilder *builder, bool value);
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
+extern uint8_t vec_push_vec(VecBuilder *builder, VecBuilder *value);
 
 /**
  * @brief Insert a hash map (via MapBuilder) to the vector.
@@ -871,7 +871,7 @@ extern int vec_push_vec(VecBuilder *builder, VecBuilder *value);
  * @param value The data item.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int vec_push_map(VecBuilder *builder, MapBuilder *value);
+extern uint8_t vec_push_map(VecBuilder *builder, MapBuilder *value);
 
 /**
  * @brief Payloads are self-contained projects that encapsulate a
@@ -899,7 +899,7 @@ extern Payload *payload_new(const char *payload_artifact);
  * @param payload The payload you wish to build.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int payload_build(Payload *payload);
+extern uint8_t payload_build(Payload *payload);
 
 /**
  * @brief Execute the payload's artifact. For compiled languages, the
@@ -912,13 +912,13 @@ extern int payload_build(Payload *payload);
  * @param user_args_len Size of user_args array.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int payload_run(Payload *payload, Host *host, const char **user_args, size_t user_args_len);
+extern uint8_t payload_run(Payload *payload, Host *host, const char **user_args, size_t user_args_len);
 
 /**
  * @brief Free a Payload pointer's memory.
  * @param payload The Payload pointer.
  * @return Return code - zero on success, non-zero on error.
  */
-extern int payload_free(Payload *payload);
+extern uint8_t payload_free(Payload *payload);
 
 #endif
