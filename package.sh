@@ -85,22 +85,6 @@ main() {
         cd ..
     fi
 
-    # Build and install project assets
-    cargo build --release --manifest-path "$_cargodir/Cargo.toml"
-    cp "$_cargodir/target/release/libinapi.$libext" "$libdir"
-    cp "$_cargodir/bindings/c/inapi.h" "$prefix/include/"
-
-    cd "$_cargodir/bindings/php5"
-    phpize
-    ./configure --prefix=$prefix --libdir=$libdir
-    $make
-
-    cd ../php7
-    phpize
-    ./configure --prefix=$prefix --libdir=$libdir
-    $make
-    cd "$_tmpdir"
-
     local _version=$(grep -m1 -E '^version\s?=\s?\"[0-9.]+\"' "$_cargodir/Cargo.toml" | awk '{split($3, a, "\""); print a[2]}')
     local _pkgdir="inapi-$_version"
 
@@ -110,11 +94,35 @@ main() {
     mkdir "$_pkgdir/lib"
     mkdir "$_pkgdir/lib/pkgconfig"
 
+    # Build and install project assets
+    cargo build --release --manifest-path "$_cargodir/Cargo.toml"
+    cp "$_cargodir/target/release/libinapi.$libext" "$libdir"
+    cp "$_cargodir/bindings/c/inapi.h" "$prefix/include/"
+
+    cd "$_cargodir/bindings"
+    local _v="5 7"
+    for ver in ${_v}; do
+        rm -rf "php${ver}_build"
+        cp -R "php$ver" "php${ver}_build"
+        cd "php${ver}_build"
+        phpize
+        ./configure --prefix=$prefix --libdir=$libdir
+        $make
+
+        cp .libs/inapi.so "$_tmpdir/$_pkgdir/inapi.so.$ver"
+
+        cd ..
+        rm -rf "php${ver}_build"
+    done
+    cd "$_tmpdir"
+
+    # Clean up temporarily installed assets
+    rm -f "$libdir/libinapi.$libext"
+    rm -f "$prefix/include/inapi.h"
+
     # Project assets
     cp "$_cargodir/target/release/libinapi.$libext" "$_pkgdir/libinapi.$libext.$_version"
     cp "$_cargodir/bindings/c/inapi.h" "$_pkgdir/inapi.h"
-    cp "$_cargodir/bindings/php5/.libs/inapi.so" "$_pkgdir/inapi.so.5"
-    cp "$_cargodir/bindings/php7/.libs/inapi.so" "$_pkgdir/inapi.so.7"
 
     # ZeroMQ assets
     cp "$libdir/libzmq.so.5.1.0" "$_pkgdir/lib/"
