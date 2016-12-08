@@ -19,17 +19,15 @@ ostype="$(uname -s)"
 
 do_install_c() {
     if ! $(pkg-config --exists libzmq); then
-        install -m 755 lib/libzmq.so.5.1.0 $libdir
-        ln -s $libdir/libzmq.so.5.1.0 $libdir/libzmq.so.5
-        ln -s $libdir/libzmq.so.5.1.0 $libdir/libzmq.so
+        install -m 755 lib/libzmq.so $libdir/libzmq.so.5
+        ln -s $libdir/libzmq.so.5 $libdir/libzmq.so
         install -m 644 lib/pkgconfig/libzmq.pc $libdir/pkgconfig/
         install -m 644 include/zmq.h $prefix/include/
     fi
 
     if ! $(pkg-config --exists libczmq); then
-        install -m 755 lib/libczmq.so.4.0.0 $libdir
-        ln -s $libdir/libczmq.so.4.0.0 $libdir/libczmq.so.4
-        ln -s $libdir/libczmq.so.4.0.0 $libdir/libczmq.so
+        install -m 755 lib/libczmq.so $libdir/libczmq.so.4
+        ln -s $libdir/libczmq.so.4 $libdir/libczmq.so
         install -m 644 lib/pkgconfig/libczmq.pc $libdir/pkgconfig/
         install -m 644 include/czmq.h $prefix/include/
         install -m 644 include/czmq_library.h $prefix/include/
