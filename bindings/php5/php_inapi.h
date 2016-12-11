@@ -12,7 +12,7 @@
 #define PHP_INAPI_H
 
 #define PHP_INAPI_EXTNAME  "inapi"
-#define PHP_INAPI_EXTVER   "0.2.1"
+#define PHP_INAPI_EXTVER   "0.3.0"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"

@@ -11,7 +11,7 @@
 /**
  * @file inapi.h
  * @author see AUTHORS
- * @version 0.2.1
+ * @version 0.3.0
  * @brief C headers for Intecture API
  *
  * Intecture API allows C programs to consume its library by exposing

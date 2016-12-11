@@ -1,6 +1,6 @@
 [package]
 name = "intecture-api"
-version = "0.2.1"
+version = "0.3.0"
 authors = [ "Peter Hayes <peter.hayes@betweenlines.co.uk>" ]
 license = "MPL-2.0"
 description = "API component for Intecture infrastructure. Intecture is the developer friendly, multi-lingual configuration management tool."
@@ -28,12 +28,9 @@ rustc-serialize = "0.3"
 serde = "0.8"
 serde_json = "0.8"
 tempfile = "2.1"
-zdaemon = { git = "https://github.com/betweenlines/zdaemon.git", branch = "dev" }
-# zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", tag = "0.0.1" }
-zfilexfer = { git = "https://github.com/betweenlines/zfilexfer.git", branch = "dev" }
-# Feature `remote-run`
-# czmq = { git = "https://github.com/petehayes102/rust-czmq.git", tag = "0.0.5", optional = true }
-czmq = { git = "https://github.com/petehayes102/rust-czmq.git", branch = "dev", optional = true }
+zdaemon = "0.0.2"
+zfilexfer = "0.0.2"
+czmq = { version = "0.1", optional = true }
 
 [lib]
 name = "inapi"
