@@ -109,6 +109,7 @@ main() {
         ./configure --prefix=$prefix --libdir=$libdir
         $make
 
+        # Don't use $libext here as PHP always produces .so
         cp .libs/inapi.so "$_tmpdir/$_pkgdir/inapi.so.$ver"
 
         cd ..
@@ -170,7 +171,8 @@ main() {
     sed "s~{{prefix}}~$prefix~" < "$_cargodir/installer.sh" |
     sed "s~{{libdir}}~$libdir~" |
     sed "s~{{libext}}~$libext~" |
-    sed "s~{{version}}~$_version~" > "$_pkgdir/installer.sh"
+    sed "s~{{version}}~$_version~" |
+    sed "s~{{ostype}}~$ostype~" > "$_pkgdir/installer.sh"
     chmod u+x "$_pkgdir/installer.sh"
 
     local _pkgstoredir="$_cargodir/.pkg/$ostype"
