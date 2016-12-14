@@ -14,21 +14,27 @@ set -u
 prefix=""
 libdir=""
 libext=""
-ostype="$(uname -s)"
+os="$(uname -s)"
 make="make"
 
-case "$ostype" in
+case "$os" in
     Linux)
         prefix="/usr"
         libext="so"
 
         # When we can statically link successfully, we should be able
         # to produce vendor-agnostic packages.
-        if [ -f "/etc/redhat-release" ]; then
-            ostype="redhat"
+        if [ -f "/etc/centos-release" ]; then
+            os="centos"
             libdir="$prefix/lib64"
+        elif [ -f "/etc/fedora-release" ]; then
+            os="fedora"
+            libdir="$prefix/lib64"
+        elif [ -f "/etc/lsb-release" ]; then
+            os="ubuntu"
+            libdir="$prefix/lib"
         elif [ -f "/etc/debian_version" ]; then
-            ostype="debian"
+            os="debian"
             libdir="$prefix/lib"
         else
             echo "unsupported Linux flavour" >&2
@@ -37,7 +43,7 @@ case "$ostype" in
         ;;
 
     FreeBSD)
-        ostype="freebsd"
+        os="freebsd"
         prefix="/usr/local"
 		libdir="$prefix/lib"
         libext="so"
@@ -45,14 +51,14 @@ case "$ostype" in
         ;;
 
     Darwin)
-        ostype="darwin"
+        os="darwin"
         prefix="/usr/local"
 		libdir="$prefix/lib"
         libext="dylib"
         ;;
 
     *)
-        echo "unrecognized OS type: $ostype" >&2
+        echo "unrecognized OS type: $os" >&2
         exit 1
         ;;
 esac
@@ -172,10 +178,10 @@ main() {
     sed "s~{{libdir}}~$libdir~" |
     sed "s~{{libext}}~$libext~" |
     sed "s~{{version}}~$_version~" |
-    sed "s~{{ostype}}~$ostype~" > "$_pkgdir/installer.sh"
+    sed "s~{{os}}~$os~" > "$_pkgdir/installer.sh"
     chmod u+x "$_pkgdir/installer.sh"
 
-    local _pkgstoredir="$_cargodir/.pkg/$ostype"
+    local _pkgstoredir="$_cargodir/.pkg/$os"
     mkdir -p "$_pkgstoredir"
 
     local _tarball="$_pkgstoredir/$_pkgdir.tar.bz2"

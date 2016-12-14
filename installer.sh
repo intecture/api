@@ -15,19 +15,19 @@ prefix="{{prefix}}"
 libdir="{{libdir}}"
 libext="{{libext}}"
 version="{{version}}"
-ostype="{{ostype}}"
+os="{{os}}"
 
 do_install_c() {
     local _one=
     local _two=
 
     if ! $(pkg-config --exists libzmq); then
-        if [ "$ostype" = "darwin"]; then
-            $_one="5"
-            $_two=$libext
+        if [ "$os" = "darwin" ]; then
+            _one="5"
+            _two=$libext
         else
-            $_one=$libext
-            $_two="5"
+            _one=$libext
+            _two="5"
         fi
         install -m 755 lib/libzmq.$libext $libdir/libzmq.$_one.$_two
         ln -s $libdir/libzmq.$_one.$_two $libdir/libzmq.$libext
@@ -36,12 +36,12 @@ do_install_c() {
     fi
 
     if ! $(pkg-config --exists libczmq); then
-        if [ "$ostype" = "darwin"]; then
-            $_one="4"
-            $_two=$libext
+        if [ "$os" = "darwin" ]; then
+            _one="4"
+            _two=$libext
         else
-            $_one=$libext
-            $_two="4"
+            _one=$libext
+            _two="4"
         fi
         install -m 755 lib/libczmq.$libext $libdir/libczmq.$_one.$_two
         ln -s $libdir/libczmq.$_one.$_two $libdir/libczmq.$libext
@@ -82,7 +82,9 @@ do_install_c() {
     fi
 
     install -m 755 libinapi.$libext.$version $libdir
-    ln -s $libdir/libinapi.$libext.$version $libdir/libinapi.$libext
+    if [ ! -e "$libdir/libinapi.$libext" ]; then
+        ln -s $libdir/libinapi.$libext.$version $libdir/libinapi.$libext
+    fi
 
     install -m 644 inapi.h $prefix/include/
 }
@@ -90,10 +92,19 @@ do_install_c() {
 do_install_php() {
     need_cmd php
 
+    local _phpver="$(php --version|grep -E '^PHP')"
+    local _major=$(echo $_phpver|awk '{split($2, a, "."); print a[1]}')
+    local _minor=$(echo $_phpver|awk '{split($2, a, "."); print a[2]}')
+    local _extdir=$(php -r "echo ini_get('extension_dir');")
+
+    if [ $_major -eq 5 ] && [ $_minor -lt 6 ]; then
+        echo "Intecture requires PHP version >=5.6. Found version $_major.$_minor." >&2
+        exit 1
+    fi
+
     do_install_c
 
-    local _extdir=$(php -r "echo ini_get('extension_dir');")
-    case $(php --version|grep -E '^PHP'|awk '{split($2, a, "."); print a[1]}') in
+    case $_major in
         5)
             cp inapi.so.5 $_extdir/inapi.so
             ;;
@@ -103,7 +114,7 @@ do_install_php() {
             ;;
 
         *)
-            echo "Unsupported PHP major version: $1"
+            echo "Unsupported PHP major version: $1" >&2
             exit 1
             ;;
     esac
