@@ -139,12 +139,12 @@ main() {
 
     # ZeroMQ assets
     cp "$libdir/libzmq.$libext" "$_pkgdir/lib/"
-    cp "$libdir/pkgconfig/libzmq.pc" "$_pkgdir/lib/pkgconfig/"
+    cp "$pkgconfdir/libzmq.pc" "$_pkgdir/lib/pkgconfig/"
     cp "$prefix/include/zmq.h" "$_pkgdir/include/"
 
     # CZMQ assets
     cp "$libdir/libczmq.$libext" "$_pkgdir/lib/"
-    cp "$libdir/pkgconfig/libczmq.pc" "$_pkgdir/lib/pkgconfig/"
+    cp "$pkgconfdir/libczmq.pc" "$_pkgdir/lib/pkgconfig/"
     cp "$prefix/include/czmq.h" "$_pkgdir/include/"
     cp "$prefix/include/czmq_library.h" "$_pkgdir/include/"
     cp "$prefix/include/czmq_prelude.h" "$_pkgdir/include/"
