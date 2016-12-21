@@ -14,14 +14,18 @@ set -u
 prefix="{{prefix}}"
 libdir="{{libdir}}"
 libext="{{libext}}"
+pkgconf="{{pkgconf}}"
+pkgconfdir="{{pkgconfdir}}"
 version="{{version}}"
 os="{{os}}"
 
 do_install_c() {
+    need_cmd $pkgconf
+
     local _one=
     local _two=
 
-    if ! $(pkg-config --exists libzmq); then
+    if ! $($pkgconf --exists libzmq); then
         if [ "$os" = "darwin" ]; then
             _one="5"
             _two=$libext
@@ -31,11 +35,15 @@ do_install_c() {
         fi
         install -m 755 lib/libzmq.$libext $libdir/libzmq.$_one.$_two
         ln -s $libdir/libzmq.$_one.$_two $libdir/libzmq.$libext
-        install -m 644 lib/pkgconfig/libzmq.pc $libdir/pkgconfig/
+        install -m 644 lib/pkgconfig/libzmq.pc $pkgconfdir
         install -m 644 include/zmq.h $prefix/include/
+
+        if [ "$os" = "freebsd" ]; then
+            install -m 644 lib/libstdc++.so.6 $libdir/
+        fi
     fi
 
-    if ! $(pkg-config --exists libczmq); then
+    if ! $($pkgconf --exists libczmq); then
         if [ "$os" = "darwin" ]; then
             _one="4"
             _two=$libext
@@ -45,7 +53,7 @@ do_install_c() {
         fi
         install -m 755 lib/libczmq.$libext $libdir/libczmq.$_one.$_two
         ln -s $libdir/libczmq.$_one.$_two $libdir/libczmq.$libext
-        install -m 644 lib/pkgconfig/libczmq.pc $libdir/pkgconfig/
+        install -m 644 lib/pkgconfig/libczmq.pc $pkgconfdir
         install -m 644 include/czmq.h $prefix/include/
         install -m 644 include/czmq_library.h $prefix/include/
         install -m 644 include/czmq_prelude.h $prefix/include/
@@ -104,6 +112,9 @@ do_install_php() {
 
     do_install_c
 
+    # The extension dir is not guaranteed to exist
+    mkdir -p $_extdir
+
     case $_major in
         5)
             cp inapi.so.5 $_extdir/inapi.so
@@ -126,7 +137,7 @@ do_install_php() {
     elif [ -n $_loadeddir ]; then
         echo 'extension=inapi.so' >> $_phpini
     else
-        echo 'Could not find PHP extension ini file'
+        echo 'Could not find PHP extension ini file' >&2
         exit 1
     fi
 }
@@ -141,7 +152,7 @@ do_uninstall() {
         sed 's/extension=inapi.so//' < $_phpini > php.ini.tmp
         mv php.ini.tmp $_phpini
     else
-        echo 'Could not find PHP extension ini file'
+        echo 'Could not find PHP extension ini file' >&2
         exit 1
     fi
 
@@ -151,8 +162,9 @@ do_uninstall() {
 }
 
 need_cmd() {
-    if ! command -v "$1" > /dev/null 2>&1
-    then err "need '$1' (command not found)"
+    if ! command -v "$1" > /dev/null 2>&1; then
+        echo "need '$1' (command not found)" >&2
+        exit 1
     fi
 }
 
@@ -180,7 +192,7 @@ main() {
             ;;
 
         *)
-            echo "Unknown option $1"
+            echo "Unknown option $1" >&2
             exit 1
             ;;
     esac
