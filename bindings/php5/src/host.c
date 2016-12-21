@@ -53,6 +53,7 @@ zend_object_value create_php_host(zend_class_entry *class_type TSRMLS_DC) {
 
   intern = (php_host*)emalloc(sizeof(php_host));
   memset(intern, 0, sizeof(php_host));
+  ALLOC_INIT_ZVAL(intern->data);
 
   zend_object_std_init(&intern->std, class_type TSRMLS_CC);
   object_properties_init(&intern->std, class_type);
