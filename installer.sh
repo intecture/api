@@ -132,9 +132,10 @@ do_install_php() {
 
     local _phpini=$(php --ini|grep 'Loaded Configuration File'|awk '{print $4}')
     local _additionaldir=$(php --ini|grep 'Scan for additional'|awk '{print $7}')
-    if [ -n $_additionaldir ]; then
+    if [ -n $_additionaldir -a $_additionaldir != "(none)" ]; then
+        mkdir -p $_additionaldir
         echo 'extension=inapi.so' > $_additionaldir/inapi.ini
-    elif [ -n $_loadeddir ]; then
+    elif [ -n $_phpini -a $_phpini != "(none)" ]; then
         echo 'extension=inapi.so' >> $_phpini
     else
         echo 'Could not find PHP extension ini file' >&2
@@ -146,9 +147,9 @@ do_uninstall() {
     local _phpdir=$(php -r "echo ini_get('extension_dir');")
     local _phpini=$(php --ini|grep 'Loaded Configuration File'|awk '{print $4}')
     local _additionaldir=$(php --ini|grep 'Scan for additional'|awk '{print $7}')
-    if [ -n $_additionaldir ]; then
+    if [ -d $_additionaldir ]; then
         rm -f $_additionaldir/inapi.ini
-    elif [ -n $_loadeddir ]; then
+    elif [ -f $_phpini ]; then
         sed 's/extension=inapi.so//' < $_phpini > php.ini.tmp
         mv php.ini.tmp $_phpini
     else
