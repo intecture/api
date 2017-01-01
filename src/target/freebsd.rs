@@ -1,4 +1,4 @@
-// Copyright 2015-2016 Intecture Developers. See the COPYRIGHT file at the
+// Copyright 2015-2017 Intecture Developers. See the COPYRIGHT file at the
 // top-level directory of this distribution and at
 // https://intecture.io/COPYRIGHT.
 //
