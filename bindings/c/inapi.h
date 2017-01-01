@@ -46,7 +46,7 @@ typedef void Host;
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  * @endcode
  */
@@ -133,7 +133,7 @@ typedef struct _ValueKeysArray {
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * enum DataType dt;
@@ -189,7 +189,7 @@ typedef struct _CommandResult {
  * First, create a new Host struct to connect to your managed host:
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  * @endcode
  *
@@ -260,7 +260,7 @@ typedef struct _FileOwner {
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * File *file = file_new(host, "/path/to/file");
@@ -288,7 +288,7 @@ extern int8_t file_exists(File *file, Host *host);
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * File *file = file_new(host, "/path/to/remote/file");
@@ -322,7 +322,7 @@ extern uint8_t file_upload(File *file, Host *host, const char *local_path, FileO
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * File *file = file_new(host, "/path/to/remote/file");
@@ -425,7 +425,7 @@ typedef struct _DirectoryOpts {
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * Directory *dir = directory_new(host, "/path/to/dir");
@@ -542,7 +542,7 @@ typedef void Package;
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * enum Providers providers;
@@ -661,7 +661,7 @@ typedef void Service;
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * ServiceRunnable runnable = { .service = "nginx" };
@@ -686,7 +686,7 @@ extern Service *service_new_service(ServiceRunnable runnable, ServiceMappedActio
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * ServiceRunnable start_runnable = { .command = "/usr/local/bin/nginx" };
@@ -746,7 +746,7 @@ typedef struct _VecBuilder {
  * #### Usage Example
  *
  * @code
- * Host *host = host_connect("nodes/mynode.json");
+ * Host *host = host_connect("hosts/mynode.json");
  * assert(host);
  *
  * Template *template = template_new("payloads/nginx/nginx.conf");
