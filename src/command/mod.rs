@@ -18,7 +18,7 @@
 //! # use inapi::Host;
 #![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
 //! ```
 //!
 //! Now run your command and get the result:
@@ -27,7 +27,7 @@
 //! # use inapi::{Command, Host};
 #![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
 //! let cmd = Command::new("whoami");
 //! let result = cmd.exec(&mut host).unwrap();
 //! println!("Exit: {}, Stdout: {}, Stderr: {}", result.exit_code, result.stdout, result.stderr);
@@ -89,12 +89,12 @@ impl Command {
     ///
     #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
     #[cfg_attr(feature = "local-run", doc = "let mut web1 = Host::local(path).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "let mut web1 = Host::connect(\"data/nodes/web1.json\").unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "let mut web1 = Host::connect(\"data/hosts/web1.json\").unwrap();")]
     /// let w1_result = cmd.exec(&mut web1).unwrap();
     ///
     #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
     #[cfg_attr(feature = "local-run", doc = "let mut web2 = Host::local(path).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "let mut web2 = Host::connect(\"data/nodes/web2.json\").unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "let mut web2 = Host::connect(\"data/hosts/web2.json\").unwrap();")]
     /// let w2_result = cmd.exec(&mut web2).unwrap();
     /// ```
     #[allow(unused_variables)]

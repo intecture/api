@@ -20,8 +20,8 @@
 //!
 //! ```no_run
 //! # use inapi::{Host, Payload};
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(Some(\"nodes/mynode.json\")).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(Some(\"hosts/myhost.json\")).unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
 //! let payload = Payload::new("nginx::install").unwrap(); // format is "payload::executable"
 //! payload.run(&mut host, None).unwrap();
 //! ```
@@ -151,8 +151,8 @@ impl Payload {
     ///
     /// ```no_run
     /// # use inapi::{Host, Payload};
-    #[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(Some(\"nodes/mynode.json\")).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+    #[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(Some(\"hosts/myhost.json\")).unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
     /// let payload = Payload::new("iptables::configure").unwrap();
     /// payload.run(&mut host, Some(vec![
     ///     "add_rule",

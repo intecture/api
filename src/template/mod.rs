@@ -25,7 +25,7 @@
 #![cfg_attr(feature = "remote-run", doc = "# let template = Template::new(\"/path/to/template\").unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "# let data = MapBuilder::new().insert_str(\"key\", \"value\").build();")]
 #![cfg_attr(feature = "remote-run", doc = "# let rendered_file = template.render_data(&data).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "")]
 #![cfg_attr(feature = "remote-run", doc = "let file = File::new(&mut host, \"/path/to/remote/file\").unwrap();")]
 #![cfg_attr(feature = "remote-run", doc = "file.upload_file(&mut host, rendered_file, None).unwrap();")]

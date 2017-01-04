@@ -17,7 +17,7 @@
 //! # use inapi::Host;
 #![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
 //! ```
 //!
 //! Now you can manage a directory on your managed host.
@@ -26,7 +26,7 @@
 //! # use inapi::{Host, Directory, DirectoryOpts};
 #![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
 #![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
 //! let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
 //! dir.create(&mut host, Some(&vec![DirectoryOpts::DoRecursive])).unwrap();
 //! dir.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
@@ -62,7 +62,7 @@ impl Directory {
     /// # use inapi::{Directory, Host};
     #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
     #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"nodes/mynode.json\").unwrap();")]
+    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
     /// let directory = Directory::new(&mut host, "/path/to/dir");
     /// ```
     pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<Directory> {

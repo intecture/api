@@ -5,7 +5,7 @@
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 
 // Create a new command and send it to the managed host
 $cmd = new Intecture\Command('whoami');
@@ -26,10 +26,10 @@ Array
  * Reuse across multiple hosts
  */
 // Web server
-$web = Host::connect('data/nodes/web.json');
+$web = Host::connect('data/hosts/web.json');
 
 // Database server
-$db = Host::connect('data/nodes/db.json');
+$db = Host::connect('data/hosts/db.json');
 
 $cmd = new Intecture\Command('whoami');
 
@@ -41,7 +41,7 @@ $db_result = $cmd->exec($db);
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 
 // Create a new Directory object to manage a specific directory
 $dir = new Directory($host, '/path/to/dir');
@@ -56,7 +56,7 @@ if ($dir->exists($host)) {
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 
 // Create a new File object to manage a specific file
 $file = new File($host, '/path/to/file');
@@ -85,7 +85,7 @@ $file->upload($host, 'my_local_file.txt', array(
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 
 // You can also connect to a managed host without a data file
 $host = Host::connect_endpoint('myhost.com', 7101, 7102);
@@ -94,7 +94,7 @@ $host = Host::connect_endpoint('myhost.com', 7101, 7102);
  * Host
  * Retrieve data
  */
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 print_r($host->data());
 
 /*
@@ -102,7 +102,7 @@ print_r($host->data());
  * Basic usage
  */
 // Setup Host object to communicate with managed host
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 
 // Create Package object to install a package from the default source
 $package = new Package($host, 'nginx');
@@ -125,7 +125,7 @@ $package = new Package($host, 'nginx', Package::PROVIDER_MACPORTS);
  * Basic Service usage
  */
 // Setup Host object to communicate with managed host
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 
 // Setup a new Service with a Service type Runnable
 $runnable = new ServiceRunnable('nginx', ServiceRunnable::SERVICE);
@@ -142,7 +142,7 @@ if ($result['exit_code'] != 0) {
  * Basic Command usage
  */
 // Setup Host object to communicate with managed host
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 
 // Setup a new Service with a Command type Runnable
 $runnable = new ServiceRunnable('/usr/local/bin/nginx', ServiceRunnable::COMMAND);
@@ -190,7 +190,7 @@ $runnable = new ServiceRunnable('nginx', ServiceRunnable::SERVICE);
  * Template
  * Basic usage
  */
-$host = Host::connect('nodes/mynode.json');
+$host = Host::connect('hosts/myhost.json');
 
 $template = new Template("payloads/nginx/nginx.conf");
 $fd = $template->render(array("name" => "Cyril Figgis"));
