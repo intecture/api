@@ -30,7 +30,7 @@
 //! let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
 //! dir.create(&mut host, Some(&vec![DirectoryOpts::DoRecursive])).unwrap();
 //! dir.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
-//! dir.set_mode(&mut host, 644).unwrap();
+//! dir.set_mode(&mut host, 755).unwrap();
 //! ```
 
 pub mod ffi;
@@ -476,7 +476,7 @@ mod tests {
             let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("directory::set_mode", req.popstr().unwrap().unwrap());
             assert_eq!("/path/to/dir", req.popstr().unwrap().unwrap());
-            assert_eq!("644", req.popstr().unwrap().unwrap());
+            assert_eq!("755", req.popstr().unwrap().unwrap());
 
             server.send_str("Ok").unwrap();
         });
@@ -485,7 +485,7 @@ mod tests {
 
         let dir = Directory::new(&mut host, "/path/to/dir");
         assert!(dir.is_ok());
-        assert!(dir.unwrap().set_mode(&mut host, 644).is_ok());
+        assert!(dir.unwrap().set_mode(&mut host, 755).is_ok());
 
         agent_mock.join().unwrap();
     }
