@@ -13,8 +13,7 @@ mod macros;
 mod condition;
 
 use error::{Error, Result};
-use serde_json::{self, Value};
-use std::collections::BTreeMap;
+use serde_json::{self, Value, Map};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -49,7 +48,7 @@ fn dependencies(me: &mut Value) -> Result<Vec<Value>> {
     let mut deps = Vec::new();
     let mut payloads: Vec<String> = Vec::new();
 
-    if let Some(inc) = me.find("_include") {
+    if let Some(inc) = me.get("_include") {
         if !inc.is_array() {
             return Err(Error::Generic("Value of `_include` is not an array".into()));
         }
@@ -82,7 +81,7 @@ fn dependencies(me: &mut Value) -> Result<Vec<Value>> {
     }
 
     if me.is_object() && !payloads.is_empty() {
-        me.as_object_mut().unwrap().insert("_payloads".into(), serde_json::to_value(payloads));
+        me["_payloads"] = json!(payloads);
     }
 
     Ok(deps)
@@ -92,9 +91,7 @@ fn merge_values(into: Value, mut from: Value, parent_from: &Value) -> Result<Val
     match into {
         Value::Null |
         Value::Bool(_) |
-        Value::I64(_) |
-        Value::U64(_) |
-        Value::F64(_) |
+        Value::Number(_) |
         Value::String(_) => Ok(into),
         Value::Array(mut a) => {
             if from.is_array() {
@@ -113,7 +110,7 @@ fn merge_values(into: Value, mut from: Value, parent_from: &Value) -> Result<Val
             Ok(Value::Array(b))
         },
         Value::Object(o) => {
-            let mut new: BTreeMap<String, Value> = BTreeMap::new();
+            let mut obj = Map::new();
 
             for (mut key, mut value) in o {
                 if key.ends_with("?") || key.ends_with("?!") {
@@ -130,25 +127,25 @@ fn merge_values(into: Value, mut from: Value, parent_from: &Value) -> Result<Val
                 if key.ends_with("!") {
                     key.pop();
                 }
-                else if let Some(o1) = from.find(&key) {
+                else if let Some(o1) = from.get(&key) {
                     merge_val = o1.clone();
                 }
 
                 value = try!(merge_values(value, merge_val, &parent_from));
 
-                new.insert(key, value);
+                obj.insert(key, value);
             }
 
             // Insert any missing values
             if let Some(o1) = from.as_object() {
                 for (key, value) in o1 {
-                    if !new.contains_key(key) {
-                        new.insert(key.clone(), value.clone());
+                    if !obj.contains_key(key) {
+                        obj.insert(key.clone(), value.clone());
                     }
                 }
             }
 
-            Ok(Value::Object(new))
+            Ok(Value::Object(obj))
         }
     }
 }
@@ -186,7 +183,7 @@ fn query_value(data: &Value, value: Value) -> Result<Option<Value>> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::{self, Value};
+    use serde_json::Value;
     use std::fs;
     use std::io::Write;
     use std::path::PathBuf;
@@ -218,95 +215,80 @@ mod tests {
     }
 
     fn create_data(path: &mut PathBuf) -> Value {
-        path.push("data/middle.json");
-        let mut fh = fs::File::create(&path).unwrap();
-        path.pop();
-        path.pop();
-        fh.write_all(format!("{{
-            \"payload\": {{
-                \"b!\": [ 3, 4 ],
-                \"d\": [ 987 ]
-            }},
-            \"variable\": false,
-            \"d\": 4,
-            \"_include\": [
-                \"payload: {}/payloads/payload::default\"
+        let mut fh = fs::File::create(format!("{}/data/middle.json", path.display())).unwrap();
+        let payload_path = format!("{}/payloads/payload::default", path.display());
+        let payload = format!("payload: {}", payload_path);
+        let mut data = json!({
+            "payload": {
+                "b!": [ 3, 4 ],
+                "d": [ 987 ]
+            },
+            "variable": false,
+            "d": 4,
+            "_include": [
+                payload
             ]
-        }}", path.to_str().unwrap()).as_bytes()).unwrap();
+        });
+        fh.write_all(data.to_string().as_bytes()).unwrap();
 
-        path.push("data/bottom.json");
-        let mut fh = fs::File::create(&path).unwrap();
-        path.pop();
-        path.pop();
-        fh.write_all(b"{
-            \"moo\": \"cow\",
-            \"payload\": {
-                \"b\": [ 5 ],
-                \"d\": [ 999 ]
+        fh = fs::File::create(format!("{}/data/bottom.json", path.display())).unwrap();
+        data = json!({
+            "moo": "cow",
+            "payload": {
+                "b": [ 5 ],
+                "d": [ 999 ]
             }
-        }").unwrap();
+        });
+        fh.write_all(data.to_string().as_bytes()).unwrap();
 
-        path.push("payloads/payload/data/default.json");
-        let mut fh = fs::File::create(&path).unwrap();
-        path.pop();
-        path.pop();
-        path.pop();
-        path.pop();
-        fh.write_all(b"{
-            \"pvalue\": \"payload\"
-        }").unwrap();
+        fh = fs::File::create(format!("{}/payloads/payload/data/default.json", path.display())).unwrap();
+        data = json!({
+            "pvalue": "payload"
+        });
+        fh.write_all(data.to_string().as_bytes()).unwrap();
 
-        path.push("data/top.json");
-        let mut fh = fs::File::create(&path).unwrap();
-        path.pop();
-        path.pop();
-        fh.write_all(format!("{{
-            \"a\": 1,
-            \"payload\": {{
-                \"b\": [ 1, 2 ],
-                \"c?\": [
-                    {{
-                        \"_\": [ 6, 7 ],
-                        \"?\": \"/variable = false\"
-                    }},
-                    {{
-                        \"_\": [ 8, 9 ]
-                    }}
+        fh = fs::File::create(format!("{}/data/top.json", path.display())).unwrap();
+        let middle = format!("{}/data/middle.json", path.display());
+        let bottom = format!("{}/data/bottom.json", path.display());
+        data = json!({
+            "a": 1,
+            "payload": {
+                "b": [ 1, 2 ],
+                "c?": [
+                    {
+                        "_": [ 6, 7 ],
+                        "?": "/variable = false"
+                    },
+                    {
+                        "_": [ 8, 9 ]
+                    }
                 ],
-                \"d\": [ 123 ]
-            }},
-            \"variable\": {{
-                \"one!\": true,
-                \"two\": false
-            }},
-            \"_include\": [
-                \"{}/data/middle.json\",
-                \"{0}/data/bottom.json\"
-            ]
-        }}", path.to_str().unwrap()).as_bytes()).unwrap();
+                "d": [ 123 ]
+            },
+            "variable": {
+                "one!": true,
+                "two": false
+            },
+            "_include": [ middle, bottom ]
+        });
+        fh.write_all(data.to_string().as_bytes()).unwrap();
 
-        serde_json::from_str(&format!("{{
-            \"_include\": [
-                \"{}/data/middle.json\",
-                \"{0}/data/bottom.json\",
-                \"payload: {0}/payloads/payload::default\"
-            ],
-            \"_payloads\": [
-                \"{0}/payloads/payload::default\"
-            ],
-            \"a\": 1,
-            \"d\": 4,
-            \"moo\": \"cow\",
-            \"payload\": {{
-                \"b\": [ 1, 2, 3, 4 ],
-                \"c\": [ 6, 7 ],
-                \"d\": [ 123, 987, 999 ]
-            }},
-            \"pvalue\": \"payload\",
-            \"variable\": {{
-                \"one\": true,
-                \"two\": false
-            }}
-        }}", path.to_str().unwrap())).unwrap()
+        json!({
+            "_include": [ middle, bottom, payload ],
+            "_payloads": [ payload_path ],
+            "a": 1,
+            "d": 4,
+            "moo": "cow",
+            "payload": {
+                "b": [ 1, 2, 3, 4 ],
+                "c": [ 6, 7 ],
+                "d": [ 123, 987, 999 ]
+            },
+            "pvalue": "payload",
+            "variable": {
+                "one": true,
+                "two": false
+            }
+        })
     }
 }

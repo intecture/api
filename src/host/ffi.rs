@@ -106,9 +106,11 @@ pub extern "C" fn get_value_type(value_ptr: *const c_void, pointer_ptr: *const c
         match *v_ref {
             Value::Null => Ffi__DataType::Null,
             Value::Bool(_) => Ffi__DataType::Bool,
-            Value::I64(_) => Ffi__DataType::Int64,
-            Value::U64(_) => Ffi__DataType::Uint64,
-            Value::F64(_) => Ffi__DataType::Float,
+            Value::Number(ref n) => {
+                if n.is_f64() { Ffi__DataType::Float }
+                else if n.is_u64() { Ffi__DataType::Uint64 }
+                else { Ffi__DataType::Int64 }
+            },
             Value::String(_) => Ffi__DataType::String,
             Value::Array(_) => Ffi__DataType::Array,
             Value::Object(_) => Ffi__DataType::Object,

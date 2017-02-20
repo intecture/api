@@ -7,7 +7,7 @@
 // modified, or distributed except according to those terms.
 
 use error::{Error, Result};
-use serde_json::Value;
+use serde_json::{Value, Number};
 use std::fmt;
 use std::iter::{Enumerate, Peekable};
 use std::str::Chars;
@@ -206,21 +206,24 @@ fn tokenize_buf(tokens: &mut Vec<Token>, buf: Vec<char>, value: bool, quotes: bo
                     let s: String = buf.into_iter().collect();
 
                     match s.parse::<f64>() {
-                        Ok(i) => tokens.push(Token::Value(Value::F64(i))),
+                        Ok(i) => match Number::from_f64(i) {
+                            Some(n) => tokens.push(Token::Value(Value::Number(n))),
+                            None => tokens.push(Token::Value(Value::String(s))),
+                        },
                         Err(_) => tokens.push(Token::Value(Value::String(s))),
                     }
                 } else if buf.starts_with(&['-']) {
                     let s: String = buf.into_iter().collect();
 
                     match s.parse::<i64>() {
-                        Ok(i) => tokens.push(Token::Value(Value::I64(i))),
+                        Ok(i) => tokens.push(Token::Value(Value::Number(Number::from(i)))),
                         Err(_) => tokens.push(Token::Value(Value::String(s))),
                     }
                 } else {
                     let s: String = buf.into_iter().collect();
 
                     match s.parse::<u64>() {
-                        Ok(i) => tokens.push(Token::Value(Value::U64(i))),
+                        Ok(i) => tokens.push(Token::Value(Value::Number(Number::from(i)))),
                         Err(_) => tokens.push(Token::Value(Value::String(s))),
                     }
                 }
@@ -313,6 +316,23 @@ fn parse(tokens: &mut Enumerate<IntoIter<Token>>, data: &Value) -> Result<bool> 
     Ok(status)
 }
 
+macro_rules! cmp {
+    ($pv:ident $op:tt $cv:ident) => {
+        if $pv.is_f64() && $cv.is_f64() {
+            $pv.as_f64().unwrap() $op $cv.as_f64().unwrap()
+        }
+        else if $pv.is_i64() && $cv.is_i64() {
+            $pv.as_i64().unwrap() $op $cv.as_i64().unwrap()
+        }
+        else if $pv.is_u64() && $cv.is_u64() {
+            $pv.as_u64().unwrap() $op $cv.as_u64().unwrap()
+        }
+        else {
+            return Err(Error::QueryParser(format!("Cannot compare {:?} {} {:?}. Values must be numbers of same type.", $pv, $cv, stringify!($op))));
+        }
+    }
+}
+
 fn eval_condition(predicate: &Token, cop: &ComparisonOperator, criteria: &Token, data: &Value) -> Result<bool> {
     let result = match *cop {
         ComparisonOperator::Equals =>
@@ -322,46 +342,22 @@ fn eval_condition(predicate: &Token, cop: &ComparisonOperator, criteria: &Token,
         ComparisonOperator::GreaterThan => {
             let pv = try!(resolve_pointer(predicate, data));
             let cv = try!(resolve_pointer(criteria, data));
-
-            match pv {
-                Value::F64(v1) if match cv { Value::F64(_) => true, _ => false } => v1 > cv.as_f64().unwrap(),
-                Value::I64(v1) if match cv { Value::I64(_) => true, _ => false } => v1 > cv.as_i64().unwrap(),
-                Value::U64(v1) if match cv { Value::U64(_) => true, _ => false } => v1 > cv.as_u64().unwrap(),
-                _ => return Err(Error::QueryParser(format!("Cannot compare {:?} > {:?}. Values must be integers of same type.", pv, cv))),
-            }
+            cmp!(pv > cv)
         },
         ComparisonOperator::GreaterThanEqualTo => {
             let pv = try!(resolve_pointer(predicate, data));
             let cv = try!(resolve_pointer(criteria, data));
-
-            match pv {
-                Value::F64(v1) if match cv { Value::F64(_) => true, _ => false } => v1 >= cv.as_f64().unwrap(),
-                Value::I64(v1) if match cv { Value::I64(_) => true, _ => false } => v1 >= cv.as_i64().unwrap(),
-                Value::U64(v1) if match cv { Value::U64(_) => true, _ => false } => v1 >= cv.as_u64().unwrap(),
-                _ => return Err(Error::QueryParser(format!("Cannot compare {:?} >= {:?}. Values must be integers of same type.", pv, cv))),
-            }
+            cmp!(pv >= cv)
         },
         ComparisonOperator::LessThan => {
             let pv = try!(resolve_pointer(predicate, data));
             let cv = try!(resolve_pointer(criteria, data));
-
-            match pv {
-                Value::F64(v1) if match cv { Value::F64(_) => true, _ => false } => v1 < cv.as_f64().unwrap(),
-                Value::I64(v1) if match cv { Value::I64(_) => true, _ => false } => v1 < cv.as_i64().unwrap(),
-                Value::U64(v1) if match cv { Value::U64(_) => true, _ => false } => v1 < cv.as_u64().unwrap(),
-                _ => return Err(Error::QueryParser(format!("Cannot compare {:?} < {:?}. Values must be integers of same type.", pv, cv))),
-            }
+            cmp!(pv < cv)
         },
         ComparisonOperator::LessThanEqualTo => {
             let pv = try!(resolve_pointer(predicate, data));
             let cv = try!(resolve_pointer(criteria, data));
-
-            match pv {
-                Value::F64(v1) if match cv { Value::F64(_) => true, _ => false } => v1 <= cv.as_f64().unwrap(),
-                Value::I64(v1) if match cv { Value::I64(_) => true, _ => false } => v1 <= cv.as_i64().unwrap(),
-                Value::U64(v1) if match cv { Value::U64(_) => true, _ => false } => v1 <= cv.as_u64().unwrap(),
-                _ => return Err(Error::QueryParser(format!("Cannot compare {:?} <= {:?}. Values must be integers of same type.", pv, cv))),
-            }
+            cmp!(pv <= cv)
         },
     };
 
@@ -384,19 +380,18 @@ fn resolve_pointer(token: &Token, data: &Value) -> Result<Value> {
 
 #[cfg(test)]
 mod tests {
-    use serde_json::Value;
-    use std::collections::BTreeMap;
+    use serde_json::{Value, Number, Map};
     use super::{ComparisonOperator, LogicalOperator, Token, eval, tokenize};
 
     #[test]
     fn test_eval() {
-        let mut map = BTreeMap::new();
+        let mut map = Map::new();
         map.insert("a".into(), Value::String("z".into()));
         map.insert("b".into(), Value::String("z".into()));
         map.insert("c".into(), Value::String("d".into()));
-        map.insert("d".into(), Value::U64(1));
-        map.insert("e".into(), Value::I64(2));
-        map.insert("f".into(), Value::I64(1));
+        map.insert("d".into(), Value::Number(Number::from(1u64)));
+        map.insert("e".into(), Value::Number(Number::from(2i64)));
+        map.insert("f".into(), Value::Number(Number::from(1i64)));
 
         let data = Value::Object(map);
         assert!(eval(&data, "(((/a=/b && /c!='e') || /d <= 0) || /e > /f) && /fake = NULL").expect("Query result bool"));
@@ -414,9 +409,9 @@ mod tests {
             Token::Cop(ComparisonOperator::LessThanEqualTo),
             Token::Pointer("/path/to/=token".into()),
             Token::GroupTerm,
-            Token::Value(Value::U64(1)),
-            Token::Value(Value::I64(-1)),
-            Token::Value(Value::F64(1.2)),
+            Token::Value(Value::Number(Number::from(1u64))),
+            Token::Value(Value::Number(Number::from(-1i64))),
+            Token::Value(Value::Number(Number::from_f64(1.2).unwrap())),
         ];
 
         let test_str = "/this/is/a/tok\\\\en = \"!=\" && (value<=/path/to/\\=token) 1 -1 1.2";
