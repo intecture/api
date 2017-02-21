@@ -51,6 +51,9 @@ pub mod redhat;
 #[cfg(all(target_os = "linux", feature = "local-run"))]
 pub mod ubuntu;
 
+#[cfg(all(target_os = "linux", feature = "local-run"))]
+pub mod nixos;
+
 #[cfg(feature = "remote-run")]
 pub mod remote;
 

@@ -32,6 +32,8 @@ zdaemon = "0.0.2"
 zfilexfer = "0.0.2"
 hostname = "0.1"
 czmq = { version = "0.1", optional = true }
+interfaces = "0.0.1"
+ipnetwork = "0.12"
 
 [lib]
 name = "inapi"

@@ -42,6 +42,8 @@ extern crate tempfile;
 extern crate zdaemon;
 extern crate zfilexfer;
 extern crate hostname;
+extern crate interfaces;
+extern crate ipnetwork;
 
 #[macro_use]
 mod ffi_helpers;

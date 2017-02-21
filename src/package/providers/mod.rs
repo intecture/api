@@ -13,6 +13,7 @@ pub mod macports;
 pub mod pkg;
 pub mod ports;
 pub mod yum;
+pub mod nix;
 
 use command::CommandResult;
 use error::{Error, Result};
@@ -32,6 +33,7 @@ pub enum Providers {
     Pkg,
     Ports,
     Yum,
+    Nix,
 }
 
 impl ToString for Providers {
@@ -44,6 +46,7 @@ impl ToString for Providers {
             &Providers::Pkg => "Pkg".to_string(),
             &Providers::Ports => "Ports".to_string(),
             &Providers::Yum => "Yum".to_string(),
+            &Providers::Nix => "Nix".to_string(),
         }
     }
 }
@@ -58,6 +61,7 @@ impl convert::From<String> for Providers {
             "Pkg" => Providers::Pkg,
             "Ports" => Providers::Ports,
             "Yum" => Providers::Yum,
+            "Nix" => Providers::Nix,
             _ => panic!("Invalid provider"),
         }
     }
@@ -91,6 +95,7 @@ impl ProviderFactory {
             Providers::Pkg => Box::new(pkg::Pkg),
             Providers::Ports => Box::new(ports::Ports),
             Providers::Yum => Box::new(yum::Yum),
+            Providers::Nix => Box::new(nix::Nix),
         }
     }
 }
