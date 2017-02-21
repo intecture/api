@@ -236,7 +236,7 @@ fn telemetry_cpu_vendor() -> Result<String> {
 
     let regex = Regex::new(r#"(?m)^CPU:.+$\n\s+Origin="([A-Za-z]+)""#).unwrap();
     if let Some(cap) = regex.captures(&fc) {
-        Ok(cap.at(1).unwrap().to_string())
+        Ok(cap.get(1).unwrap().as_str().into())
     } else {
         Err(Error::Generic("Could not match CPU vendor".to_string()))
     }

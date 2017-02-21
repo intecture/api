@@ -32,8 +32,8 @@ pub fn version() -> Result<(String, u32, u32)> {
     let version_str = str::from_utf8(&output.stdout).unwrap().trim();
     let regex = Regex::new(r"([0-9]+)\.([0-9]+)-[A-Z]+").unwrap();
     if let Some(cap) = regex.captures(version_str) {
-        let version_maj = cap.at(1).unwrap().parse()?;
-        let version_min = cap.at(2).unwrap().parse()?;
+        let version_maj = cap.get(1).unwrap().as_str().parse()?;
+        let version_min = cap.get(2).unwrap().as_str().parse()?;
         Ok((version_str.into(), version_maj, version_min))
     } else {
         Err(Error::Generic("Could not match OS version".into()))
@@ -57,7 +57,7 @@ pub fn get_sysctl_item(item: &str) -> Result<String> {
     let regex = Regex::new(&exp).unwrap();
 
     if let Some(cap) = regex.captures(&sysctl) {
-        Ok(cap.at(1).unwrap().to_string())
+        Ok(cap.get(1).unwrap().as_str().into())
     } else {
         Err(Error::Generic("Could not match sysctl item".to_string()))
     }
