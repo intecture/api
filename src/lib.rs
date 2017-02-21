@@ -40,6 +40,7 @@ extern crate tempdir;
 extern crate tempfile;
 extern crate zdaemon;
 extern crate zfilexfer;
+extern crate hostname;
 
 #[macro_use]
 mod ffi_helpers;

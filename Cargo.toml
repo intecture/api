@@ -30,6 +30,7 @@ serde_json = "0.9"
 tempfile = "2.1"
 zdaemon = "0.0.2"
 zfilexfer = "0.0.2"
+hostname = "0.1"
 czmq = { version = "0.1", optional = true }
 
 [lib]
