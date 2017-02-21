@@ -198,11 +198,11 @@ fn version() -> Result<(String, u32, u32, u32)> {
 
     let regex = Regex::new(r"([0-9]+)\.([0-9]+)\.([0-9]+)( LTS)?").unwrap();
     if let Some(cap) = regex.captures(&desc) {
-        let version_maj = cap.at(1).unwrap().parse()?;
-        let version_min = cap.at(2).unwrap().parse()?;
-        let version_patch = cap.at(3).unwrap().parse()?;
+        let version_maj = cap.get(1).unwrap().as_str().parse()?;
+        let version_min = cap.get(2).unwrap().as_str().parse()?;
+        let version_patch = cap.get(3).unwrap().as_str().parse()?;
         let mut version_str = format!("{}.{}.{}", version_maj, version_min, version_patch);
-        if cap.at(4).is_some() {
+        if cap.get(4).is_some() {
             version_str.push_str(" LTS");
         }
         Ok((version_str, version_maj, version_min, version_patch))

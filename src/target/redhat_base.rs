@@ -36,9 +36,15 @@ pub fn version() -> Result<(String, u32, u32, u32)> {
 
     let regex = Regex::new(r"release ([0-9]+)(?:\.([0-9]+)(?:\.([0-9]+))?)?").unwrap();
     if let Some(cap) = regex.captures(&fc) {
-        let version_maj = cap.at(1).unwrap().parse()?;
-        let version_min = cap.at(2).unwrap_or("0").parse()?;
-        let version_patch = cap.at(3).unwrap_or("0").parse()?;
+        let version_maj = cap.get(1).unwrap().as_str().parse()?;
+        let version_min = match cap.get(2) {
+            Some(v) => v.as_str().parse()?,
+            None => 0,
+        };
+        let version_patch = match cap.get(3) {
+            Some(v) => v.as_str().parse()?,
+            None => 0,
+        };
         let version_str = format!("{}.{}.{}", version_maj, version_min, version_patch);
         Ok((version_str, version_maj, version_min, version_patch))
     } else {

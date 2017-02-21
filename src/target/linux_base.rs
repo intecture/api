@@ -73,7 +73,7 @@ pub fn memory() -> Result<u64> {
     let capture = regex.captures(try!(str::from_utf8(&output.stdout)).trim());
 
     if capture.is_some() {
-        Ok(capture.unwrap().at(1).unwrap().parse::<u64>().unwrap())
+        Ok(capture.unwrap().get(1).unwrap().as_str().parse::<u64>().unwrap())
     } else {
         Err(Error::Generic("Invalid memory output".to_string()))
     }
@@ -102,7 +102,7 @@ fn get_cpu_item(item: &str) -> Result<String> {
     let capture = regex.captures(&cpuinfo);
 
     if capture.is_some() {
-        Ok(capture.unwrap().at(1).unwrap().to_string())
+        Ok(capture.unwrap().get(1).unwrap().as_str().to_string())
     } else {
         Err(Error::Generic(format!("Could not find CPU item: {}", item)))
     }
@@ -122,11 +122,11 @@ pub fn net() -> Result<Vec<Netif>> {
             for line in ip.lines() {
                 if let Some(cap) = if_regex.captures(line) {
                     net.push(Netif {
-                        interface: cap.at(1).unwrap().into(),
+                        interface: cap.get(1).unwrap().as_str().into(),
                         mac: None,
                         inet: None,
                         inet6: None,
-                        status: match cap.at(2).unwrap() {
+                        status: match cap.get(2).unwrap().as_str() {
                             "UP" => Some(NetifStatus::Active),
                             "DOWN" => Some(NetifStatus::Inactive),
                             _ => None,
@@ -135,9 +135,9 @@ pub fn net() -> Result<Vec<Netif>> {
                 }
                 else if let Some(this) = net.last_mut() {
                     if let Some(cap) = kv_regex.captures(line) {
-                        let mut words: Vec<&str> = cap.at(2).unwrap().split_whitespace().collect();
+                        let mut words: Vec<&str> = cap.get(2).unwrap().as_str().split_whitespace().collect();
 
-                        match cap.at(1).unwrap() {
+                        match cap.get(1).unwrap().as_str() {
                             "link/ether" if !words.is_empty() => this.mac = Some(words.remove(0).into()),
                             "inet" if words.len() >= 3 => {
                                 let mut ip_mask: Vec<&str> = words.remove(0).split('/').collect();

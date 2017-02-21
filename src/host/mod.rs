@@ -308,7 +308,6 @@ impl HostSendRecv for Host {
 #[cfg(test)]
 mod tests {
     use czmq::{ZMsg, ZSock, SocketType, ZSys};
-    use serde_json;
     use std::fs;
     use std::thread;
     use super::*;
@@ -322,15 +321,15 @@ mod tests {
         let api_endpoint = format!("tcp://127.0.0.1:{}", port);
 
         let handle = thread::spawn(move || {
-            api.send_str("{
-                \"key\": \"value\"
-            }").unwrap();
+            api.send_str(r#"{
+                "key": "value"
+            }"#).unwrap();
 
             api.recv_str().unwrap().unwrap();
         });
 
         let mut host = Host::connect_payload(&api_endpoint, "inproc://file_endpoint").unwrap();
-        assert_eq!(host.data().find("key"), Some(&serde_json::to_value("value")));
+        assert_eq!(host.data()["key"], json!("value"));
 
         let msg = ZMsg::new();
         msg.addstr("test").unwrap();

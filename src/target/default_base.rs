@@ -15,6 +15,7 @@ use regex::Regex;
 use std::{fs, process, str};
 use std::path::Path;
 use target::bin_resolver::BinResolver;
+use hostname::get_hostname;
 
 pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Providers> {
     for p in providers {
@@ -136,13 +137,10 @@ pub fn service_action(name: &str, action: &str) -> Result<Option<CommandResult>>
 }
 
 pub fn hostname() -> Result<String> {
-    let output = try!(process::Command::new(&try!(BinResolver::resolve("hostname"))).arg("-f").output());
-
-    if output.status.success() == false {
-        return Err(Error::Generic(format!("Could not determine hostname with error: {}", str::from_utf8(&output.stderr).unwrap())));
+    match get_hostname() {
+        Some(name) => Ok(name),
+        None => Err(Error::Generic("Could not determine hostname".into())),
     }
-
-    Ok(try!(str::from_utf8(&output.stdout)).trim().to_string())
 }
 
 pub enum FsFieldOrder {
@@ -195,12 +193,12 @@ pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
     for line in lines {
         if let Some(cap) = regex.captures(line) {
             fs.push(FsMount {
-                filesystem: cap.name("fs").unwrap().to_string(),
-                mountpoint: cap.name("mount").unwrap().to_string(),
-                size: try!(cap.name("size").unwrap().parse::<u64>()),
-                used: try!(cap.name("used").unwrap().parse::<u64>()),
-                available: try!(cap.name("available").unwrap().parse::<u64>()),
-                capacity: try!(cap.name("capacity").unwrap().parse::<f32>())/100.0,
+                filesystem: cap.name("fs").unwrap().as_str().to_string(),
+                mountpoint: cap.name("mount").unwrap().as_str().to_string(),
+                size: try!(cap.name("size").unwrap().as_str().parse::<u64>()),
+                used: try!(cap.name("used").unwrap().as_str().parse::<u64>()),
+                available: try!(cap.name("available").unwrap().as_str().parse::<u64>()),
+                capacity: try!(cap.name("capacity").unwrap().as_str().parse::<f32>())/100.0,
             });
         }
     };
@@ -223,7 +221,7 @@ pub fn parse_nettools_net(if_pattern: &str, kv_pattern: &str, ipv4_pattern: &str
     let mut net = vec!();
 
     for cap in if_regex.captures_iter(ifconfig) {
-        net.push(try!(parse_nettools_netif(cap.name("if").unwrap(), cap.name("content").unwrap(), kv_pattern, ipv4_pattern, ipv6_pattern)));
+        net.push(try!(parse_nettools_netif(cap.name("if").unwrap().as_str(), cap.name("content").unwrap().as_str(), kv_pattern, ipv4_pattern, ipv6_pattern)));
     }
 
     Ok(net)
@@ -245,25 +243,25 @@ fn parse_nettools_netif(iface: &str, content: &str, kv_pattern: &str, ipv4_patte
     let lines: Vec<&str> = content.lines().collect();
     for line in lines {
         if let Some(kv_capture) = kv_regex.captures(line) {
-            let value = kv_capture.name("value").unwrap().trim();
+            let value = kv_capture.name("value").unwrap().as_str().trim();
 
-            match kv_capture.name("key").unwrap() {
+            match kv_capture.name("key").unwrap().as_str() {
                 "ether" | "HWaddr" => netif.mac = Some(value.to_string()),
                 "inet" => {
                     if let Some(ipv4_capture) = ipv4_regex.captures(value) {
                         netif.inet = Some(NetifIPv4 {
-                            address: ipv4_capture.name("ip").unwrap().to_string(),
-                            netmask: ipv4_capture.name("mask").unwrap().to_string(),
+                            address: ipv4_capture.name("ip").unwrap().as_str().to_string(),
+                            netmask: ipv4_capture.name("mask").unwrap().as_str().to_string(),
                         });
                     }
                 },
                 "inet6" => {
                     if let Some(ipv6_capture) = ipv6_regex.captures(value) {
                         netif.inet6 = Some(NetifIPv6 {
-                            address: ipv6_capture.name("ip").unwrap().to_string(),
-                            prefixlen: try!(ipv6_capture.name("prefix").unwrap().parse::<u8>()),
+                            address: ipv6_capture.name("ip").unwrap().as_str().to_string(),
+                            prefixlen: try!(ipv6_capture.name("prefix").unwrap().as_str().parse::<u8>()),
                             scopeid: if ipv6_capture.name("scope").is_some() {
-                                Some(ipv6_capture.name("scope").unwrap().to_string())
+                                Some(ipv6_capture.name("scope").unwrap().as_str().to_string())
                             } else {
                                 None
                             },

@@ -24,7 +24,10 @@ pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
 
         let regex = try!(Regex::new(r"^[A-Z] ([0-9])\s?$"));
         let runlevel = match regex.captures(str::from_utf8(&output.stdout).unwrap_or("")) {
-            Some(caps) => caps.at(1).unwrap_or(""),
+            Some(caps) => match caps.get(1) {
+                Some(res) => res.as_str(),
+                None => "",
+            },
             None => "",
         };
 

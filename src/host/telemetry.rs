@@ -9,7 +9,7 @@
 use error::Result;
 use host::Host;
 #[cfg(feature = "local-run")]
-use serde_json::{to_value, Map};
+use serde_json::Map;
 use serde_json::Value;
 use target::Target;
 
@@ -47,7 +47,7 @@ impl Telemetry {
         // Make sure telemetry is namespaced
         let mut t_map: Map<String, Value> = Map::new();
         t_map.insert("_telemetry".into(), t);
-        Ok(to_value(t_map))
+        Ok(json!(t_map))
     }
 
     #[cfg(feature = "remote-run")]
@@ -61,63 +61,64 @@ impl Telemetry {
     #[cfg(feature = "local-run")]
     pub fn into_value(self) -> Value {
         let mut cpu: Map<String, Value> = Map::new();
-        cpu.insert("vendor".into(), to_value(self.cpu.vendor));
-        cpu.insert("brand_string".into(), to_value(self.cpu.brand_string));
-        cpu.insert("cores".into(), to_value(self.cpu.cores));
+        cpu.insert("vendor".into(), json!(self.cpu.vendor));
+        cpu.insert("brand_string".into(), json!(self.cpu.brand_string));
+        cpu.insert("cores".into(), json!(self.cpu.cores));
 
         let mut fs = Vec::new();
         for mount in self.fs {
             let mut map: Map<String, Value> = Map::new();
-            map.insert("filesystem".into(), to_value(mount.filesystem));
-            map.insert("mountpoint".into(), to_value(mount.mountpoint));
-            map.insert("size".into(), to_value(mount.size));
-            map.insert("used".into(), to_value(mount.used));
-            map.insert("available".into(), to_value(mount.available));
-            map.insert("capacity".into(), to_value(mount.capacity));
+            map.insert("filesystem".into(), json!(mount.filesystem));
+            map.insert("mountpoint".into(), json!(mount.mountpoint));
+            map.insert("size".into(), json!(mount.size));
+            map.insert("used".into(), json!(mount.used));
+            map.insert("available".into(), json!(mount.available));
+            map.insert("capacity".into(), json!(mount.capacity));
             fs.push(map);
         }
 
         let mut net = Vec::new();
         for netif in self.net {
             let mut map: Map<String, Value> = Map::new();
-            map.insert("interface".into(), to_value(netif.interface));
-            map.insert("mac".into(), to_value(netif.mac));
+            map.insert("interface".into(), json!(netif.interface));
+            map.insert("mac".into(), json!(netif.mac));
             if let Some(inet) = netif.inet {
                 let mut map1: Map<String, Value> = Map::new();
-                map1.insert("address".into(), to_value(inet.address));
-                map1.insert("netmask".into(), to_value(inet.netmask));
-                map.insert("inet".into(), to_value(map1));
+                map1.insert("address".into(), json!(inet.address));
+                map1.insert("netmask".into(), json!(inet.netmask));
+                map.insert("inet".into(), json!(map1));
             }
             if let Some(inet6) = netif.inet6 {
                 let mut map1: Map<String, Value> = Map::new();
-                map1.insert("address".into(), to_value(inet6.address));
-                map1.insert("prefixlen".into(), to_value(inet6.prefixlen));
-                map1.insert("scopeid".into(), to_value(inet6.scopeid));
-                map.insert("inet6".into(), to_value(map1));
+                map1.insert("address".into(), json!(inet6.address));
+                map1.insert("prefixlen".into(), json!(inet6.prefixlen));
+                map1.insert("scopeid".into(), json!(inet6.scopeid));
+                map.insert("inet6".into(), json!(map1));
             }
             if let Some(status) = netif.status {
-                map.insert("status".into(), to_value(if status == NetifStatus::Active { "Active".to_string() } else { "Inactive".to_string() }));
+                let status = if status == NetifStatus::Active { "Active".to_string() } else { "Inactive".to_string() };
+                map.insert("status".into(), json!(status));
             }
             net.push(map);
         }
 
         let mut os: Map<String, Value> = Map::new();
-        os.insert("arch".into(), to_value(self.os.arch));
-        os.insert("family".into(), to_value(self.os.family));
-        os.insert("platform".into(), to_value(self.os.platform));
-        os.insert("version_str".into(), to_value(self.os.version_str));
-        os.insert("version_maj".into(), to_value(self.os.version_maj));
-        os.insert("version_min".into(), to_value(self.os.version_min));
-        os.insert("version_patch".into(), to_value(self.os.version_patch));
+        os.insert("arch".into(), json!(self.os.arch));
+        os.insert("family".into(), json!(self.os.family));
+        os.insert("platform".into(), json!(self.os.platform));
+        os.insert("version_str".into(), json!(self.os.version_str));
+        os.insert("version_maj".into(), json!(self.os.version_maj));
+        os.insert("version_min".into(), json!(self.os.version_min));
+        os.insert("version_patch".into(), json!(self.os.version_patch));
 
         let mut telemetry: Map<String, Value> = Map::new();
-        telemetry.insert("cpu".into(), to_value(cpu));
-        telemetry.insert("fs".into(), to_value(fs));
-        telemetry.insert("hostname".into(), to_value(self.hostname));
-        telemetry.insert("memory".into(), to_value(self.memory));
-        telemetry.insert("net".into(), to_value(net));
-        telemetry.insert("os".into(), to_value(os));
-        to_value(telemetry)
+        telemetry.insert("cpu".into(), json!(cpu));
+        telemetry.insert("fs".into(), json!(fs));
+        telemetry.insert("hostname".into(), json!(self.hostname));
+        telemetry.insert("memory".into(), json!(self.memory));
+        telemetry.insert("net".into(), json!(net));
+        telemetry.insert("os".into(), json!(os));
+        json!(telemetry)
     }
 }
 
