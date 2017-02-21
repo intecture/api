@@ -19,7 +19,6 @@ use service::ServiceTarget;
 use std::{env, process, str};
 use std::path::Path;
 use super::{default_base as default, Target, unix_base as unix};
-use target::bin_resolver::BinResolver;
 
 // This implementation is legacy. More work is required to support
 // modern launchd implementations.
@@ -187,7 +186,7 @@ impl ServiceTarget for Target {
         //     }
         // }
         //
-        // command_exec(&format!("{} {} {}", &try!(BinResolver::resolve("launchctl")), action, name))
+        // command_exec(&format!("launchctl {} {}", action, name))
         unimplemented!()
     }
 }
@@ -232,7 +231,7 @@ impl TelemetryTarget for Target {
 }
 
 fn version() -> Result<(String, u32, u32, u32)> {
-    let out = process::Command::new(BinResolver::resolve("sw_vers")?).arg("-productVersion").output()?;
+    let out = process::Command::new("sw_vers").arg("-productVersion").output()?;
     let version_str = str::from_utf8(&out.stdout).or(Err(Error::Generic("Could not read OS version".into())))?.trim().to_owned();
     let (maj, min, patch) = {
         let mut parts = version_str.split('.');

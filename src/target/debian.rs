@@ -20,7 +20,6 @@ use std::{env, str};
 use std::path::Path;
 use std::process;
 use super::{debian_base as debian, default_base as default, linux_base as linux};
-use target::bin_resolver::BinResolver;
 
 pub struct DebianTarget;
 
@@ -192,7 +191,7 @@ impl TelemetryTarget for DebianTarget {
 }
 
 fn version() -> Result<(String, u32, u32)> {
-    let out = process::Command::new(BinResolver::resolve("lsb_release")?).arg("-sr").output()?;
+    let out = process::Command::new("lsb_release").arg("-sr").output()?;
     let version_str = str::from_utf8(&out.stdout).or(Err(Error::Generic("Could not read OS version".into())))?.trim();
     let mut parts = version_str.split('.');
     let version_maj = parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32`. Got: {}", version_str)))?.parse()?;

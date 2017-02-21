@@ -12,12 +12,11 @@ use regex::Regex;
 use std::fs::read_dir;
 use std::process::Command;
 use std::str;
-use target::bin_resolver::BinResolver;
 use target::default_base as default;
 
 pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
     if action == "enable" || action == "disable" {
-        let output = try!(Command::new(try!(BinResolver::resolve("runlevel"))).output());
+        let output = try!(Command::new("runlevel").output());
         if !output.status.success() {
             return Err(Error::Generic("Could not get runlevel".into()));
         }
@@ -45,10 +44,9 @@ pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
         }
 
         // XXX `update-rc.d` enable/disable is marked as unstable
-        let update_rcd = BinResolver::resolve("update-rc.d")?;
         match action {
-            "enable" if !enabled => Ok(Some(default::command_exec(&format!("{} {} enable", update_rcd.to_str().unwrap(), name))?)),
-            "disable" if enabled => Ok(Some(default::command_exec(&format!("{} {} disable", update_rcd.to_str().unwrap(), name))?)),
+            "enable" if !enabled => Ok(Some(default::command_exec(&format!("update-rc.d {} enable", name))?)),
+            "disable" if enabled => Ok(Some(default::command_exec(&format!("update-rc.d {} disable", name))?)),
             _ => Ok(None)
         }
     } else {

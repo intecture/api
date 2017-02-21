@@ -14,7 +14,6 @@ use package::providers::{ProviderFactory, Providers};
 use regex::Regex;
 use std::{fs, process, str};
 use std::path::Path;
-use target::bin_resolver::BinResolver;
 use hostname::get_hostname;
 
 pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Providers> {
@@ -30,7 +29,7 @@ pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Pr
 }
 
 pub fn command_exec(cmd: &str) -> Result<CommandResult> {
-    let output = try!(process::Command::new(&try!(BinResolver::resolve("sh"))).arg("-c").arg(cmd).output());
+    let output = try!(process::Command::new("sh").arg("-c").arg(cmd).output());
 
     Ok(CommandResult {
         exit_code: output.status.code().unwrap(),
@@ -90,7 +89,7 @@ pub fn file_copy<P: AsRef<Path>>(path: P, new_path: P) -> Result<()> {
 pub fn file_set_owner<P: AsRef<Path>>(path: P, user: &str, group: &str) -> Result<()> {
     let user_group = format!("{}:{}", user, group);
     let args: Vec<&str> = vec![&user_group, path.as_ref().to_str().unwrap()];
-    let output = process::Command::new(&try!(BinResolver::resolve("chown"))).args(&args).output().unwrap();
+    let output = process::Command::new("chown").args(&args).output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic(format!("Could not chown file with error: {}", str::from_utf8(&output.stderr).unwrap())));
@@ -102,7 +101,7 @@ pub fn file_set_owner<P: AsRef<Path>>(path: P, user: &str, group: &str) -> Resul
 pub fn file_stat<'a, P: AsRef<Path>>(path: P, args: Vec<&'a str>) -> Result<String> {
     let mut args = args;
     args.push(path.as_ref().to_str().unwrap());
-    let output = process::Command::new(&try!(BinResolver::resolve("stat"))).args(&args).output().unwrap();
+    let output = process::Command::new("stat").args(&args).output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic(format!("Could not stat file with error: {}", str::from_utf8(&output.stderr).unwrap())));
@@ -113,7 +112,7 @@ pub fn file_stat<'a, P: AsRef<Path>>(path: P, args: Vec<&'a str>) -> Result<Stri
 
 pub fn file_set_mode<P: AsRef<Path>>(path: P, mode: u16) -> Result<()> {
     let mode_s: &str = &mode.to_string();
-    let output = process::Command::new(&try!(BinResolver::resolve("chmod"))).args(&vec![mode_s, path.as_ref().to_str().unwrap()]).output().unwrap();
+    let output = process::Command::new("chmod").args(&vec![mode_s, path.as_ref().to_str().unwrap()]).output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic(format!("Could not chmod file with error: {}", str::from_utf8(&output.stderr).unwrap())));
@@ -123,9 +122,8 @@ pub fn file_set_mode<P: AsRef<Path>>(path: P, mode: u16) -> Result<()> {
 }
 
 pub fn service_action(name: &str, action: &str) -> Result<Option<CommandResult>> {
-    let service = BinResolver::resolve("service")?;
     if action == "start" || action == "stop" {
-        let status = command_exec(&format!("{} {} status", service.to_str().unwrap(), name))?;
+        let status = command_exec(&format!("service {} status", name))?;
         // XXX Non-zero exit code may not necessarily indicate that the
         // service is stopped?
         if (status.exit_code == 0 && action == "start") || (status.exit_code != 0 && action == "stop") {
@@ -133,7 +131,7 @@ pub fn service_action(name: &str, action: &str) -> Result<Option<CommandResult>>
         }
     }
 
-    Ok(Some(try!(command_exec(&format!("{} {} {}", service.to_str().unwrap(), name, action)))))
+    Ok(Some(try!(command_exec(&format!("service {} {}", name, action)))))
 }
 
 pub fn hostname() -> Result<String> {
@@ -165,7 +163,7 @@ pub fn fs() -> Result<Vec<FsMount>> {
 }
 
 pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
-    let mount_out = try!(process::Command::new(&try!(BinResolver::resolve("df"))).arg("-Pk").output());
+    let mount_out = try!(process::Command::new("df").arg("-Pk").output());
     let mount = try!(String::from_utf8(mount_out.stdout));
 
     let mut pattern = "(?m)^".to_string();
@@ -207,7 +205,7 @@ pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
 }
 
 pub fn parse_nettools_net(if_pattern: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pattern: &str) -> Result<Vec<Netif>> {
-    let ifconfig_out = try!(process::Command::new(&try!(BinResolver::resolve("ifconfig"))).output());
+    let ifconfig_out = try!(process::Command::new("ifconfig").output());
     let ifconfig = try!(str::from_utf8(&ifconfig_out.stdout));
 
     // Rust Regex doesn't support negative lookahead, so we are

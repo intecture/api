@@ -21,7 +21,6 @@ use std::env;
 use std::path::Path;
 use std::process;
 use super::{debian_base as debian, default_base as default, linux_base as linux};
-use target::bin_resolver::BinResolver;
 
 pub struct UbuntuTarget;
 
@@ -193,7 +192,7 @@ impl TelemetryTarget for UbuntuTarget {
 }
 
 fn version() -> Result<(String, u32, u32, u32)> {
-    let out = process::Command::new(BinResolver::resolve("lsb_release")?).arg("-sd").output()?;
+    let out = process::Command::new("lsb_release").arg("-sd").output()?;
     let desc = String::from_utf8(out.stdout).or(Err(Error::Generic("Could not read OS description".into())))?;
 
     let regex = Regex::new(r"([0-9]+)\.([0-9]+)\.([0-9]+)( LTS)?").unwrap();

@@ -6,9 +6,6 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-#[cfg(feature = "local-run")]
-pub mod bin_resolver;
-
 #[cfg(all(target_os = "linux", feature = "local-run"))]
 #[allow(dead_code)]
 pub mod debian_base;

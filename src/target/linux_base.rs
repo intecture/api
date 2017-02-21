@@ -11,11 +11,10 @@ use error::{Error, Result};
 use file::FileOwner;
 use host::telemetry::{Netif, NetifIPv4, NetifIPv6, NetifStatus};
 use regex::Regex;
-use std::{process, str};
+use std::{env, process, str};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use target::bin_resolver::BinResolver;
 use target::default_base as default;
 
 pub fn file_get_owner<P: AsRef<Path>>(path: P) -> Result<FileOwner> {
@@ -32,7 +31,7 @@ pub fn file_get_mode<P: AsRef<Path>>(path: P) -> Result<u16> {
 }
 
 pub fn using_systemd() -> Result<bool> {
-    let output = process::Command::new(&try!(BinResolver::resolve("stat"))).args(&["--format=%N", "/proc/1/exe"]).output().unwrap();
+    let output = process::Command::new("stat").args(&["--format=%N", "/proc/1/exe"]).output().unwrap();
     if output.status.success() {
         let out = try!(str::from_utf8(&output.stdout));
         Ok(out.contains("systemd"))
@@ -44,13 +43,13 @@ pub fn using_systemd() -> Result<bool> {
 pub fn service_systemd(name: &str, action: &str) -> Result<Option<CommandResult>> {
     match action {
         "enable" | "disable" => {
-            let output = try!(process::Command::new(&try!(BinResolver::resolve("systemctl"))).arg("is-enabled").arg(name).output());
+            let output = try!(process::Command::new("systemctl").arg("is-enabled").arg(name).output());
             if (action == "enable" && output.status.success()) || (action == "disable" && !output.status.success()) {
                 return Ok(None);
             }
         },
         "start" | "stop" => {
-            let output = try!(process::Command::new(&try!(BinResolver::resolve("systemctl"))).arg("is-active").arg(name).output());
+            let output = try!(process::Command::new("systemctl").arg("is-active").arg(name).output());
             if (action == "start" && output.status.success()) || (action == "stop" && !output.status.success()) {
                 return Ok(None);
             }
@@ -58,12 +57,11 @@ pub fn service_systemd(name: &str, action: &str) -> Result<Option<CommandResult>
         _ => (),
     }
 
-    let systemctl = BinResolver::resolve("systemctl")?;
-    Ok(Some(try!(default::command_exec(&format!("{} {} {}", systemctl.to_str().unwrap(), action, name)))))
+    Ok(Some(try!(default::command_exec(&format!("systemctl {} {}", action, name)))))
 }
 
 pub fn memory() -> Result<u64> {
-    let output = process::Command::new(&try!(BinResolver::resolve("free"))).arg("-b").output().unwrap();
+    let output = process::Command::new("free").arg("-b").output().unwrap();
 
     if !output.status.success() {
         return Err(Error::Generic("Could not determine memory".to_string()));
@@ -109,77 +107,85 @@ fn get_cpu_item(item: &str) -> Result<String> {
 }
 
 pub fn net() -> Result<Vec<Netif>> {
-    match BinResolver::resolve("ip") {
-        Ok(ip_path) => {
-            let ip_out = process::Command::new(&ip_path).arg("addr").output()?;
-            let ip = str::from_utf8(&ip_out.stdout)?;
+    let mut has_ip_fn = false;
+    if let Some(paths) = env::var_os("PATH") {
+        for mut path in env::split_paths(&paths) {
+            path.push("ip");
+            if path.exists() {
+                has_ip_fn = true;
+                break;
+            }
+        }
+    }
 
-            let if_regex = Regex::new(r"^[0-9]+:\s+([a-z0-9]+):.+?state\s([A-Z]+)")?;
-            let kv_regex = Regex::new(r"^\s+([a-z0-9/]+)\s(.+)")?;
+    if has_ip_fn {
+        let ip_out = process::Command::new("ip").arg("addr").output()?;
+        let ip = str::from_utf8(&ip_out.stdout)?;
 
-            let mut net = vec!();
+        let if_regex = Regex::new(r"^[0-9]+:\s+([a-z0-9]+):.+?state\s([A-Z]+)")?;
+        let kv_regex = Regex::new(r"^\s+([a-z0-9/]+)\s(.+)")?;
 
-            for line in ip.lines() {
-                if let Some(cap) = if_regex.captures(line) {
-                    net.push(Netif {
-                        interface: cap.get(1).unwrap().as_str().into(),
-                        mac: None,
-                        inet: None,
-                        inet6: None,
-                        status: match cap.get(2).unwrap().as_str() {
-                            "UP" => Some(NetifStatus::Active),
-                            "DOWN" => Some(NetifStatus::Inactive),
-                            _ => None,
+        let mut net = vec!();
+
+        for line in ip.lines() {
+            if let Some(cap) = if_regex.captures(line) {
+                net.push(Netif {
+                    interface: cap.get(1).unwrap().as_str().into(),
+                    mac: None,
+                    inet: None,
+                    inet6: None,
+                    status: match cap.get(2).unwrap().as_str() {
+                        "UP" => Some(NetifStatus::Active),
+                        "DOWN" => Some(NetifStatus::Inactive),
+                        _ => None,
+                    },
+                });
+            }
+            else if let Some(this) = net.last_mut() {
+                if let Some(cap) = kv_regex.captures(line) {
+                    let mut words: Vec<&str> = cap.get(2).unwrap().as_str().split_whitespace().collect();
+
+                    match cap.get(1).unwrap().as_str() {
+                        "link/ether" if !words.is_empty() => this.mac = Some(words.remove(0).into()),
+                        "inet" if words.len() >= 3 => {
+                            let mut ip_mask: Vec<&str> = words.remove(0).split('/').collect();
+
+                            // Convert CIDR mask to subnet mask
+                            let cidr = ip_mask.remove(1).parse::<u8>()?;
+                            let mask: i64 = if cidr > 0 { 0x00 - (1 << (32 - cidr)) } else { 0xFFFFFFFF };
+                            let subnet_mask = format!("{}.{}.{}.{}",
+                                mask >> 24 & 0xff,
+                                mask >> 16 & 0xff,
+                                mask >> 8 & 0xff,
+                                mask & 0xff
+                            );
+
+                            this.inet = Some(NetifIPv4 {
+                                address: ip_mask.remove(0).into(),
+                                netmask: subnet_mask,
+                            });
                         },
-                    });
-                }
-                else if let Some(this) = net.last_mut() {
-                    if let Some(cap) = kv_regex.captures(line) {
-                        let mut words: Vec<&str> = cap.get(2).unwrap().as_str().split_whitespace().collect();
-
-                        match cap.get(1).unwrap().as_str() {
-                            "link/ether" if !words.is_empty() => this.mac = Some(words.remove(0).into()),
-                            "inet" if words.len() >= 3 => {
-                                let mut ip_mask: Vec<&str> = words.remove(0).split('/').collect();
-
-                                // Convert CIDR mask to subnet mask
-                                let cidr = ip_mask.remove(1).parse::<u8>()?;
-                                let mask: i64 = if cidr > 0 { 0x00 - (1 << (32 - cidr)) } else { 0xFFFFFFFF };
-                                let subnet_mask = format!("{}.{}.{}.{}",
-                                    mask >> 24 & 0xff,
-                                    mask >> 16 & 0xff,
-                                    mask >> 8 & 0xff,
-                                    mask & 0xff
-                                );
-
-                                this.inet = Some(NetifIPv4 {
-                                    address: ip_mask.remove(0).into(),
-                                    netmask: subnet_mask,
-                                });
-                            },
-                            "inet6" if words.len() >= 3 => {
-                                let mut ip_prefix: Vec<&str> = words.remove(0).split('/').collect();
-                                this.inet6 = Some(NetifIPv6 {
-                                    address: ip_prefix.remove(0).into(),
-                                    prefixlen: ip_prefix.remove(0).parse()?,
-                                    scopeid: Some(words.remove(1).into()),
-                                });
-                            }
-                            _ => (),
+                        "inet6" if words.len() >= 3 => {
+                            let mut ip_prefix: Vec<&str> = words.remove(0).split('/').collect();
+                            this.inet6 = Some(NetifIPv6 {
+                                address: ip_prefix.remove(0).into(),
+                                prefixlen: ip_prefix.remove(0).parse()?,
+                                scopeid: Some(words.remove(1).into()),
+                            });
                         }
+                        _ => (),
                     }
                 }
             }
-
-            Ok(net)
-        },
-        Err(_) => {
-            let if_pattern = r"(?m)^(?P<if>[a-z0-9]+)\s+Link encap:(Ethernet|Local Loopback)(?P<content>(?s).+?)\n\n";
-            let kv_pattern = r"^\s+(?P<key>[A-Za-z0-9]+)(?:\s|:)(?P<value>.+)";
-            let ipv4_pattern = r"^addr:(?P<ip>(?:[0-9]{1,3}\.){3}[0-9]{1,3})\s+(?:Bcast:[0-9.]{7,15}\s+)?Mask:(?P<mask>(?:[0-9]{1,3}\.){3}[0-9]{1,3})";
-            let ipv6_pattern = r"^addr:\s*(?P<ip>(?:[a-f0-9]{4}::(?:[a-f0-9]{1,4}:){3}[a-f0-9]{1,4})|(?:::1))/(?P<prefix>[0-9]+)\s+Scope:(?P<scope>[A-Za-z0-9]+)";
-            default::parse_nettools_net(if_pattern, kv_pattern, ipv4_pattern, ipv6_pattern)
         }
+
+        Ok(net)
+    } else {
+        let if_pattern = r"(?m)^(?P<if>[a-z0-9]+)\s+Link encap:(Ethernet|Local Loopback)(?P<content>(?s).+?)\n\n";
+        let kv_pattern = r"^\s+(?P<key>[A-Za-z0-9]+)(?:\s|:)(?P<value>.+)";
+        let ipv4_pattern = r"^addr:(?P<ip>(?:[0-9]{1,3}\.){3}[0-9]{1,3})\s+(?:Bcast:[0-9.]{7,15}\s+)?Mask:(?P<mask>(?:[0-9]{1,3}\.){3}[0-9]{1,3})";
+        let ipv6_pattern = r"^addr:\s*(?P<ip>(?:[a-f0-9]{4}::(?:[a-f0-9]{1,4}:){3}[a-f0-9]{1,4})|(?:::1))/(?P<prefix>[0-9]+)\s+Scope:(?P<scope>[A-Za-z0-9]+)";
+        default::parse_nettools_net(if_pattern, kv_pattern, ipv4_pattern, ipv6_pattern)
     }
 }
 

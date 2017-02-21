@@ -11,17 +11,15 @@ use error::{Error, Result};
 use regex::Regex;
 use std::fs::File;
 use std::io::Read;
-use target::bin_resolver::BinResolver;
 use target::default_base as default;
 
 pub fn service_init(name: &str, action: &str) -> Result<Option<CommandResult>> {
     if action == "enable" || action == "disable" {
-        let chkconfig = BinResolver::resolve("chkconfig")?;
-        let result = default::command_exec(&format!("{} {}", chkconfig.to_str().unwrap(), name))?;
+        let result = default::command_exec(&format!("chkconfig {}", name))?;
 
         match action {
-            "enable" if result.exit_code != 0 => Ok(Some(try!(default::command_exec(&format!("{} {} on", chkconfig.to_str().unwrap(), name))))),
-            "disable" if result.exit_code == 0 => Ok(Some(try!(default::command_exec(&format!("{} {} off", chkconfig.to_str().unwrap(), name))))),
+            "enable" if result.exit_code != 0 => Ok(Some(try!(default::command_exec(&format!("chkconfig {} on", name))))),
+            "disable" if result.exit_code == 0 => Ok(Some(try!(default::command_exec(&format!("chkconfig {} off", name))))),
             _ => Ok(None)
         }
     } else {
