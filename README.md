@@ -8,11 +8,7 @@ Intecture is a developer friendly, language agnostic configuration management to
 
 You can find out more at [intecture.io](https://intecture.io).
 
-## System Requirements
-
-Intecture relies on [ZeroMQ](http://zeromq.org) for communication between your project and your managed hosts. The Intecture installer will install these dependencies automatically, however if you are building Intecture manually, you will need to install ZeroMQ and CZMQ before proceeding.
-
-## Install
+## Installation
 
 The best way to get up and running is by using the Intecture installer:
 
@@ -20,9 +16,9 @@ The best way to get up and running is by using the Intecture installer:
 $ curl -sSf https://get.intecture.io/ | sh -s -- api
 ```
 
-## Uninstall
+For other installation options and dependencies, see the [Intecture book](https://intecture.io/book/rust/ch05-02-01-reference-api-installation.html).
 
-If you used the Intecture installer to install the API, you can also use it for removal:
+#### Uninstallation
 
 ```
 $ curl -sSf https://get.intecture.io/ | sh -s -- -u api
