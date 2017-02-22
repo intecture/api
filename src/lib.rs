@@ -44,46 +44,41 @@ extern crate hostname;
 
 #[macro_use]
 mod ffi_helpers;
-pub mod command;
+mod command;
 mod project;
-pub mod directory;
-pub mod error;
-pub mod file;
+mod directory;
+mod error;
+mod file;
 #[macro_use]
 mod host;
 #[cfg(all(test, feature = "remote-run"))]
 mod mock_env;
-pub mod package;
+mod package;
 #[cfg(feature = "remote-run")]
 mod payload;
-pub mod service;
+mod service;
 mod target;
-pub mod template;
+mod template;
 
-pub use command::{Command, CommandResult};
-pub use directory::{Directory, DirectoryOpts};
-pub use error::Error;
-pub use file::{File, FileOwner};
-pub use host::Host;
+pub use command::{Command, CommandResult, ffi as command_ffi};
+pub use directory::{Directory, DirectoryOpts, ffi as directory_ffi};
+pub use error::{Error, geterr};
+pub use file::{File, FileOwner, ffi as file_ffi};
+pub use host::{Host, ffi as host_ffi};
 pub use host::data::open as data_open;
-pub use host::ffi::{host_data, get_value, get_value_keys, get_value_type};
-#[cfg(feature = "local-run")]
-pub use host::ffi::host_local;
-#[cfg(feature = "remote-run")]
-pub use host::ffi::{host_connect, host_connect_endpoint, host_connect_payload, host_close};
 pub use mustache::{MapBuilder, VecBuilder};
-pub use package::Package;
-pub use package::providers::{Provider, ProviderFactory, Providers};
+pub use package::{Package, ffi as package_ffi};
+pub use package::providers::Providers;
 #[cfg(feature = "remote-run")]
-pub use payload::Payload;
+pub use payload::{Payload, ffi as payload_ffi};
 #[cfg(feature = "remote-run")]
+#[doc(hidden)]
 pub use payload::config::Config as PayloadConfig;
-#[cfg(feature = "remote-run")]
-pub use payload::ffi::{payload_new, payload_build, payload_run, payload_free};
+#[doc(hidden)]
 pub use project::{Language, ProjectConfig};
 pub use serde_json::Value;
-pub use service::{Service, ServiceRunnable};
-pub use template::Template;
+pub use service::{Service, ServiceRunnable, ffi as service_ffi};
+pub use template::{Template, ffi as template_ffi};
 pub use zfilexfer::FileOptions;
 
 #[cfg(feature = "remote-run")]
