@@ -22,7 +22,7 @@ impl Provider for Homebrew {
     }
 
     fn is_active(&self, host: &mut Host) -> Result<bool> {
-        let cmd = Command::new("which brew");
+        let cmd = Command::new("type brew");
         let result = try!(cmd.exec(host));
 
         Ok(result.exit_code == 0)

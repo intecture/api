@@ -21,7 +21,7 @@ impl Provider for Apt {
     }
 
     fn is_active(&self, host: &mut Host) -> Result<bool> {
-        let cmd = Command::new("which apt-get");
+        let cmd = Command::new("type apt-get");
         let result = try!(cmd.exec(host));
 
         Ok(result.exit_code == 0)

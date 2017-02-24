@@ -21,7 +21,7 @@ impl Provider for Nix {
     }
 
     fn is_active(&self, host: &mut Host) -> Result<bool> {
-        let cmd = Command::new("which nix-env");
+        let cmd = Command::new("type nix-env");
         let result = try!(cmd.exec(host));
 
         Ok(result.exit_code == 0)

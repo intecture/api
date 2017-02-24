@@ -22,7 +22,7 @@ impl Provider for Yum {
     }
 
     fn is_active(&self, host: &mut Host) -> Result<bool> {
-        let cmd = Command::new("which yum");
+        let cmd = Command::new("type yum");
         let result = try!(cmd.exec(host));
 
         Ok(result.exit_code == 0)

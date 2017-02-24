@@ -137,7 +137,7 @@ mod tests {
         let agent_mock = thread::spawn(move || {
             let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
-            assert_eq!("which brew", req.popstr().unwrap().unwrap());
+            assert_eq!("type brew", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();
@@ -195,7 +195,7 @@ mod tests {
 
             let req = ZMsg::recv(&mut server).unwrap();
             assert_eq!("command::exec", req.popstr().unwrap().unwrap());
-            assert_eq!("which brew", req.popstr().unwrap().unwrap());
+            assert_eq!("type brew", req.popstr().unwrap().unwrap());
 
             let rep = ZMsg::new();
             rep.addstr("Ok").unwrap();

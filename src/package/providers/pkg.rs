@@ -21,7 +21,7 @@ impl Provider for Pkg {
     }
 
     fn is_active(&self, host: &mut Host) -> Result<bool> {
-        let cmd = Command::new("which pkg");
+        let cmd = Command::new("type pkg");
         let result = try!(cmd.exec(host));
 
         Ok(result.exit_code == 0)

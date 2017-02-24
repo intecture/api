@@ -22,7 +22,7 @@ impl Provider for Dnf {
     }
 
     fn is_active(&self, host: &mut Host) -> Result<bool> {
-        let cmd = Command::new("which dnf");
+        let cmd = Command::new("type dnf");
         let result = try!(cmd.exec(host));
 
         Ok(result.exit_code == 0)
