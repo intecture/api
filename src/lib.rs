@@ -26,6 +26,7 @@
 
 #[cfg(feature = "remote-run")]
 extern crate czmq;
+#[cfg(not(feature = "local-run"))]
 #[macro_use]
 extern crate lazy_static;
 extern crate libc;
@@ -41,6 +42,7 @@ extern crate tempfile;
 extern crate zdaemon;
 extern crate zfilexfer;
 extern crate hostname;
+extern crate pnet;
 
 #[macro_use]
 mod ffi_helpers;
@@ -68,7 +70,7 @@ pub use host::{Host, ffi as host_ffi};
 pub use host::data::open as data_open;
 pub use mustache::{MapBuilder, VecBuilder};
 pub use package::{Package, ffi as package_ffi};
-pub use package::providers::Providers;
+pub use package::providers::{Providers, ProviderFactory};
 #[cfg(feature = "remote-run")]
 pub use payload::{Payload, ffi as payload_ffi};
 #[cfg(feature = "remote-run")]

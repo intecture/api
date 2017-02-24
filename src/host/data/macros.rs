@@ -51,13 +51,13 @@ want_macro!("Object", wantobj, is_object, as_object);
 //             ($v:expr) => (if $v.$isf() {
 //                 Ok($v.$asf().unwrap())
 //             } else {
-//                 Err($crate::error::Error::Generic(format!("Value is not $t")))
+//                 Err($crate::Error::Generic(format!("Value is not $t")))
 //             });
 //
 //             ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
 //                 $n!(v)
 //             } else {
-//                 Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+//                 Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
 //             });
 //         }
 //     }
@@ -79,13 +79,13 @@ macro_rules! neednull {
     ($v:expr) => (if $v.is_null() {
         Ok($v.as_null().unwrap())
     } else {
-        Err($crate::error::Error::Generic(format!("Value is not null")))
+        Err($crate::Error::Generic(format!("Value is not null")))
     });
 
     ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
         neednull!(v)
     } else {
-        Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+        Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
     });
 }
 
@@ -96,13 +96,13 @@ macro_rules! needbool {
     ($v:expr) => (if $v.is_boolean() {
         Ok($v.as_bool().unwrap())
     } else {
-        Err($crate::error::Error::Generic(format!("Value is not boolean")))
+        Err($crate::Error::Generic(format!("Value is not boolean")))
     });
 
     ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
         needbool!(v)
     } else {
-        Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+        Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
     });
 }
 
@@ -113,13 +113,13 @@ macro_rules! needi64 {
     ($v:expr) => (if $v.is_i64() {
         Ok($v.as_i64().unwrap())
     } else {
-        Err($crate::error::Error::Generic(format!("Value is not i64")))
+        Err($crate::Error::Generic(format!("Value is not i64")))
     });
 
     ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
         needi64!(v)
     } else {
-        Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+        Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
     });
 }
 
@@ -130,13 +130,13 @@ macro_rules! needu64 {
     ($v:expr) => (if $v.is_u64() {
         Ok($v.as_u64().unwrap())
     } else {
-        Err($crate::error::Error::Generic(format!("Value is not u64")))
+        Err($crate::Error::Generic(format!("Value is not u64")))
     });
 
     ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
         needu64!(v)
     } else {
-        Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+        Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
     });
 }
 
@@ -147,13 +147,13 @@ macro_rules! needf64 {
     ($v:expr) => (if $v.is_f64() {
         Ok($v.as_f64().unwrap())
     } else {
-        Err($crate::error::Error::Generic(format!("Value is not f64")))
+        Err($crate::Error::Generic(format!("Value is not f64")))
     });
 
     ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
         needf64!(v)
     } else {
-        Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+        Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
     });
 }
 
@@ -164,13 +164,13 @@ macro_rules! needstr {
     ($v:expr) => (if $v.is_string() {
         Ok($v.as_str().unwrap())
     } else {
-        Err($crate::error::Error::Generic(format!("Value is not string")))
+        Err($crate::Error::Generic(format!("Value is not string")))
     });
 
     ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
         needstr!(v)
     } else {
-        Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+        Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
     });
 }
 
@@ -181,13 +181,13 @@ macro_rules! needarray {
     ($v:expr) => (if $v.is_array() {
         Ok($v.as_array().unwrap())
     } else {
-        Err($crate::error::Error::Generic(format!("Value is not array")))
+        Err($crate::Error::Generic(format!("Value is not array")))
     });
 
     ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
         needarray!(v)
     } else {
-        Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+        Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
     });
 }
 
@@ -198,12 +198,12 @@ macro_rules! needobj {
     ($v:expr) => (if $v.is_object() {
         Ok($v.as_object().unwrap())
     } else {
-        Err($crate::error::Error::Generic(format!("Value is not object")))
+        Err($crate::Error::Generic(format!("Value is not object")))
     });
 
     ($v:expr => $p:expr) => (if let Some(v) = $v.pointer($p) {
         needobj!(v)
     } else {
-        Err($crate::error::Error::Generic(format!("Could not find {} in data", $p)))
+        Err($crate::Error::Generic(format!("Could not find {} in data", $p)))
     });
 }

@@ -183,7 +183,7 @@ impl TelemetryTarget for UbuntuTarget {
             try!(default::fs()),
             &hostname,
             try!(linux::memory()),
-            try!(linux::net()),
+            default::net(),
             Os::new(env::consts::ARCH, "debian", "ubuntu", &version_str, version_maj, version_min, version_patch),
         );
 

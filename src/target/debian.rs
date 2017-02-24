@@ -182,7 +182,7 @@ impl TelemetryTarget for DebianTarget {
             try!(default::fs()),
             &hostname,
             try!(linux::memory()),
-            try!(linux::net()),
+            default::net(),
             Os::new(env::consts::ARCH, "debian", "debian", &version_str, version_maj, version_min, 0), // No known patch version
         );
 

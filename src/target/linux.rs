@@ -24,6 +24,7 @@ use super::debian::DebianTarget;
 use super::fedora::FedoraTarget;
 use super::redhat::RedhatTarget;
 use super::ubuntu::UbuntuTarget;
+use super::nixos::NixOsTarget;
 use host::telemetry::TelemetryTarget;
 
 static mut LINUX_PLATFORM: LinuxPlatform = LinuxPlatform::Centos;
@@ -35,6 +36,7 @@ enum LinuxPlatform {
     Fedora,
     Redhat,
     Ubuntu,
+    NixOs,
 }
 
 //
@@ -49,6 +51,7 @@ impl CommandTarget for Target {
             &LinuxPlatform::Fedora => FedoraTarget::exec(host, cmd),
             &LinuxPlatform::Redhat => RedhatTarget::exec(host, cmd),
             &LinuxPlatform::Ubuntu => UbuntuTarget::exec(host, cmd),
+            &LinuxPlatform::NixOs => NixOsTarget::exec(host, cmd),
         }
     }
 }
@@ -65,6 +68,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_is_directory(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::directory_is_directory(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_is_directory(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_is_directory(host, path),
         }
     }
 
@@ -75,6 +79,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_exists(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::directory_exists(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_exists(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_exists(host, path),
         }
     }
 
@@ -85,6 +90,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_create(host, path, recursive),
             &LinuxPlatform::Redhat => RedhatTarget::directory_create(host, path, recursive),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_create(host, path, recursive),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_create(host, path, recursive),
         }
     }
 
@@ -95,6 +101,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_delete(host, path, recursive),
             &LinuxPlatform::Redhat => RedhatTarget::directory_delete(host, path, recursive),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_delete(host, path, recursive),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_delete(host, path, recursive),
         }
     }
 
@@ -105,6 +112,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_mv(host, path, new_path),
             &LinuxPlatform::Redhat => RedhatTarget::directory_mv(host, path, new_path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_mv(host, path, new_path),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_mv(host, path, new_path),
         }
     }
 
@@ -115,6 +123,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_get_owner(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::directory_get_owner(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_get_owner(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_get_owner(host, path),
         }
     }
 
@@ -125,6 +134,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_set_owner(host, path, user, group),
             &LinuxPlatform::Redhat => RedhatTarget::directory_set_owner(host, path, user, group),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_set_owner(host, path, user, group),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_set_owner(host, path, user, group),
         }
     }
 
@@ -135,6 +145,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_get_mode(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::directory_get_mode(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_get_mode(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_get_mode(host, path),
         }
     }
 
@@ -145,6 +156,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::directory_set_mode(host, path, mode),
             &LinuxPlatform::Redhat => RedhatTarget::directory_set_mode(host, path, mode),
             &LinuxPlatform::Ubuntu => UbuntuTarget::directory_set_mode(host, path, mode),
+            &LinuxPlatform::NixOs => NixOsTarget::directory_set_mode(host, path, mode),
         }
     }
 }
@@ -161,6 +173,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_is_file(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::file_is_file(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_is_file(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::file_is_file(host, path),
         }
     }
 
@@ -171,6 +184,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_exists(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::file_exists(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_exists(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::file_exists(host, path),
         }
     }
 
@@ -181,6 +195,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_delete(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::file_delete(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_delete(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::file_delete(host, path),
         }
     }
 
@@ -191,6 +206,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_mv(host, path, new_path),
             &LinuxPlatform::Redhat => RedhatTarget::file_mv(host, path, new_path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_mv(host, path, new_path),
+            &LinuxPlatform::NixOs => NixOsTarget::file_mv(host, path, new_path),
         }
     }
 
@@ -201,6 +217,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_copy(host, path, new_path),
             &LinuxPlatform::Redhat => RedhatTarget::file_copy(host, path, new_path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_copy(host, path, new_path),
+            &LinuxPlatform::NixOs => NixOsTarget::file_copy(host, path, new_path),
         }
     }
 
@@ -211,6 +228,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_get_owner(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::file_get_owner(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_get_owner(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::file_get_owner(host, path),
         }
     }
 
@@ -221,6 +239,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_set_owner(host, path, user, group),
             &LinuxPlatform::Redhat => RedhatTarget::file_set_owner(host, path, user, group),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_set_owner(host, path, user, group),
+            &LinuxPlatform::NixOs => NixOsTarget::file_set_owner(host, path, user, group),
         }
     }
 
@@ -231,6 +250,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_get_mode(host, path),
             &LinuxPlatform::Redhat => RedhatTarget::file_get_mode(host, path),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_get_mode(host, path),
+            &LinuxPlatform::NixOs => NixOsTarget::file_get_mode(host, path),
         }
     }
 
@@ -241,6 +261,7 @@ impl<P: AsRef<Path>> FileTarget<P> for Target {
             &LinuxPlatform::Fedora => FedoraTarget::file_set_mode(host, path, mode),
             &LinuxPlatform::Redhat => RedhatTarget::file_set_mode(host, path, mode),
             &LinuxPlatform::Ubuntu => UbuntuTarget::file_set_mode(host, path, mode),
+            &LinuxPlatform::NixOs => NixOsTarget::file_set_mode(host, path, mode),
         }
     }
 }
@@ -257,6 +278,7 @@ impl PackageTarget for Target {
             &LinuxPlatform::Fedora => FedoraTarget::default_provider(host),
             &LinuxPlatform::Redhat => RedhatTarget::default_provider(host),
             &LinuxPlatform::Ubuntu => UbuntuTarget::default_provider(host),
+            &LinuxPlatform::NixOs => NixOsTarget::default_provider(host),
         }
     }
 }
@@ -273,6 +295,7 @@ impl ServiceTarget for Target {
             &LinuxPlatform::Fedora => FedoraTarget::service_action(host, name, action),
             &LinuxPlatform::Redhat => RedhatTarget::service_action(host, name, action),
             &LinuxPlatform::Ubuntu => UbuntuTarget::service_action(host, name, action),
+            &LinuxPlatform::NixOs => NixOsTarget::service_action(host, name, action),
         }
     }
 }
@@ -289,6 +312,7 @@ impl TelemetryTarget for Target {
             &LinuxPlatform::Fedora => FedoraTarget::telemetry_init(host),
             &LinuxPlatform::Redhat => RedhatTarget::telemetry_init(host),
             &LinuxPlatform::Ubuntu => UbuntuTarget::telemetry_init(host),
+            &LinuxPlatform::NixOs => NixOsTarget::telemetry_init(host),
         }
     }
 }
@@ -314,6 +338,10 @@ fn fingerprint_os() -> &'static LinuxPlatform {
         // RedHat
         else if let Ok(_) = fs::metadata("/etc/redhat-release") {
             unsafe { LINUX_PLATFORM = LinuxPlatform::Redhat; }
+        }
+        // NixOS
+        else if let Ok(_) = fs::metadata("/etc/nixos/configuration.nix") {
+            unsafe { LINUX_PLATFORM = LinuxPlatform::NixOs; }
         } else {
             panic!("Unknown Linux distro");
         }

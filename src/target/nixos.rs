@@ -8,25 +8,25 @@
 
 use command::{CommandResult, CommandTarget};
 use directory::DirectoryTarget;
-use error::Result;
+use error::{Error, Result};
 use file::{FileTarget, FileOwner};
 use host::Host;
 use package::PackageTarget;
 use package::providers::Providers;
 use serde_json::Value;
 use service::ServiceTarget;
-use std::{env, str};
+use std::{env, process, str};
 use std::path::Path;
-use super::{default_base as default, linux_base as linux, redhat_base as redhat};
+use super::{default_base as default, linux_base as linux};
 use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 
-pub struct RedhatTarget;
+pub struct NixOsTarget;
 
 //
 // Command
 //
 
-impl CommandTarget for RedhatTarget {
+impl CommandTarget for NixOsTarget {
     #[allow(unused_variables)]
     fn exec(host: &mut Host, cmd: &str) -> Result<CommandResult> {
         default::command_exec(cmd)
@@ -37,7 +37,7 @@ impl CommandTarget for RedhatTarget {
 // Directory
 //
 
-impl<P: AsRef<Path>> DirectoryTarget<P> for RedhatTarget {
+impl<P: AsRef<Path>> DirectoryTarget<P> for NixOsTarget {
     #[allow(unused_variables)]
     fn directory_is_directory(host: &mut Host, path: P) -> Result<bool> {
         default::directory_is_directory(path)
@@ -88,7 +88,7 @@ impl<P: AsRef<Path>> DirectoryTarget<P> for RedhatTarget {
 // File
 //
 
-impl<P: AsRef<Path>> FileTarget<P> for RedhatTarget {
+impl<P: AsRef<Path>> FileTarget<P> for NixOsTarget {
     #[allow(unused_variables)]
     fn file_is_file(host: &mut Host, path: P) -> Result<bool> {
         default::file_is_file(path)
@@ -139,9 +139,9 @@ impl<P: AsRef<Path>> FileTarget<P> for RedhatTarget {
 // Package
 //
 
-impl PackageTarget for RedhatTarget {
+impl PackageTarget for NixOsTarget {
     fn default_provider(host: &mut Host) -> Result<Providers> {
-        default::default_provider(host, vec![Providers::Yum])
+        default::default_provider(host, vec![Providers::Nix])
     }
 }
 
@@ -149,14 +149,10 @@ impl PackageTarget for RedhatTarget {
 // Service
 //
 
-impl ServiceTarget for RedhatTarget {
+impl ServiceTarget for NixOsTarget {
     #[allow(unused_variables)]
     fn service_action(host: &mut Host, name: &str, action: &str) -> Result<Option<CommandResult>> {
-        if try!(linux::using_systemd()) {
-            linux::service_systemd(name, action)
-        } else {
-            redhat::service_init(name, action)
-        }
+        linux::service_systemd(name, action)
     }
 }
 
@@ -164,19 +160,19 @@ impl ServiceTarget for RedhatTarget {
 // Telemetry
 //
 
-impl TelemetryTarget for RedhatTarget {
+impl TelemetryTarget for NixOsTarget {
     #[allow(unused_variables)]
     fn telemetry_init(host: &mut Host) -> Result<Value> {
         let cpu_vendor = try!(linux::cpu_vendor());
         let cpu_brand = try!(linux::cpu_brand_string());
         let hostname = try!(default::hostname());
-        let (version_str, version_maj, version_min, version_patch) = try!(redhat::version());
+        let (version, maj, min, patch) = try!(version());
 
         let telemetry = Telemetry::new(
             Cpu::new(
                 &cpu_vendor,
                 &cpu_brand,
-                try!(linux::cpu_cores())
+                try!(linux::cpu_cores()),
             ),
             try!(default::fs()),
             &hostname,
@@ -184,15 +180,25 @@ impl TelemetryTarget for RedhatTarget {
             default::net(),
             Os::new(
                 env::consts::ARCH,
-                "redhat",
-                "redhat",
-                &version_str,
-                version_maj,
-                version_min,
-                version_patch
+                "linux",
+                "nixos",
+                &version,
+                maj,
+                min,
+                patch
             ),
         );
 
         Ok(telemetry.into_value())
     }
+}
+
+fn version() -> Result<(String, u32, u32, u32)> {
+    let out = process::Command::new("nixos-version").output()?;
+    let version_str = str::from_utf8(&out.stdout).or(Err(Error::Generic("Could not read OS version".into())))?.trim();
+    let mut parts = version_str.split('.');
+    let version_maj = parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32.u32.hash (codename)`. Got: {}", version_str)))?.parse()?;
+    let version_min = parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32.u32.hash (codename)`. Got: {}", version_str)))?.parse()?;
+    let version_patch = parts.next().ok_or(Error::Generic(format!("Expected OS version format `u32.u32.u32.hash (codename)`. Got: {}", version_str)))?.parse()?;
+    Ok((version_str.into(), version_maj, version_min, version_patch))
 }

@@ -181,7 +181,7 @@ impl TelemetryTarget for FedoraTarget {
             try!(default::fs()),
             &hostname,
             try!(linux::memory()),
-            try!(linux::net()),
+            default::net(),
             Os::new(
                 env::consts::ARCH,
                 "redhat",
