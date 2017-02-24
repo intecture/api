@@ -184,6 +184,8 @@ impl<'a> From<ServiceRunnable<'a>> for ServiceRunnableOwned {
 /// You can also use action maps to assist with cross-platform compatibility:
 ///
 /// ```no_run
+/// # #[macro_use] extern crate inapi;
+/// # fn main() {
 /// # use inapi::{Host, Service, ServiceRunnable};
 /// # use std::collections::HashMap;
 #[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
@@ -195,6 +197,7 @@ impl<'a> From<ServiceRunnable<'a>> for ServiceRunnableOwned {
 ///}
 ///let service = Service::new_service(ServiceRunnable::Command("/usr/bin/my_svc"), Some(map));
 ///service.action(&mut host, "reload").unwrap(); // <-- Calls "/usr/bin/my_svc restart" on CentOS
+/// # }
 /// ```
 pub struct Service {
     /// Actions map for Runnables
