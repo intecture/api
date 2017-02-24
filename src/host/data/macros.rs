@@ -8,7 +8,7 @@
 
 macro_rules! want_macro {
     ($t:expr, $n:ident, $isf:ident, $asf:ident) => {
-        /// Helper that returns an Option<Value::$t>.
+        /// Helper that returns an `Option<Value>`.
         /// You can optionally pass a JSON pointer to retrieve a
         /// nested key.
         #[macro_export]
@@ -72,7 +72,7 @@ want_macro!("Object", wantobj, is_object, as_object);
 // need_macro!("Array", needarray, is_array, as_array);
 // need_macro!("Object", needobj, is_object, as_object);
 
-/// Helper that returns a Result<Value::Null>.
+/// Helper that returns a `Result<Value::Null>`.
 /// You can optionally pass a JSON pointer to retrieve a nested key.
 #[macro_export]
 macro_rules! neednull {
@@ -89,7 +89,7 @@ macro_rules! neednull {
     });
 }
 
-/// Helper that returns a Result<Value::Bool>.
+/// Helper that returns a `Result<Value::Bool>`.
 /// You can optionally pass a JSON pointer to retrieve a nested key.
 #[macro_export]
 macro_rules! needbool {
@@ -106,7 +106,7 @@ macro_rules! needbool {
     });
 }
 
-/// Helper that returns a Result<Value::I64>.
+/// Helper that returns a `Result<Value::I64>`.
 /// You can optionally pass a JSON pointer to retrieve a nested key.
 #[macro_export]
 macro_rules! needi64 {
@@ -123,7 +123,7 @@ macro_rules! needi64 {
     });
 }
 
-/// Helper that returns a Result<Value::U64>.
+/// Helper that returns a `Result<Value::U64>`.
 /// You can optionally pass a JSON pointer to retrieve a nested key.
 #[macro_export]
 macro_rules! needu64 {
@@ -140,7 +140,7 @@ macro_rules! needu64 {
     });
 }
 
-/// Helper that returns a Result<Value::F64>.
+/// Helper that returns a `Result<Value::F64>`.
 /// You can optionally pass a JSON pointer to retrieve a nested key.
 #[macro_export]
 macro_rules! needf64 {
@@ -157,7 +157,7 @@ macro_rules! needf64 {
     });
 }
 
-/// Helper that returns a Result<Value::String>.
+/// Helper that returns a `Result<Value::String>`.
 /// You can optionally pass a JSON pointer to retrieve a nested key.
 #[macro_export]
 macro_rules! needstr {
@@ -174,7 +174,7 @@ macro_rules! needstr {
     });
 }
 
-/// Helper that returns a Result<Value::Array>.
+/// Helper that returns a `Result<Value::Array>`.
 /// You can optionally pass a JSON pointer to retrieve a nested key.
 #[macro_export]
 macro_rules! needarray {
@@ -191,7 +191,7 @@ macro_rules! needarray {
     });
 }
 
-/// Helper that returns a Result<Value::Object>.
+/// Helper that returns a `Result<Value::Object>`.
 /// You can optionally pass a JSON pointer to retrieve a nested key.
 #[macro_export]
 macro_rules! needobj {
