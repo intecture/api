@@ -6,32 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! The primitive for managing directories on a managed host.
-//!
-//! # Examples
-//!
-//! Initialise a new Host using your managed host's IP address and
-//! port number:
-//!
-//! ```no_run
-//! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! ```
-//!
-//! Now you can manage a directory on your managed host.
-//!
-//! ```no_run
-//! # use inapi::{Host, Directory, DirectoryOpts};
-#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
-//! dir.create(&mut host, Some(&vec![DirectoryOpts::DoRecursive])).unwrap();
-//! dir.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
-//! dir.set_mode(&mut host, 755).unwrap();
-//! ```
+//! Directory primitive.
 
 pub mod ffi;
 
@@ -47,7 +22,31 @@ pub enum DirectoryOpts {
     DoRecursive,
 }
 
-/// Container for operating on a directory.
+/// Primitive for managing directories.
+///
+///# Examples
+///
+/// Initialise a new Host:
+///
+/// ```no_run
+///# use inapi::Host;
+#[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+/// ```
+///
+/// Now you can setup a directory on your managed host:
+///
+/// ```no_run
+///# use inapi::{Host, Directory, DirectoryOpts};
+#[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let dir = Directory::new(&mut host, "/path/to/dir").unwrap();
+///dir.create(&mut host, Some(&[DirectoryOpts::DoRecursive])).unwrap();
+///dir.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
+///dir.set_mode(&mut host, 755).unwrap();
+/// ```
 pub struct Directory {
     /// Absolute path to directory on managed host
     path: PathBuf,
@@ -55,16 +54,6 @@ pub struct Directory {
 
 impl Directory {
     /// Create a new Directory struct.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use inapi::{Directory, Host};
-    #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-    #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-    /// let directory = Directory::new(&mut host, "/path/to/dir");
-    /// ```
     pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<Directory> {
         if ! try!(Target::directory_is_directory(host, path.as_ref())) {
             return Err(Error::Generic("Path is a file".to_string()));

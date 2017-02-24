@@ -9,20 +9,15 @@
 //! # Intecture API
 //!
 //! The Intecture API is the interface between your code and your managed
-//! hosts. The library is organised into a set of 'primitives', which
+//! hosts. The library is organised into a set of _primitives_, which
 //! are the building blocks used to configure your systems.
-//! Developers should implement these primitives in their source code
-//! in order to configure and maintain their managed hosts.
 //!
 //! ## Communication
 //!
 //! The API communicates with the Agent service on your managed hosts
-//! via a ZeroMQ "REQ" (REQuest) socket. No other socket types are
-//! supported by the Intecture Agent.
-//!
-//! **Note:** The Agent service must be running when you call any
-//! Intecture API primitives, or the program will hang while it
-//! attempts to connect to a non-existent socket.
+//! via several ZeroMQ sockets. If the service is not running on your
+//! host when you run you code, the program will hang while it attempts
+//! to connect to a non-existent socket.
 
 #[cfg(feature = "remote-run")]
 extern crate czmq;

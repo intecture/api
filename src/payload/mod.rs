@@ -6,25 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Payloads are self-contained projects that encapsulate a specific
-//! feature or system function. Think of them as reusable chunks of
-//! code that can be run across multiple hosts. Any time you have a
-//! task that you want to repeat, it should probably go into a
-//! payload.
-//!
-//! For example, a payload could handle installing a specific
-//! package, such as Nginx. Or, you could create a payload that
-//! configures iptables.
-//!
-//! # Examples
-//!
-//! ```no_run
-//! # use inapi::{Host, Payload};
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(Some(\"hosts/myhost.json\")).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let payload = Payload::new("nginx::install").unwrap(); // format is "payload::executable"
-//! payload.run(&mut host, None).unwrap();
-//! ```
+//! Payload primitive.
 
 pub mod config;
 pub mod ffi;
@@ -41,7 +23,27 @@ use std::path::PathBuf;
 use std::thread;
 use zdaemon::ConfigFile;
 
-/// Container for running a Payload.
+/// Payloads are self-contained projects that encapsulate a specific
+/// feature or system function.
+///
+/// Think of them as reusable chunks of code that can be run across
+/// multiple hosts. Any time you have a task that you want to repeat,
+/// or a package you want to install/configure it should probably go
+/// into a payload.
+///
+///# Examples
+///
+/// For example, a payload could handle installing a specific
+/// package, such as Nginx. Or, you could create a payload that
+/// checks your security logs for signs of a break in.
+///
+/// ```no_run
+/// # use inapi::{Host, Payload};
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(Some(\"hosts/myhost.json\")).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let payload = Payload::new("nginx::install").unwrap(); // format is "payload::executable"
+///payload.run(&mut host, None).unwrap();
+/// ```
 pub struct Payload {
     /// Path to the payload directory.
     path: PathBuf,
@@ -57,8 +59,8 @@ impl Payload {
     /// "executable/source file". For example: "nginx::install".
     ///
     /// By default, payloads live in
-    /// <project root>/payloads/<payload_name>. Thus the payload name
-    /// "nginx" will resolve to <project root>/payloads/nginx/. You
+    /// `<project root>/payloads/<payload_name>`. Thus the payload name
+    /// "nginx" will resolve to `<project root>/payloads/nginx/`. You
     /// can also specify an absolute path to your payload, which will
     /// override the resolved path.
     ///
@@ -102,7 +104,7 @@ impl Payload {
     }
 
     /// Compile a payload's source code. This function is also called
-    /// by Payload::run(), but is useful for precompiling payloads
+    /// by `run()`, but is useful for precompiling payloads
     /// ahead of time to catch build errors early.
     ///
     /// Note that this is only useful for compiled languages. If this
@@ -143,7 +145,7 @@ impl Payload {
         Ok(())
     }
 
-    /// Execute the payload's artifact.
+    /// Build and execute the payload's artifact.
     ///
     /// For compiled languages, the artifact will be executed
     /// directly. For interpreted languages, the artifact will be

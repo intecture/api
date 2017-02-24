@@ -25,6 +25,7 @@ use std::string::ToString;
 use super::PackageTarget;
 use target::Target;
 
+/// Supported package providers.
 pub enum Providers {
     Apt,
     Dnf,

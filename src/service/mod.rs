@@ -6,165 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! The primitive for controlling services on a managed host.
-//!
-//! # Basic Usage
-//!
-//! Initialise a new Host using your managed host's IP address and
-//! port number:
-//!
-//! ```no_run
-//! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! ```
-//!
-//! Create a new Service to manage your daemon:
-//!
-//! ```no_run
-//! # use inapi::{Host, Service, ServiceRunnable};
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let service = Service::new_service(ServiceRunnable::Service("nginx"), None);
-//! ```
-//!
-//! If your daemon uses a script instead of the service manager, just
-//! change the ServiceRunnable type to Command:
-//!
-//! ```no_run
-//! # use inapi::{Host, Service, ServiceRunnable};
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let service = Service::new_service(ServiceRunnable::Command("/usr/bin/apachectl"), None);
-//! ```
-//!
-//! Now you can run an action against the Service. This will
-//! optionally return a CommandResult if the action was run, or None
-//! if the service was already in the desired state.
-//!
-//! ```no_run
-//! # use inapi::{Host, Service, ServiceRunnable};
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! # let service = Service::new_service(ServiceRunnable::Service(""), None);
-//! let result = service.action(&mut host, "start").unwrap();
-//! if let Some(r) = result {
-//!     assert_eq!(r.exit_code, 0);
-//! }
-//! ```
-//!
-//! # Runnables
-//!
-//! Runnables are the executable items that a Service calls actions
-//! on.
-//!
-//! The "Command" Runnable represents a script that is executed by
-//! the shell. Wherever possible, use the "Service" Runnable. However
-//! if you are managing a service without Systemd, Upstart, Init etc.
-//! integration then you would use the Command Runnable.
-//!
-//! The "Service" Runnable represents a daemon managed by the
-//! default system service manager. For example, on a Linux system
-//! using Init, the "Service" Runnable is executed as:
-//! "service <ServiceRunnable::Service> <action>"
-//!
-//! # Mapping Actions to Runnables
-//!
-//! The other way of initialising a Service is with the new_map()
-//! function. This allows you to map individual actions to separate
-//! ServiceRunnable types.
-//!
-//! ```no_run
-//! # use inapi::{Host, Service, ServiceRunnable};
-//! # use std::collections::HashMap;
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let mut map = HashMap::new();
-//! map.insert("start", ServiceRunnable::Command("/usr/local/bin/svc_start"));
-//! map.insert("stop", ServiceRunnable::Command("/usr/local/bin/svc_stop"));
-//! map.insert("restart", ServiceRunnable::Command("/usr/local/bin/svc_stop && /usr/local/bin/svc_start"));
-//! let service = Service::new_map(map, None);
-//! ```
-//!
-//! Sometimes you'll want to set a default Runnable as well as one or
-//! more per-action Runnables. For example, you could map the
-//! 'status' action to a Command Runnable while defaulting to the
-//! Service Runnable for all other actions:
-//!
-//! ```no_run
-//! # use inapi::{Host, Service, ServiceRunnable};
-//! # use std::collections::HashMap;
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let mut map = HashMap::new();
-//! map.insert("_", ServiceRunnable::Service("my_svc")); // <-- Note that "_" (underscore) is the default key used by the Service map
-//! map.insert("status", ServiceRunnable::Command("/usr/bin/my_svc_status"));
-//! let service = Service::new_map(map, None);
-//! ```
-//!
-//! Note that when mapping actions to Command Runnables, the action
-//! name is not appended to the command, unless it is the default
-//! Runnable:
-//!
-//! ```no_run
-//! # use inapi::{Host, Service, ServiceRunnable};
-//! # use std::collections::HashMap;
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let mut map = HashMap::new();
-//! map.insert("start", ServiceRunnable::Command("/usr/bin/start_svc"));
-//! map.insert("kill", ServiceRunnable::Command("killall my_svc"));
-//! map.insert("_", ServiceRunnable::Command("/usr/bin/svc_ctl"));
-//! let service = Service::new_map(map, None);
-//! service.action(&mut host, "start").unwrap(); // <-- Calls "/usr/bin/start_svc"
-//! service.action(&mut host, "status").unwrap(); // <-- Calls "/usr/bin/svc_ctl status"
-//! ```
-//!
-//! # Mapping Actions to Other Actions
-//!
-//! In an effort to standardise actions across platforms and daemons,
-//! it is sometimes necessary to map an action to another action. For
-//! example, you could use action mapping to refer to the command
-//! flags "-s" and "-t" as "start" and "stop" respectively. This
-//! makes your code more readable and helps you create cross-platform
-//! code in the event that action names are different across
-//! platforms:
-//!
-//! ```no_run
-//! # use inapi::{Host, Service, ServiceRunnable};
-//! # use std::collections::HashMap;
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let mut map = HashMap::new();
-//! map.insert("start", "-s"); // <-- Map action "start" to "-s"
-//! map.insert("stop", "-t");
-//! let service = Service::new_service(ServiceRunnable::Command("/usr/local/bin/my_svc"), Some(map));
-//! service.action(&mut host, "start").unwrap(); // <-- Calls "/usr/local/bin/my_svc -s"
-//! ```
-//!
-//! You could use the same technique to load a configuration file on
-//! start, while leaving the other actions untouched:
-//!
-//! ```no_run
-//! # use inapi::{Host, Service, ServiceRunnable};
-//! # use std::collections::HashMap;
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let mut map = HashMap::new();
-//! map.insert("start", "-c /usr/local/etc/my_svc.conf");
-//! let service = Service::new_service(ServiceRunnable::Command("/usr/local/bin/my_svc"), Some(map));
-//! service.action(&mut host, "start").unwrap(); // <-- Calls "/usr/local/bin/my_svc -c /usr/local/etc/my_svc.conf"
-//! service.action(&mut host, "stop").unwrap(); // <-- Calls "/usr/local/bin/my_svc stop"
-//! ```
+//! Service primitive.
 
 pub mod ffi;
 
@@ -198,7 +40,162 @@ impl<'a> From<ServiceRunnable<'a>> for ServiceRunnableOwned {
     }
 }
 
-/// Container for managing a service.
+/// Primitive for controlling service daemons.
+///
+///# Basic Usage
+///
+/// Initialise a new `Host`:
+///
+/// ```no_run
+/// # use inapi::Host;
+#[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+/// ```
+///
+/// Create a new `Service` to manage a daemon (for example, Nginx):
+///
+/// ```no_run
+/// # use inapi::{Host, Service, ServiceRunnable};
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let service = Service::new_service(ServiceRunnable::Service("nginx"), None);
+/// ```
+///
+/// If your daemon uses a script instead of an init system, just
+/// change the `ServiceRunnable` type to `Command`:
+///
+/// ```no_run
+/// # use inapi::{Host, Service, ServiceRunnable};
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let service = Service::new_service(ServiceRunnable::Command("/usr/bin/apachectl"), None);
+/// ```
+///
+/// Now you can run an action against the `Service`. This will
+/// optionally return a `CommandResult` if the action was run, or
+/// `None` if the service was already in the desired state.
+///
+/// ```no_run
+/// # use inapi::{Host, Service, ServiceRunnable};
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+/// # let service = Service::new_service(ServiceRunnable::Service(""), None);
+///let result = service.action(&mut host, "start").unwrap();
+///if let Some(r) = result {
+///    assert_eq!(r.exit_code, 0);
+///}
+/// ```
+///
+///# Runnables
+///
+/// Runnables are the executable items that a `Service` runs.
+///
+/// `ServiceRunnable::Service` represents a daemon managed by the
+/// init system.
+///
+/// For example, on a Linux system using Init,
+/// `ServiceRunnable::Service("nginx")` is executed as:
+///>`service nginx <action>`
+///
+/// If your daemon does not have an init script, use
+/// `ServiceRunnable::Command` to reference an executable directly.
+///
+/// For example, `ServiceRunnable::Command("/usr/bin/nginx")` will
+/// simply run the executable path `/usr/bin/nginx`.
+///
+///# Mapping Actions to Runnables
+///
+/// The other way of initialising a `Service` is with the `new_map()`
+/// function. This allows you to map individual actions to separate
+/// `ServiceRunnable`s.
+///
+/// ```no_run
+/// # use inapi::{Host, Service, ServiceRunnable};
+/// # use std::collections::HashMap;
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+/// let mut map = HashMap::new();
+/// map.insert("start", ServiceRunnable::Command("/usr/local/bin/svc_start"));
+/// map.insert("stop", ServiceRunnable::Command("/usr/local/bin/svc_stop"));
+/// map.insert("restart", ServiceRunnable::Command("/usr/local/bin/svc_stop && /usr/local/bin/svc_start"));
+/// let service = Service::new_map(map, None);
+/// ```
+///
+/// You can also set a default `ServiceRunnable`. For example, you
+/// could map the "status" action to a `ServiceRunnable::Command` while
+/// defaulting to a `ServiceRunnable::Service` for all other actions:
+///
+/// ```no_run
+/// # use inapi::{Host, Service, ServiceRunnable};
+/// # use std::collections::HashMap;
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let mut map = HashMap::new();
+///map.insert("_", ServiceRunnable::Service("nginx")); // <-- "_" is the default key
+///map.insert("status", ServiceRunnable::Command("/usr/bin/zabbix_get -k 'proc.num[nginx,nginx]'"));
+///let service = Service::new_map(map, None);
+/// ```
+///
+/// Note that when mapping actions to `ServiceRunnable::Command`s, the
+/// action name is not appended to the command, unless it is the default
+/// `ServiceRunnable`:
+///
+/// ```no_run
+/// # use inapi::{Host, Service, ServiceRunnable};
+/// # use std::collections::HashMap;
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let mut map = HashMap::new();
+///map.insert("start", ServiceRunnable::Command("/usr/bin/start_svc"));
+///map.insert("kill", ServiceRunnable::Command("killall my_svc"));
+///map.insert("_", ServiceRunnable::Command("/usr/bin/svc_ctl"));
+///let service = Service::new_map(map, None);
+///service.action(&mut host, "start").unwrap(); // <-- Calls "/usr/bin/start_svc"
+///service.action(&mut host, "status").unwrap(); // <-- Calls "/usr/bin/svc_ctl status"
+/// ```
+///
+///# Mapping Actions to Other Actions
+///
+/// In an effort to standardise actions across platforms and daemons,
+/// it is sometimes advantageous to map one action to another. For
+/// example, you can use action maps to abstract complex flags, which
+/// makes your code more readable:
+///
+/// ```no_run
+/// # use inapi::{Host, Service, ServiceRunnable};
+/// # use std::collections::HashMap;
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let mut map = HashMap::new();
+///map.insert("start", "-c /etc/my_svc.conf");
+///map.insert("stop", "-t");
+///let service = Service::new_service(ServiceRunnable::Command("/usr/local/bin/my_svc"), Some(map));
+///service.action(&mut host, "start").unwrap(); // <-- Calls "/usr/local/bin/my_svc -c /etc/my_svc.conf"
+/// ```
+///
+/// You can also use action maps to assist with cross-platform compatibility:
+///
+/// ```no_run
+/// # use inapi::{Host, Service, ServiceRunnable};
+/// # use std::collections::HashMap;
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let mut map = HashMap::new();
+///if needstr!(host.data_owned() => "/_telemetry/os/platform").unwrap() == "centos" {
+///    map.insert("reload", "restart");
+///}
+///let service = Service::new_service(ServiceRunnable::Command("/usr/bin/my_svc"), Some(map));
+///service.action(&mut host, "reload").unwrap(); // <-- Calls "/usr/bin/my_svc restart" on CentOS
+/// ```
 pub struct Service {
     /// Actions map for Runnables
     actions: HashMap<String, ServiceRunnableOwned>,
@@ -207,9 +204,7 @@ pub struct Service {
 }
 
 impl Service {
-    /// Create a new Service with a single Runnable.
-    ///
-    /// # Examples
+    /// Create a new `Service` with a single `ServiceRunnable`.
     ///
     /// ```no_run
     /// # use inapi::{Service, ServiceRunnable};
@@ -221,9 +216,7 @@ impl Service {
         Self::new_map(actions, mapped_actions)
     }
 
-    /// Create a new Service with multiple Runnables.
-    ///
-    /// # Examples
+    /// Create a new `Service` with multiple `ServiceRunnable`s.
     ///
     /// ```no_run
     /// # use inapi::{Service, ServiceRunnable};
@@ -258,12 +251,10 @@ impl Service {
 
     /// Run a service action, e.g. "start" or "stop".
     ///
-    /// If the function returns Some(), the action was required to
+    /// If the function returns `Some`, the action was required to
     /// run in order to get the host into the required state. If the
-    /// function returns None, the host is already in the required
+    /// function returns `None`, the host is already in the required
     /// state.
-    ///
-    /// # Examples
     ///
     /// ```no_run
     /// # use inapi::{Host, Service, ServiceRunnable};

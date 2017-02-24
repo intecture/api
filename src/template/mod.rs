@@ -6,30 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! The primitive for opening and rendering templates.
-//!
-//! # Examples
-//!
-//! ```no_run
-//! # use inapi::{MapBuilder, Template};
-//! let template = Template::new("/path/to/template").unwrap();
-//! let data = MapBuilder::new().insert_str("key", "value").build();
-//! let rendered_file = template.render_data(&data).unwrap();
-//! ```
-#![cfg_attr(feature = "remote-run", doc = "")]
-#![cfg_attr(feature = "remote-run", doc = "To upload the rendered file to your host, you can pass it")]
-#![cfg_attr(feature = "remote-run", doc = "straight into the File primitive:")]
-#![cfg_attr(feature = "remote-run", doc = "")]
-#![cfg_attr(feature = "remote-run", doc = "```no_run")]
-#![cfg_attr(feature = "remote-run", doc = "# use inapi::{File, Host, MapBuilder, Template};")]
-#![cfg_attr(feature = "remote-run", doc = "# let template = Template::new(\"/path/to/template\").unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let data = MapBuilder::new().insert_str(\"key\", \"value\").build();")]
-#![cfg_attr(feature = "remote-run", doc = "# let rendered_file = template.render_data(&data).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "")]
-#![cfg_attr(feature = "remote-run", doc = "let file = File::new(&mut host, \"/path/to/remote/file\").unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "file.upload_file(&mut host, rendered_file, None).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "```")]
+//! Template primitive.
 
 pub mod ffi;
 
@@ -43,13 +20,36 @@ use std::io::{Seek, SeekFrom};
 use std::path::Path;
 use tempfile::tempfile;
 
-/// Container for rendering and uploading templates.
+/// Primitive for rendering templates into uploadable files.
+///
+///# Examples
+///
+/// ```no_run
+/// # use inapi::{MapBuilder, Template};
+/// let template = Template::new("/path/to/template").unwrap();
+/// let data = MapBuilder::new().insert_str("key", "value").build();
+/// let rendered_file = template.render_data(&data).unwrap();
+/// ```
+#[cfg_attr(feature = "remote-run", doc = "")]
+#[cfg_attr(feature = "remote-run", doc = "To upload the rendered file to your host, you can pass it")]
+#[cfg_attr(feature = "remote-run", doc = "straight into the `File` primitive:")]
+#[cfg_attr(feature = "remote-run", doc = "")]
+#[cfg_attr(feature = "remote-run", doc = "```no_run")]
+#[cfg_attr(feature = "remote-run", doc = "# use inapi::{File, Host, MapBuilder, Template};")]
+#[cfg_attr(feature = "remote-run", doc = "# let template = Template::new(\"/path/to/template\").unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let data = MapBuilder::new().insert_str(\"key\", \"value\").build();")]
+#[cfg_attr(feature = "remote-run", doc = "# let rendered_file = template.render_data(&data).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "")]
+#[cfg_attr(feature = "remote-run", doc = "let file = File::new(&mut host, \"/path/to/remote/file\").unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "file.upload_file(&mut host, rendered_file, None).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "```")]
 pub struct Template {
     inner: mustache::Template,
 }
 
 impl Template {
-    /// Create a new File struct.
+    /// Create a new `File` struct.
     pub fn new<P: AsRef<Path>>(path: P) -> Result<Template> {
         if !path.as_ref().exists() {
             return Err(Error::Generic("Template path does not exist".into()));
@@ -60,7 +60,7 @@ impl Template {
         })
     }
 
-    /// Render template to file using generic Encodable data.
+    /// Render template to file using generic `Encodable` data.
     pub fn render<T: Encodable>(&self, data: &T) -> Result<fs::File> {
         let mut fh = try!(tempfile());
         try!(self.inner.render(&mut fh, data));
@@ -70,7 +70,7 @@ impl Template {
         Ok(fh)
     }
 
-    /// Render template to file using a Data instance.
+    /// Render template to file using a `Data` instance.
     pub fn render_data(&self, data: &mustache::Data) -> Result<fs::File> {
         let mut fh = try!(tempfile());
         self.inner.render_data(&mut fh, data)?;

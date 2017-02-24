@@ -6,44 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! The primitive for installing and managing software packages on a
-//! managed host.
-//!
-//! # Examples
-//!
-//! Initialise a new Host using your managed host's IP address and
-//! port number:
-//!
-//! ```no_run
-//! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! ```
-//!
-//! Now install the package `nginx` using the default provider:
-//!
-//! ```no_run
-//! # use inapi::{Host, Package};
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let mut package = Package::new(&mut host, "nginx", None).unwrap();
-//! package.install(&mut host);
-//! ```
-//!
-//! You can also specify a package provider manually, instead of
-//! relying on Intecture to choose one for you. This is useful if you
-//! have multiple providers on your managed host.
-//!
-//! ```no_run
-//! # use inapi::{Host, Package, Providers};
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let mut package = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
-//! package.install(&mut host);
-//! ```
+//! Package primitive.
 
 pub mod ffi;
 pub mod providers;
@@ -53,7 +16,42 @@ use error::Result;
 use host::Host;
 use self::providers::*;
 
-/// Container for operating on a package.
+/// Primitive for installing and managing software packages.
+///
+///# Examples
+///
+/// Initialise a new Host:
+///
+/// ```no_run
+/// # use inapi::Host;
+#[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+/// ```
+///
+/// Now let's install a package on our host (picked Nginx at random):
+///
+/// ```no_run
+/// # use inapi::{Host, Package};
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let mut package = Package::new(&mut host, "nginx", None).unwrap();
+///package.install(&mut host);
+/// ```
+///
+/// You can also specify a package provider manually, instead of
+/// relying on Intecture to choose one for you. This is useful if you
+/// have multiple providers on your managed host.
+///
+/// ```no_run
+/// # use inapi::{Host, Package, Providers};
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let mut package = Package::new(&mut host, "nginx", Some(Providers::Homebrew)).unwrap();
+///package.install(&mut host);
+/// ```
 pub struct Package {
     /// The name of the package, e.g. `nginx`
     name: String,
@@ -65,19 +63,6 @@ pub struct Package {
 
 impl Package {
     /// Create a new Package.
-    ///
-    /// If you have multiple package providers, you can specify one
-    /// or allow Intecture to select a default based on the OS.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use inapi::{Host, Package, Providers};
-    #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-    #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-    /// let pkg = Package::new(&mut host, "nginx", Some(Providers::Yum));
-    /// ```
     pub fn new(host: &mut Host, name: &str, providers: Option<Providers>) -> Result<Package> {
         let provider = try!(ProviderFactory::create(host, providers));
         let installed = try!(provider.is_installed(host, name));

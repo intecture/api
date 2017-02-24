@@ -6,38 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! The primitive for managing files on a managed host.
-//!
-//! # Examples
-//!
-//! Initialise a new Host using your managed host's IP address and
-//! port number:
-//!
-//! ```no_run
-//! # use inapi::Host;
-#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! ```
-//!
-//! Now you can manage a file on your managed host.
-//!
-//! ```no_run
-//! # use inapi::{Host, File, FileOptions};
-#![cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//! let file = File::new(&mut host, "/path/to/destination_file").unwrap();
-#![cfg_attr(feature = "remote-run", doc = " file.upload(&mut host, \"/path/to/local_file\", None);")]
-//! file.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
-//! file.set_mode(&mut host, 644).unwrap();
-//!
-#![cfg_attr(feature = "remote-run", doc = " // Now let's upload another file and backup the original")]
-#![cfg_attr(feature = "remote-run", doc = " file.upload(&mut host, \"/path/to/new_file\", Some(&vec![FileOptions::BackupExisting(\"_bk\".to_string())])).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "")]
-#![cfg_attr(feature = "remote-run", doc = " // Your remote path now has two entries:")]
-#![cfg_attr(feature = "remote-run", doc = " // \"/path/to/destination_file\" and \"/path/to/destination_file_bk\"")]
-//! ```
+//! File primitive.
 
 pub mod ffi;
 
@@ -66,7 +35,39 @@ pub struct FileOwner {
     pub group_gid: u64,
 }
 
-/// Container for operating on a file.
+/// Primitive for managing files.
+///
+///# Examples
+///
+/// Initialise a new Host:
+///
+/// ```no_run
+/// # use inapi::Host;
+#[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+/// ```
+///
+/// Now you can manage a file on your managed host.
+///
+/// ```no_run
+/// # use inapi::{Host, File, FileOptions};
+#[cfg_attr(feature = "local-run", doc = "# let path: Option<String> = None;")]
+#[cfg_attr(feature = "local-run", doc = "# let mut host = Host::local(path).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "# let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
+///let file = File::new(&mut host, "/path/to/destination_file").unwrap();
+#[cfg_attr(feature = "remote-run", doc = "file.upload(&mut host, \"/path/to/local_file\", None);")]
+///file.set_owner(&mut host, "MyUser", "MyGroup").unwrap();
+///file.set_mode(&mut host, 644).unwrap();
+///
+#[cfg_attr(feature = "remote-run", doc = "// Now let's upload another file and backup the original")]
+#[cfg_attr(feature = "remote-run", doc = "file.upload(&mut host, \"/path/to/new_file\", Some(&[
+    FileOptions::BackupExisting(\"_bk\".to_string())
+])).unwrap();")]
+#[cfg_attr(feature = "remote-run", doc = "")]
+#[cfg_attr(feature = "remote-run", doc = "// Your remote path now has two entries:")]
+#[cfg_attr(feature = "remote-run", doc = "// \"/path/to/destination_file\" and \"/path/to/destination_file_bk\"")]
+/// ```
 pub struct File {
     /// Absolute path to file on managed host
     path: PathBuf,
@@ -74,16 +75,6 @@ pub struct File {
 
 impl File {
     /// Create a new File struct.
-    ///
-    /// # Examples
-    ///
-    /// ```no_run
-    /// # use inapi::{File, Host};
-    #[cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-    #[cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-    #[cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-    /// let file = File::new(&mut host, "/path/to/file");
-    /// ```
     pub fn new<P: AsRef<Path>>(host: &mut Host, path: P) -> Result<File> {
         if ! try!(Target::file_is_file(host, path.as_ref())) {
             return Err(Error::Generic("Path is a directory".to_string()));

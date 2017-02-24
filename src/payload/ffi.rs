@@ -6,6 +6,8 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+//! FFI interface for Payload
+
 use ffi_helpers::{Ffi__Array, Leaky};
 use host::Host;
 use libc::{c_char, size_t, uint8_t};

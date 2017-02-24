@@ -6,19 +6,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! The host wrapper for communicating with a managed host.
-//!
-//! # Examples
-//!
-//! ```no_run
-//! # use inapi::{Command, Host};
-#![cfg_attr(feature = "local-run", doc = "let path: Option<String> = None;")]
-#![cfg_attr(feature = "local-run", doc = "let mut host = Host::local(path).unwrap();")]
-#![cfg_attr(feature = "remote-run", doc = "let mut host = Host::connect(\"hosts/myhost.json\").unwrap();")]
-//!
-//! let cmd = Command::new("whoami");
-//! let result = cmd.exec(&mut host).unwrap();
-//! ```
+//! Host primitive.
 
 #[macro_use]
 pub mod data;
@@ -43,14 +31,35 @@ use std::rc::Rc;
 use zfilexfer;
 
 #[cfg(feature = "local-run")]
-/// Representation of a managed host.
+/// Primitive for communicating with a managed host.
+///
+///# Examples
+///
+/// ```no_run
+/// # use inapi::{Command, Host};
+///let path: Option<String> = None;
+///let mut host = Host::local(path).unwrap();
+///
+///let cmd = Command::new("whoami");
+///let result = cmd.exec(&mut host).unwrap();
+/// ```
 pub struct Host {
     /// Data for host, comprising data files and telemetry
     data: Rc<Value>,
 }
 
 #[cfg(feature = "remote-run")]
-/// Representation of a managed host.
+/// Primitive for communicating with a managed host.
+///
+///# Examples
+///
+/// ```no_run
+/// # use inapi::{Command, Host};
+///let mut host = Host::connect("hosts/myhost.json").unwrap();
+///
+///let cmd = Command::new("whoami");
+///let result = cmd.exec(&mut host).unwrap();
+/// ```
 pub struct Host {
     /// Hostname or IP of managed host
     pub hostname: String,
@@ -85,8 +94,10 @@ impl Host {
 
     #[cfg(feature = "remote-run")]
     /// Create a new Host connected to the endpoint specified in the
-    /// data file. This function expects to find the following keys
-    /// in the root namespace: "hostname", "api_port", "file_port".
+    /// data file.
+    ///
+    /// This function expects to find the following keys in the root
+    /// namespace: "hostname", "api_port", "file_port".
     pub fn connect<P: AsRef<Path>>(path: P) -> Result<Host> {
         let value = try!(data::open(path.as_ref()));
         let mut me = try!(Self::connect_endpoint(try!(needstr!(value => "/hostname")),

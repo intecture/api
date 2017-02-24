@@ -39,6 +39,7 @@ pub extern "C" fn geterr() -> *const c_char {
 }
 
 #[derive(Debug)]
+/// Global error type.
 pub enum Error {
     /// An error string returned from the host's Intecture Agent
     Agent(String),
