@@ -222,7 +222,7 @@ impl TelemetryTarget for Target {
             ])),
             &hostname,
             try!(try!(unix::get_sysctl_item("hw\\.memsize")).parse::<u64>()),
-            try!(unix::net()),
+            default::net(),
             Os::new(env::consts::ARCH, "unix", "macos", &version_str, version_maj, version_min, version_patch),
         );
 

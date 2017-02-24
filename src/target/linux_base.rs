@@ -9,17 +9,12 @@
 use command::CommandResult;
 use error::{Error, Result};
 use file::FileOwner;
-use host::telemetry::{Netif, NetifIPv4, NetifIPv6, NetifStatus};
 use regex::Regex;
 use std::{process, str};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use std::net::SocketAddr;
 use target::default_base as default;
-use ipnetwork::ipv6_mask_to_prefix;
-use interfaces::Kind::{Ipv4, Ipv6};
-use interfaces::{Address, Interface, flags};
 
 pub fn file_get_owner<P: AsRef<Path>>(path: P) -> Result<FileOwner> {
     Ok(FileOwner {
@@ -110,78 +105,6 @@ fn get_cpu_item(item: &str) -> Result<String> {
     }
 }
 
-fn ipv4(a: &Address) -> Option<NetifIPv4> {
-    match a.addr {
-        Some(addr) => {
-            let address = addr.ip().to_string();
-            let netmask = a.mask
-                .and_then(|mask| Some(mask.ip().to_string()))
-                .unwrap_or(String::new());
-
-            Some(NetifIPv4 {
-                address: address,
-                netmask: netmask,
-            })
-        },
-        None => None,
-    }
-}
-
-fn ipv6(a: &Address) -> Option<NetifIPv6> {
-    if let Some(SocketAddr::V6(address)) = a.addr {
-        if let Some(SocketAddr::V6(mask)) = a.mask {
-            if let Ok(prefixlen) = ipv6_mask_to_prefix(*mask.ip()) {
-                return Some(NetifIPv6 {
-                    address: address.ip().to_string(),
-                    prefixlen: prefixlen,
-                    scopeid: Some(address.scope_id().to_string()),
-                });
-            }
-        }
-    }
-    None
-}
-
-pub fn net() -> Result<Vec<Netif>> {
-    let mut ifaces = Vec::new();
-
-    for iface in Interface::get_all()? {
-        let mac = match iface.hardware_addr() {
-            Ok(addr) => Some(addr.as_string()),
-            Err(_) => None,
-        };
-
-        let inet = iface.addresses.iter()
-            .filter(|addr| addr.kind == Ipv4)
-            .next()
-            .and_then(|addr| ipv4(addr));
-
-        let inet6 = iface.addresses.iter()
-            .filter(|addr| addr.kind == Ipv6)
-            .next()
-            .and_then(|addr| ipv6(addr));
-
-        let up = iface.is_up();
-        let running = iface.flags.contains(flags::IFF_RUNNING);
-
-        let status = if up && running {
-            Some(NetifStatus::Active)
-        } else {
-            Some(NetifStatus::Inactive)
-        };
-
-        ifaces.push(Netif {
-            interface: iface.name.to_string(),
-            mac: mac,
-            inet: inet,
-            inet6: inet6,
-            status: status,
-        });
-    }
-
-    Ok(ifaces)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -219,6 +142,6 @@ mod tests {
     #[test]
     fn test_net() {
         // XXX Not a proper test. Requires mocking.
-        assert!(net().is_ok());
+        assert!(!net().is_empty());
     }
 }

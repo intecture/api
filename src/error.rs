@@ -19,7 +19,6 @@ use std::ffi::CString;
 use zdaemon;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
-use interfaces;
 
 pub type Result<T> = result::Result<T, Error>;
 
@@ -97,8 +96,6 @@ pub enum Error {
     #[cfg(feature = "remote-run")]
     /// ZFileXfer error
     ZFileXfer(zfilexfer::Error),
-    /// Network interface error
-    Interfaces(interfaces::InterfacesError),
 }
 
 unsafe impl Send for Error {}
@@ -138,7 +135,6 @@ impl fmt::Display for Error {
             Error::ZDaemon(ref e) => write!(f, "ZDaemon error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::ZFileXfer(ref e) => write!(f, "ZFileXfer error: {}", e),
-            Error::Interfaces(ref e) => write!(f, "Interfaces error: {}", e),
         }
     }
 }
@@ -178,7 +174,6 @@ impl error::Error for Error {
             Error::ZDaemon(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
             Error::ZFileXfer(ref e) => e.description(),
-            Error::Interfaces(ref e) => e.description(),
         }
     }
 }
@@ -280,12 +275,6 @@ impl convert::From<zdaemon::Error> for Error {
 impl convert::From<zfilexfer::Error> for Error {
     fn from(err: zfilexfer::Error) -> Error {
         Error::ZFileXfer(err)
-    }
-}
-
-impl From<interfaces::InterfacesError> for Error {
-    fn from(err: interfaces::InterfacesError) -> Error {
-        Error::Interfaces(err)
     }
 }
 

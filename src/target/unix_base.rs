@@ -40,14 +40,6 @@ pub fn version() -> Result<(String, u32, u32)> {
     }
 }
 
-pub fn net() -> Result<Vec<Netif>> {
-    let if_pattern = r"(?m)^(?P<if>[a-z0-9]+): flags=(?P<content>.+\n(?:^\s+.+\n)+)";
-    let kv_pattern = r"^\s+(?P<key>[a-z0-9]+)(?:\s|:\s|=)(?P<value>.+)";
-    let ipv4_pattern = r"^(?P<ip>(?:[0-9]{1,3}\.){3}[0-9]{1,3}) netmask (?P<mask>0x[a-f0-9]{8})";
-    let ipv6_pattern = r"^(?P<ip>(?:[a-f0-9]{4}::(?:[a-f0-9]{1,4}:){3}[a-f0-9]{1,4})|::1)(?:%[a-z]+[0-9]+)? prefixlen (?P<prefix>[0-9]+)(?: scopeid (?P<scope>[a-z0-9]+))?\s*$";
-    default::parse_nettools_net(if_pattern, kv_pattern, ipv4_pattern, ipv6_pattern)
-}
-
 pub fn get_sysctl_item(item: &str) -> Result<String> {
     // XXX This result should be cached
     let sysctl_out = try!(process::Command::new("sysctl").arg("-a").output());
@@ -66,12 +58,6 @@ pub fn get_sysctl_item(item: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_net() {
-        // XXX Not a proper test. Requires mocking.
-        assert!(net().is_ok());
-    }
 
     #[test]
     fn test_get_sysctl_item_err() {

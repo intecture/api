@@ -12,6 +12,7 @@ use host::Host;
 use serde_json::Map;
 use serde_json::Value;
 use target::Target;
+#[cfg(feature = "local-run")]
 
 #[cfg(feature = "local-run")]
 #[derive(Debug, RustcEncodable)]
@@ -80,25 +81,15 @@ impl Telemetry {
         let mut net = Vec::new();
         for netif in self.net {
             let mut map: Map<String, Value> = Map::new();
-            map.insert("interface".into(), json!(netif.interface));
-            map.insert("mac".into(), json!(netif.mac));
-            if let Some(inet) = netif.inet {
-                let mut map1: Map<String, Value> = Map::new();
-                map1.insert("address".into(), json!(inet.address));
-                map1.insert("netmask".into(), json!(inet.netmask));
-                map.insert("inet".into(), json!(map1));
+            map.insert("name".into(), json!(netif.name));
+            map.insert("index".into(), json!(netif.index));
+            if let Some(mac) = netif.mac {
+                map.insert("mac".into(), json!(mac));
             }
-            if let Some(inet6) = netif.inet6 {
-                let mut map1: Map<String, Value> = Map::new();
-                map1.insert("address".into(), json!(inet6.address));
-                map1.insert("prefixlen".into(), json!(inet6.prefixlen));
-                map1.insert("scopeid".into(), json!(inet6.scopeid));
-                map.insert("inet6".into(), json!(map1));
+            if let Some(ips) = netif.ips {
+                map.insert("ips".into(), json!(ips));
             }
-            if let Some(status) = netif.status {
-                let status = if status == NetifStatus::Active { "Active".to_string() } else { "Inactive".to_string() };
-                map.insert("status".into(), json!(status));
-            }
+            map.insert("flags".into(), json!(netif.flags));
             net.push(map);
         }
 
@@ -159,33 +150,11 @@ pub struct FsMount {
 #[cfg(feature = "local-run")]
 #[derive(Debug, RustcEncodable)]
 pub struct Netif {
-    pub interface: String,
+    pub name: String,
+    pub index: u32,
     pub mac: Option<String>,
-    pub inet: Option<NetifIPv4>,
-    pub inet6: Option<NetifIPv6>,
-    pub status: Option<NetifStatus>,
-}
-
-#[cfg(feature = "local-run")]
-#[derive(Debug, RustcEncodable, PartialEq)]
-pub enum NetifStatus {
-    Active,
-    Inactive,
-}
-
-#[cfg(feature = "local-run")]
-#[derive(Debug, RustcEncodable)]
-pub struct NetifIPv4 {
-    pub address: String,
-    pub netmask: String,
-}
-
-#[cfg(feature = "local-run")]
-#[derive(Debug, RustcEncodable)]
-pub struct NetifIPv6 {
-    pub address: String,
-    pub prefixlen: u8,
-    pub scopeid: Option<String>,
+    pub ips: Option<Vec<String>>,
+    pub flags: u32,
 }
 
 #[cfg(feature = "local-run")]

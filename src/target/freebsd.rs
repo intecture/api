@@ -221,7 +221,7 @@ impl TelemetryTarget for Target {
             try!(default::fs()),
             &hostname,
             try!(try!(unix::get_sysctl_item("hw\\.physmem")).parse::<u64>()),
-            try!(unix::net()),
+            default::net(),
             Os::new(env::consts::ARCH, "unix", "freebsd", &version_str, version_maj, version_min, 0),
         );
 

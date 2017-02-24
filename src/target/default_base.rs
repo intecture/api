@@ -9,12 +9,13 @@
 use command::CommandResult;
 use error::{Error, Result};
 use host::Host;
-use host::telemetry::{FsMount, Netif, NetifIPv4, NetifIPv6, NetifStatus};
+use host::telemetry::{FsMount, Netif};
 use package::providers::{ProviderFactory, Providers};
 use regex::Regex;
 use std::{fs, process, str};
 use std::path::Path;
 use hostname::get_hostname;
+use pnet::datalink::interfaces;
 
 pub fn default_provider(host: &mut Host, providers: Vec<Providers>) -> Result<Providers> {
     for p in providers {
@@ -204,79 +205,16 @@ pub fn parse_fs(fields: Vec<FsFieldOrder>) -> Result<Vec<FsMount>> {
     Ok(fs)
 }
 
-pub fn parse_nettools_net(if_pattern: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pattern: &str) -> Result<Vec<Netif>> {
-    let ifconfig_out = try!(process::Command::new("ifconfig").output());
-    let ifconfig = try!(str::from_utf8(&ifconfig_out.stdout));
-
-    // Rust Regex doesn't support negative lookahead, so we are
-    // forced to pass this line by line.
-    // Match interfaces:
-    // (?m:^([a-z]+[0-9]+):((?:(?!^[a-z]+[0-9]+:).)+))
-    // Match options:
-    // (?m:^\s*([a-z0-9]+)(?:\s|:\s|=)(.+))
-    let if_regex = Regex::new(if_pattern).unwrap();
-
-    let mut net = vec!();
-
-    for cap in if_regex.captures_iter(ifconfig) {
-        net.push(try!(parse_nettools_netif(cap.name("if").unwrap().as_str(), cap.name("content").unwrap().as_str(), kv_pattern, ipv4_pattern, ipv6_pattern)));
-    }
-
-    Ok(net)
-}
-
-fn parse_nettools_netif(iface: &str, content: &str, kv_pattern: &str, ipv4_pattern: &str, ipv6_pattern: &str) -> Result<Netif> {
-    let mut netif = Netif {
-        interface: iface.to_string(),
-        mac: None,
-        inet: None,
-        inet6: None,
-        status: None,
-    };
-
-    let kv_regex = Regex::new(kv_pattern).unwrap();
-    let ipv4_regex = Regex::new(ipv4_pattern).unwrap();
-    let ipv6_regex = Regex::new(ipv6_pattern).unwrap();
-
-    let lines: Vec<&str> = content.lines().collect();
-    for line in lines {
-        if let Some(kv_capture) = kv_regex.captures(line) {
-            let value = kv_capture.name("value").unwrap().as_str().trim();
-
-            match kv_capture.name("key").unwrap().as_str() {
-                "ether" | "HWaddr" => netif.mac = Some(value.to_string()),
-                "inet" => {
-                    if let Some(ipv4_capture) = ipv4_regex.captures(value) {
-                        netif.inet = Some(NetifIPv4 {
-                            address: ipv4_capture.name("ip").unwrap().as_str().to_string(),
-                            netmask: ipv4_capture.name("mask").unwrap().as_str().to_string(),
-                        });
-                    }
-                },
-                "inet6" => {
-                    if let Some(ipv6_capture) = ipv6_regex.captures(value) {
-                        netif.inet6 = Some(NetifIPv6 {
-                            address: ipv6_capture.name("ip").unwrap().as_str().to_string(),
-                            prefixlen: try!(ipv6_capture.name("prefix").unwrap().as_str().parse::<u8>()),
-                            scopeid: if ipv6_capture.name("scope").is_some() {
-                                Some(ipv6_capture.name("scope").unwrap().as_str().to_string())
-                            } else {
-                                None
-                            },
-                        });
-                    }
-                },
-                "status" => netif.status = match value {
-                    "active" => Some(NetifStatus::Active),
-                    "inactive" => Some(NetifStatus::Inactive),
-                    _ => unreachable!(),
-                },
-                _ => (),
-            }
-        }
-    }
-
-    Ok(netif)
+pub fn net() -> Vec<Netif> {
+    interfaces().into_iter()
+        .map(|iface| Netif {
+            name: iface.name,
+            index: iface.index,
+            mac: iface.mac.map(|addr| addr.to_string()),
+            ips: iface.ips.map(|ips| ips.into_iter().map(|ip| ip.to_string()).collect()),
+            flags: iface.flags,
+        })
+    .collect()
 }
 
 #[cfg(test)]
