@@ -11,12 +11,10 @@ use czmq;
 use libc::c_char;
 use mustache;
 use regex;
-use rustc_serialize::json;
 use serde_json;
 use std::{convert, error, ffi, fmt, io, num, ptr, result, str, string};
 use std::any::Any;
 use std::ffi::CString;
-use zdaemon;
 #[cfg(feature = "remote-run")]
 use zfilexfer;
 
@@ -70,8 +68,6 @@ pub enum Error {
     InvalidFileDescriptor,
     /// IO error
     Io(io::Error),
-    /// JSON decoder error
-    JsonDecoder(json::DecoderError),
     /// Mustache template error
     Mustache(mustache::Error),
     /// FFI null error
@@ -92,8 +88,6 @@ pub enum Error {
     StrFromUtf8(str::Utf8Error),
     /// Cast String
     StringFromUtf8(string::FromUtf8Error),
-    // ZDaemon error
-    ZDaemon(zdaemon::Error),
     #[cfg(feature = "remote-run")]
     /// ZFileXfer error
     ZFileXfer(zfilexfer::Error),
@@ -122,7 +116,6 @@ impl fmt::Display for Error {
             Error::HostResponse => write!(f, "Invalid response from host"),
             Error::InvalidFileDescriptor => write!(f, "Invalid file descriptor"),
             Error::Io(ref e) => write!(f, "IO error: {}", e),
-            Error::JsonDecoder(ref e) => write!(f, "JSON decoder error: {}", e),
             Error::Mustache(ref e) => write!(f, "Mustache error: {:?}", e),
             Error::NulError(ref e) => write!(f, "Nul error: {}", e),
             Error::NullPtr(ref e) => write!(f, "Received null when we expected a {} pointer", e),
@@ -133,7 +126,6 @@ impl fmt::Display for Error {
             Error::SerdeJson(ref e) => write!(f, "Serde JSON error: {}", e),
             Error::StrFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to str error: {}", e),
             Error::StringFromUtf8(ref e) => write!(f, "Convert from UTF8 slice to String error: {}", e),
-            Error::ZDaemon(ref e) => write!(f, "ZDaemon error: {}", e),
             #[cfg(feature = "remote-run")]
             Error::ZFileXfer(ref e) => write!(f, "ZFileXfer error: {}", e),
         }
@@ -161,7 +153,6 @@ impl error::Error for Error {
             Error::HostResponse => "Invalid response from host",
             Error::InvalidFileDescriptor => "Invalid file descriptor",
             Error::Io(ref e) => e.description(),
-            Error::JsonDecoder(ref e) => e.description(),
             Error::Mustache(ref e) => e.description(),
             Error::NulError(ref e) => e.description(),
             Error::NullPtr(ref e) => e,
@@ -172,7 +163,6 @@ impl error::Error for Error {
             Error::SerdeJson(ref e) => e.description(),
             Error::StrFromUtf8(ref e) => e.description(),
             Error::StringFromUtf8(ref e) => e.description(),
-            Error::ZDaemon(ref e) => e.description(),
             #[cfg(feature = "remote-run")]
             Error::ZFileXfer(ref e) => e.description(),
         }
@@ -208,12 +198,6 @@ impl convert::From<ffi::NulError> for Error {
 impl convert::From<io::Error> for Error {
     fn from(err: io::Error) -> Error {
         Error::Io(err)
-    }
-}
-
-impl convert::From<json::DecoderError> for Error {
-    fn from(err: json::DecoderError) -> Error {
-        Error::JsonDecoder(err)
     }
 }
 
@@ -263,12 +247,6 @@ impl convert::From<num::ParseFloatError> for Error {
 impl convert::From<num::ParseIntError> for Error {
     fn from(err: num::ParseIntError) -> Error {
         Error::ParseInt(err)
-    }
-}
-
-impl convert::From<zdaemon::Error> for Error {
-    fn from(err: zdaemon::Error) -> Error {
-        Error::ZDaemon(err)
     }
 }
 

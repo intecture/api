@@ -8,7 +8,6 @@
 
 use error::{Error, Result};
 use file::FileOwner;
-use host::telemetry::Netif;
 use regex::Regex;
 use std::{process, str};
 use std::path::Path;

@@ -30,11 +30,12 @@ extern crate regex;
 extern crate rustc_serialize;
 extern crate serde;
 #[macro_use]
+extern crate serde_derive;
+#[macro_use]
 extern crate serde_json;
 #[cfg(test)]
 extern crate tempdir;
 extern crate tempfile;
-extern crate zdaemon;
 extern crate zfilexfer;
 extern crate hostname;
 extern crate pnet;
@@ -79,7 +80,14 @@ pub use template::{Template, ffi as template_ffi};
 pub use zfilexfer::FileOptions;
 
 #[cfg(feature = "remote-run")]
-use zdaemon::ConfigFile;
+use std::fs;
+#[cfg(feature = "remote-run")]
+use std::io::Read;
+#[cfg(feature = "remote-run")]
+#[cfg(test)]
+use std::io::Write;
+#[cfg(feature = "remote-run")]
+use std::path::Path;
 
 #[cfg(all(test, feature = "remote-run"))]
 lazy_static! {
@@ -88,6 +96,21 @@ lazy_static! {
 
 #[cfg(feature = "remote-run")]
 lazy_static! {
-    static ref PROJECT_CONFIG: project::ProjectConfig = project::ProjectConfig::load("project.json")
-                                                                               .expect("Could not load project.json");
+    static ref PROJECT_CONFIG: project::ProjectConfig = read_conf("project.json").expect("Could not load project.json");
+}
+
+#[cfg(feature = "remote-run")]
+fn read_conf<T: serde::Deserialize, P: AsRef<Path>>(path: P) -> error::Result<T> {
+    let mut fh = fs::File::open(&path)?;
+    let mut json = String::new();
+    fh.read_to_string(&mut json)?;
+    Ok(serde_json::from_str(&json)?)
+}
+
+#[cfg(all(test, feature = "remote-run"))]
+fn write_conf<C: serde::Serialize, P: AsRef<Path>>(conf: C, path: P) -> error::Result<()> {
+    let json = serde_json::to_string(&conf)?;
+    let mut fh = fs::File::create(&path)?;
+    fh.write_all(json.as_bytes())?;
+    Ok(())
 }

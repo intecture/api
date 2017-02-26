@@ -75,7 +75,7 @@ mod tests {
     use std::{fs, ptr, thread};
     use super::*;
     use tempdir::TempDir;
-    use zdaemon::ConfigFile;
+    use write_conf;
 
     #[test]
     fn test_new() {
@@ -96,7 +96,7 @@ mod tests {
         };
 
         buf.push("payload.json");
-        conf.save(&buf).unwrap();
+        write_conf(&conf, &buf).unwrap();
         buf.pop();
 
         let payload_artifact = CString::new(buf.to_str().unwrap()).unwrap();
@@ -120,7 +120,7 @@ mod tests {
 
         let mut buf = tempdir.path().to_owned();
         buf.push("payload.json");
-        conf.save(&buf).unwrap();
+        write_conf(&conf, &buf).unwrap();
         buf.pop();
 
         let payload_artifact = CString::new(buf.to_str().unwrap()).unwrap();
@@ -159,7 +159,7 @@ mod tests {
         };
 
         buf.push("payload.json");
-        conf.save(&buf).unwrap();
+        write_conf(&conf, &buf).unwrap();
         buf.pop();
 
         let payload_name = buf.into_os_string().into_string().unwrap();

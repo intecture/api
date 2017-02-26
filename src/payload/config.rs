@@ -7,14 +7,11 @@
 // modified, or distributed except according to those terms.
 
 use project::Language;
-use zdaemon::ConfigFile;
 
-#[derive(Debug, RustcDecodable, RustcEncodable)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     pub author: String,
     pub repository: String,
     pub language: Language,
     pub dependencies: Option<Vec<String>>,
 }
-
-impl ConfigFile for Config {}

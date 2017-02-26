@@ -6,10 +6,8 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use zdaemon::ConfigFile;
-
 #[repr(C)]
-#[derive(Clone, Debug, PartialEq, RustcDecodable, RustcEncodable)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 /// The payload's programming language.
 pub enum Language {
     C,
@@ -17,12 +15,10 @@ pub enum Language {
     Rust,
 }
 
-#[derive(Debug, RustcDecodable, RustcEncodable)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ProjectConfig {
     pub language: Language,
     pub auth_server: String,
     pub auth_api_port: u32,
     pub auth_update_port: u32,
 }
-
-impl ConfigFile for ProjectConfig {}

@@ -11,7 +11,7 @@ use project::{Language, ProjectConfig};
 use std::env::set_current_dir;
 use std::thread::{JoinHandle, spawn};
 use tempdir::TempDir;
-use zdaemon::ConfigFile;
+use write_conf;
 
 pub struct MockEnv {
     _auth_handler: JoinHandle<()>,
@@ -44,7 +44,7 @@ impl MockEnv {
             auth_api_port: 0,
             auth_update_port: port as u32,
         };
-        config.save("project.json").unwrap();
+        write_conf(&config, "project.json").unwrap();
 
         let handle = spawn(move|| MockEnv::auth_handler(sock));
 

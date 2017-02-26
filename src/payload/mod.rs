@@ -15,13 +15,13 @@ use czmq::{ZMsg, ZPoller, ZSock, SocketType, ZSys};
 use error::{Error, Result};
 use host::{Host,HostSendRecv};
 use project::Language;
+use read_conf;
 use self::config::Config;
 use serde_json;
 use std::env::{current_dir, set_current_dir};
 use std::process;
 use std::path::PathBuf;
 use std::thread;
-use zdaemon::ConfigFile;
 
 /// Payloads are self-contained projects that encapsulate a specific
 /// feature or system function.
@@ -84,7 +84,7 @@ impl Payload {
         buf.push(payload);
 
         buf.push("payload.json");
-        let config = try!(Config::load(&buf));
+        let config: Config = read_conf(&buf)?;
         buf.pop();
 
         // Check dependencies
@@ -350,7 +350,7 @@ mod tests {
     use super::*;
     use super::config::Config;
     use tempdir::TempDir;
-    use zdaemon::ConfigFile;
+    use write_conf;
 
     #[test]
     fn test_new_nodeps() {
@@ -369,7 +369,7 @@ mod tests {
         };
 
         buf.push("payload.json");
-        conf.save(&buf).unwrap();
+        write_conf(&conf, &buf).unwrap();
         buf.pop();
 
         assert!(Payload::new(buf.to_str().unwrap()).is_err());
@@ -393,7 +393,7 @@ mod tests {
         };
 
         buf.push("payload.json");
-        conf.save(&buf).unwrap();
+        write_conf(&conf, &buf).unwrap();
         buf.pop();
 
         let payload = Payload::new(buf.to_str().unwrap()).unwrap();
@@ -417,7 +417,7 @@ mod tests {
         };
 
         buf.push("payload.json");
-        conf.save(&buf).unwrap();
+        write_conf(&conf, &buf).unwrap();
         buf.pop();
 
         let payload_name = buf.into_os_string().into_string().unwrap();
