@@ -15,7 +15,7 @@ use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 use package::PackageTarget;
 use package::providers::Providers;
 use regex::Regex;
-use serde_json::Value;
+use serde_json;
 use service::ServiceTarget;
 use std::env;
 use std::fs::{File, OpenOptions};
@@ -206,7 +206,7 @@ impl ServiceTarget for Target {
 
 impl TelemetryTarget for Target {
     #[allow(unused_variables)]
-    fn telemetry_init(host: &mut Host) -> Result<Value> {
+    fn telemetry_init(host: &mut Host) -> Result<serde_json::Value> {
         let cpu_vendor = try!(telemetry_cpu_vendor());
         let cpu_brand = try!(unix::get_sysctl_item("hw\\.model"));
         let hostname = try!(default::hostname());
@@ -225,7 +225,7 @@ impl TelemetryTarget for Target {
             Os::new(env::consts::ARCH, "unix", "freebsd", &version_str, version_maj, version_min, 0),
         );
 
-        Ok(telemetry.into_value())
+        Ok(serde_json::to_value(telemetry)?)
     }
 }
 

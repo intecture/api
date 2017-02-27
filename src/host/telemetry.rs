@@ -15,7 +15,7 @@ use target::Target;
 #[cfg(feature = "local-run")]
 
 #[cfg(feature = "local-run")]
-#[derive(Debug, RustcEncodable)]
+#[derive(Debug, Serialize)]
 pub struct Telemetry {
     pub cpu: Cpu,
     pub fs: Vec<FsMount>,
@@ -55,62 +55,6 @@ impl Telemetry {
     pub fn init(host: &mut Host) -> Result<Value> {
         Ok(try!(Target::telemetry_init(host)))
     }
-
-    // XXX While Macros 1.1 are unstable, we can't use Serde to
-    // convert Telemetry => Value, so we have to roll our own.
-    // (https://github.com/rust-lang/rust/issues/35900)
-    #[cfg(feature = "local-run")]
-    pub fn into_value(self) -> Value {
-        let mut cpu: Map<String, Value> = Map::new();
-        cpu.insert("vendor".into(), json!(self.cpu.vendor));
-        cpu.insert("brand_string".into(), json!(self.cpu.brand_string));
-        cpu.insert("cores".into(), json!(self.cpu.cores));
-
-        let mut fs = Vec::new();
-        for mount in self.fs {
-            let mut map: Map<String, Value> = Map::new();
-            map.insert("filesystem".into(), json!(mount.filesystem));
-            map.insert("mountpoint".into(), json!(mount.mountpoint));
-            map.insert("size".into(), json!(mount.size));
-            map.insert("used".into(), json!(mount.used));
-            map.insert("available".into(), json!(mount.available));
-            map.insert("capacity".into(), json!(mount.capacity));
-            fs.push(map);
-        }
-
-        let mut net = Vec::new();
-        for netif in self.net {
-            let mut map: Map<String, Value> = Map::new();
-            map.insert("name".into(), json!(netif.name));
-            map.insert("index".into(), json!(netif.index));
-            if let Some(mac) = netif.mac {
-                map.insert("mac".into(), json!(mac));
-            }
-            if let Some(ips) = netif.ips {
-                map.insert("ips".into(), json!(ips));
-            }
-            map.insert("flags".into(), json!(netif.flags));
-            net.push(map);
-        }
-
-        let mut os: Map<String, Value> = Map::new();
-        os.insert("arch".into(), json!(self.os.arch));
-        os.insert("family".into(), json!(self.os.family));
-        os.insert("platform".into(), json!(self.os.platform));
-        os.insert("version_str".into(), json!(self.os.version_str));
-        os.insert("version_maj".into(), json!(self.os.version_maj));
-        os.insert("version_min".into(), json!(self.os.version_min));
-        os.insert("version_patch".into(), json!(self.os.version_patch));
-
-        let mut telemetry: Map<String, Value> = Map::new();
-        telemetry.insert("cpu".into(), json!(cpu));
-        telemetry.insert("fs".into(), json!(fs));
-        telemetry.insert("hostname".into(), json!(self.hostname));
-        telemetry.insert("memory".into(), json!(self.memory));
-        telemetry.insert("net".into(), json!(net));
-        telemetry.insert("os".into(), json!(os));
-        json!(telemetry)
-    }
 }
 
 pub trait TelemetryTarget {
@@ -118,7 +62,7 @@ pub trait TelemetryTarget {
 }
 
 #[cfg(feature = "local-run")]
-#[derive(Debug, RustcEncodable)]
+#[derive(Debug, Serialize)]
 pub struct Cpu {
     pub vendor: String,
     pub brand_string: String,
@@ -137,7 +81,7 @@ impl Cpu {
 }
 
 #[cfg(feature = "local-run")]
-#[derive(Debug, RustcEncodable)]
+#[derive(Debug, Serialize)]
 pub struct FsMount {
     pub filesystem: String,
     pub mountpoint: String,
@@ -148,7 +92,7 @@ pub struct FsMount {
 }
 
 #[cfg(feature = "local-run")]
-#[derive(Debug, RustcEncodable)]
+#[derive(Debug, Serialize)]
 pub struct Netif {
     pub name: String,
     pub index: u32,
@@ -158,7 +102,7 @@ pub struct Netif {
 }
 
 #[cfg(feature = "local-run")]
-#[derive(Debug, RustcEncodable)]
+#[derive(Debug, Serialize)]
 pub struct Os {
     pub arch: String,
     pub family: String,

@@ -13,7 +13,7 @@ use file::{FileTarget, FileOwner};
 use host::Host;
 use package::PackageTarget;
 use package::providers::Providers;
-use serde_json::Value;
+use serde_json;
 use service::ServiceTarget;
 use std::{env, process, str};
 use std::path::Path;
@@ -162,7 +162,7 @@ impl ServiceTarget for NixOsTarget {
 
 impl TelemetryTarget for NixOsTarget {
     #[allow(unused_variables)]
-    fn telemetry_init(host: &mut Host) -> Result<Value> {
+    fn telemetry_init(host: &mut Host) -> Result<serde_json::Value> {
         let cpu_vendor = try!(linux::cpu_vendor());
         let cpu_brand = try!(linux::cpu_brand_string());
         let hostname = try!(default::hostname());
@@ -189,7 +189,7 @@ impl TelemetryTarget for NixOsTarget {
             ),
         );
 
-        Ok(telemetry.into_value())
+        Ok(serde_json::to_value(telemetry)?)
     }
 }
 

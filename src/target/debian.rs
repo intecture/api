@@ -14,7 +14,7 @@ use host::Host;
 use host::telemetry::{Cpu, Os, Telemetry, TelemetryTarget};
 use package::PackageTarget;
 use package::providers::Providers;
-use serde_json::Value;
+use serde_json;
 use service::ServiceTarget;
 use std::{env, str};
 use std::path::Path;
@@ -167,7 +167,7 @@ impl ServiceTarget for DebianTarget {
 
 impl TelemetryTarget for DebianTarget {
     #[allow(unused_variables)]
-    fn telemetry_init(host: &mut Host) -> Result<Value> {
+    fn telemetry_init(host: &mut Host) -> Result<serde_json::Value> {
         let cpu_vendor = try!(linux::cpu_vendor());
         let cpu_brand = try!(linux::cpu_brand_string());
         let hostname = try!(default::hostname());
@@ -186,7 +186,7 @@ impl TelemetryTarget for DebianTarget {
             Os::new(env::consts::ARCH, "debian", "debian", &version_str, version_maj, version_min, 0), // No known patch version
         );
 
-        Ok(telemetry.into_value())
+        Ok(serde_json::to_value(telemetry)?)
     }
 }
 
