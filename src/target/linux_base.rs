@@ -138,10 +138,4 @@ mod tests {
     fn test_get_cpu_item_fail() {
         assert!(get_cpu_item("moocow").is_err());
     }
-
-    #[test]
-    fn test_net() {
-        // XXX Not a proper test. Requires mocking.
-        assert!(!net().is_empty());
-    }
 }
