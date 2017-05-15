@@ -26,8 +26,9 @@
 
 /**
  * @brief Retrieve the last error message generated and reset the
- * error global to null. It will return null if no error message was
- * recorded.
+ * error global to null.
+ * @return The last error message string, or null if no error message
+ * was recorded.
  */
 extern char *geterr();
 
