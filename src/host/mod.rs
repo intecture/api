@@ -123,16 +123,20 @@ impl Host {
         let mut api_sock = ZSock::new(SocketType::REQ);
         user_cert.apply(&mut api_sock);
         api_sock.set_curve_serverkey(server_cert.public_txt());
-        api_sock.set_sndtimeo(Some(1800000));
-        api_sock.set_rcvtimeo(Some(1800000));
+        api_sock.set_sndtimeo(Some(10000)); // 10 seconds
+        api_sock.set_rcvtimeo(Some(10000));
         try!(api_sock.connect(&format!("tcp://{}:{}", hostname, api_port)));
+        api_sock.set_sndtimeo(Some(1800000)); // 30 minutes
+        api_sock.set_rcvtimeo(Some(1800000));
 
         let mut file_sock = ZSock::new(SocketType::DEALER);
         user_cert.apply(&mut file_sock);
         file_sock.set_curve_serverkey(server_cert.public_txt());
-        file_sock.set_sndtimeo(Some(1800000));
-        file_sock.set_rcvtimeo(Some(1800000));
+        file_sock.set_sndtimeo(Some(10000)); // 10 seconds
+        file_sock.set_rcvtimeo(Some(10000));
         try!(file_sock.connect(&format!("tcp://{}:{}", hostname, file_port)));
+        file_sock.set_sndtimeo(Some(1800000)); // 30 minutes
+        file_sock.set_rcvtimeo(Some(1800000));
 
         let mut me = Host {
             hostname: hostname.into(),
