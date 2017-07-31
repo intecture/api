@@ -2,6 +2,10 @@ sudo: required
 dist: trusty
 language: rust
 
+php:
+  - '5.6'
+  - '7.0'
+
 rust:
   - stable
   - beta
@@ -19,7 +23,6 @@ addons:
       - libdw-dev
       - binutils-dev
       - libsodium-dev
-      - php5
 
 before_script:
   - |
