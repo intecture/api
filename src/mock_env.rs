@@ -43,6 +43,7 @@ impl MockEnv {
             auth_server: "127.0.0.1".into(),
             auth_api_port: 0,
             auth_update_port: port as u32,
+            build_server: None,
         };
         write_conf(&config, "project.json").unwrap();
 
