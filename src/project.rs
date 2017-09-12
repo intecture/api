@@ -21,4 +21,5 @@ pub struct ProjectConfig {
     pub auth_server: String,
     pub auth_api_port: u32,
     pub auth_update_port: u32,
+    pub build_server: Option<String>,
 }
