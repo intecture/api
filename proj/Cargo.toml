@@ -1,0 +1,20 @@
+[package]
+name = "intecture_proj"
+version = "0.0.1"
+authors = [ "Pete Hayes <pete@intecture.io>" ]
+license = "MPL-2.0"
+description = "Project helper functions"
+homepage = "https://intecture.io"
+repository = "https://github.com/intecture/api"
+documentation = "https://intecture.io/rust/inapi/"
+keywords = ["intecture", "project", "proj"]
+categories = ["servers"]
+readme = "README.md"
+include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
+
+[badges]
+travis-ci = { repository = "intecture/api" }
+
+[dependencies]
+error-chain = "0.11"
+intecture_api = { version = "0.4.0", path = "../core" }
