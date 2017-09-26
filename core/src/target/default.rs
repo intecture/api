@@ -27,16 +27,16 @@ pub enum FsFieldOrder {
     Blank,
 }
 
-// pub fn fs() -> Result<Vec<FsMount>> {
-//     self::parse_fs(&[
-//         self::FsFieldOrder::Filesystem,
-//         self::FsFieldOrder::Size,
-//         self::FsFieldOrder::Used,
-//         self::FsFieldOrder::Available,
-//         self::FsFieldOrder::Capacity,
-//         self::FsFieldOrder::Mount,
-//     ])
-// }
+pub fn fs() -> Result<Vec<FsMount>> {
+    self::parse_fs(&[
+        self::FsFieldOrder::Filesystem,
+        self::FsFieldOrder::Size,
+        self::FsFieldOrder::Used,
+        self::FsFieldOrder::Available,
+        self::FsFieldOrder::Capacity,
+        self::FsFieldOrder::Mount,
+    ])
+}
 
 pub fn parse_fs(fields: &[FsFieldOrder]) -> Result<Vec<FsMount>> {
     let mount_out = process::Command::new("df")

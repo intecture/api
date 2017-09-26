@@ -30,8 +30,18 @@ error_chain! {
         }
 
         SystemCommandOutput(c: &'static str) {
-            description("Could not understand output of system command (not UTF-8 compliant)"),
-            display("Could not understand output of system command '{}' (not UTF-8 compliant)", c),
+            description("Could not understand output of system command"),
+            display("Could not understand output of system command '{}'", c),
+        }
+
+        SystemFile(c: &'static str) {
+            description("Could not open system file"),
+            display("Could not open system file '{}'", c),
+        }
+
+        SystemFileOutput(c: &'static str) {
+            description("Could not understand output of system file"),
+            display("Could not understand output of system file '{}'", c),
         }
     }
 }
