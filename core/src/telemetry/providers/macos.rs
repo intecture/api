@@ -36,7 +36,7 @@ impl <'de>ExecutableProvider<'de> for RemoteProvider {
 impl TelemetryProvider for Macos {
     fn available(host: &Host) -> bool {
         if host.is_local() {
-            cfg!(macos)
+            cfg!(target_os="macos")
         } else {
             unimplemented!();
             // let r = RemoteProvider::Available;
@@ -110,11 +110,11 @@ fn version() -> Result<(String, u32, u32, u32)> {
                           .to_owned();
     let (maj, min, patch) = {
         let mut parts = version_str.split('.');
-        let errstr = format!("Expected OS version format `u32.u32.u32`, got: '{}'", version_str);
+        let errstr = format!("Expected OS version format `u32.u32[.u32]`, got: '{}'", version_str);
         (
             parts.next().ok_or(&*errstr)?.parse().chain_err(|| ErrorKind::SystemCommandOutput("sw_vers"))?,
             parts.next().ok_or(&*errstr)?.parse().chain_err(|| ErrorKind::SystemCommandOutput("sw_vers"))?,
-            parts.next().ok_or(&*errstr)?.parse().chain_err(|| ErrorKind::SystemCommandOutput("sw_vers"))?
+            parts.next().unwrap_or("0").parse().chain_err(|| ErrorKind::SystemCommandOutput("sw_vers"))?
         )
     };
     Ok((version_str, maj, min, patch))
