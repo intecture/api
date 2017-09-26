@@ -9,14 +9,14 @@
 mod providers;
 mod serializable;
 
-pub use self::providers::Macos;
+pub use self::providers::{Centos, Freebsd, Macos};
 
 use erased_serde::Serialize;
 use errors::*;
 use ExecutableProvider;
 use host::Host;
 use pnet::datalink::NetworkInterface;
-use self::providers::MacosRemoteProvider;
+use self::providers::{CentosRemoteProvider, FreebsdRemoteProvider, MacosRemoteProvider};
 
 pub trait TelemetryProvider {
     fn available(&Host) -> bool where Self: Sized;
@@ -25,12 +25,16 @@ pub trait TelemetryProvider {
 
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
-    Macos(MacosRemoteProvider)
+    Centos(CentosRemoteProvider),
+    Freebsd(FreebsdRemoteProvider),
+    Macos(MacosRemoteProvider),
 }
 
 impl <'de>ExecutableProvider<'de> for RemoteProvider {
     fn exec(&self, host: &Host) -> Result<Box<Serialize>> {
         match *self {
+            RemoteProvider::Centos(ref p) => p.exec(host),
+            RemoteProvider::Freebsd(ref p) => p.exec(host),
             RemoteProvider::Macos(ref p) => p.exec(host)
         }
     }
@@ -66,16 +70,40 @@ pub struct FsMount {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Os {
     pub arch: String,
-    pub family: String,
-    pub platform: String,
+    pub family: OsFamily,
+    pub platform: OsPlatform,
     pub version_str: String,
     pub version_maj: u32,
     pub version_min: u32,
     pub version_patch: u32,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub enum OsFamily {
+    Bsd,
+    Darwin,
+    Linux,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum OsPlatform {
+    Centos,
+    Debian,
+    Fedora,
+    Freebsd,
+    Macos,
+    Nixos,
+    Ubuntu,
+}
+
 pub fn load(host: &Host) -> Result<Telemetry> {
-    if Macos::available(host) {
+    if Centos::available(host) {
+        Centos::load(host)
+    }
+    else if Freebsd::available(host) {
+        Freebsd::load(host)
+    }
+    else if Macos::available(host) {
         Macos::load(host)
     } else {
         Err(ErrorKind::ProviderUnavailable("Telemetry").into())

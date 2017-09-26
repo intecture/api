@@ -6,9 +6,12 @@
 
 error_chain! {
     errors {
-        InvalidSysctlKey(k: String) {
-            description("Provided key not found in sysctl output"),
-            display("Provided key '{}' not found in sysctl output", k),
+        InvalidTelemetryKey {
+            cmd: &'static str,
+            key: String,
+        } {
+            description("Provided key not found in output"),
+            display("Provided key '{}' not found in {} output", key, cmd),
         }
 
         ProviderUnavailable(p: &'static str) {
@@ -18,7 +21,7 @@ error_chain! {
 
         RemoteProvider {
             endpoint: &'static str,
-            func: &'static str
+            func: &'static str,
         } {
             description("Could not run provider function on host"),
             display("Could not run {}::{}() on host", endpoint, func),

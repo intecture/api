@@ -29,7 +29,7 @@ pub fn version() -> Result<(String, u32, u32)> {
                                   .output()
                                   .chain_err(|| ErrorKind::SystemCommand("uname"))?;
     let version_str = str::from_utf8(&output.stdout).unwrap().trim();
-    let regex = Regex::new(r"([0-9]+)\.([0-9]+)-[A-Z]+").unwrap();
+    let regex = Regex::new(r"([0-9]+)\.([0-9]+)-[A-Z]+").chain_err(|| "could not create new Regex instance")?;
     let errstr = format!("Expected OS version format `u32.u32`, got: '{}'", version_str);
     if let Some(cap) = regex.captures(version_str) {
         let version_maj = cap.get(1).unwrap().as_str().parse().chain_err(|| ErrorKind::SystemCommandOutput("uname"))?;
@@ -54,6 +54,6 @@ pub fn get_sysctl_item(item: &str) -> Result<String> {
     if let Some(cap) = regex.captures(&sysctl) {
         Ok(cap.get(1).unwrap().as_str().into())
     } else {
-        Err(ErrorKind::InvalidSysctlKey(item.into()).into())
+        Err(ErrorKind::InvalidTelemetryKey { cmd: "sysctl", key: item.into() }.into())
     }
 }

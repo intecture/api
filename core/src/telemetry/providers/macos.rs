@@ -11,7 +11,7 @@ use host::*;
 use pnet::datalink::interfaces;
 use std::{env, process, str};
 use target::{default, unix};
-use telemetry::{Cpu, Os, Telemetry, TelemetryProvider, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, TelemetryProvider, serializable};
 
 pub struct Macos;
 
@@ -81,8 +81,8 @@ impl TelemetryProvider for Macos {
                 net: interfaces(),
                 os: Os {
                     arch: env::consts::ARCH.into(),
-                    family: "darwin".into(),
-                    platform: "macos".into(),
+                    family: OsFamily::Darwin,
+                    platform: OsPlatform::Macos,
                     version_str: version_str,
                     version_maj: version_maj,
                     version_min: version_min,
