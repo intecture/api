@@ -48,10 +48,10 @@ impl TelemetryProvider for Macos {
 
     fn load(host: &Host) -> Result<Telemetry> {
         if host.is_local() {
-            let cpu_vendor = try!(unix::get_sysctl_item("machdep\\.cpu\\.vendor"));
-            let cpu_brand = try!(unix::get_sysctl_item("machdep\\.cpu\\.brand_string"));
-            let hostname = try!(default::hostname());
-            let (version_str, version_maj, version_min, version_patch) = try!(version());
+            let cpu_vendor = unix::get_sysctl_item("machdep\\.cpu\\.vendor")?;
+            let cpu_brand = unix::get_sysctl_item("machdep\\.cpu\\.brand_string")?;
+            let hostname = default::hostname()?;
+            let (version_str, version_maj, version_min, version_patch) = version()?;
 
             Ok(Telemetry {
                 cpu: Cpu {
@@ -62,7 +62,7 @@ impl TelemetryProvider for Macos {
                                 .parse::<u32>()
                                 .chain_err(|| "could not resolve telemetry data")?
                 },
-                fs: try!(default::parse_fs(&[
+                fs: default::parse_fs(&[
                     default::FsFieldOrder::Filesystem,
                     default::FsFieldOrder::Size,
                     default::FsFieldOrder::Used,
@@ -72,7 +72,7 @@ impl TelemetryProvider for Macos {
                     default::FsFieldOrder::Blank,
                     default::FsFieldOrder::Blank,
                     default::FsFieldOrder::Mount,
-                ])),
+                ])?,
                 hostname: hostname,
                 memory: unix::get_sysctl_item("hw\\.memsize")
                              .chain_err(|| "could not resolve telemetry data")?
