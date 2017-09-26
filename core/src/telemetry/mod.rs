@@ -9,14 +9,14 @@
 mod providers;
 mod serializable;
 
-pub use self::providers::{Centos, Freebsd, Macos};
+pub use self::providers::{Centos, Debian, Freebsd, Macos};
 
 use erased_serde::Serialize;
 use errors::*;
 use ExecutableProvider;
 use host::Host;
 use pnet::datalink::NetworkInterface;
-use self::providers::{CentosRemoteProvider, FreebsdRemoteProvider, MacosRemoteProvider};
+use self::providers::{CentosRemoteProvider, DebianRemoteProvider, FreebsdRemoteProvider, MacosRemoteProvider};
 
 pub trait TelemetryProvider {
     fn available(&Host) -> bool where Self: Sized;
@@ -26,6 +26,7 @@ pub trait TelemetryProvider {
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
     Centos(CentosRemoteProvider),
+    Debian(DebianRemoteProvider),
     Freebsd(FreebsdRemoteProvider),
     Macos(MacosRemoteProvider),
 }
@@ -34,6 +35,7 @@ impl <'de>ExecutableProvider<'de> for RemoteProvider {
     fn exec(&self, host: &Host) -> Result<Box<Serialize>> {
         match *self {
             RemoteProvider::Centos(ref p) => p.exec(host),
+            RemoteProvider::Debian(ref p) => p.exec(host),
             RemoteProvider::Freebsd(ref p) => p.exec(host),
             RemoteProvider::Macos(ref p) => p.exec(host)
         }
@@ -99,6 +101,9 @@ pub enum OsPlatform {
 pub fn load(host: &Host) -> Result<Telemetry> {
     if Centos::available(host) {
         Centos::load(host)
+    }
+    else if Debian::available(host) {
+        Debian::load(host)
     }
     else if Freebsd::available(host) {
         Freebsd::load(host)
