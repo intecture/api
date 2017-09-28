@@ -32,12 +32,12 @@ pub enum RemoteProvider {
 }
 
 impl <'de>ExecutableProvider<'de> for RemoteProvider {
-    fn exec(&self, host: &Host) -> Result<Box<Serialize>> {
-        match *self {
-            RemoteProvider::Centos(ref p) => p.exec(host),
-            RemoteProvider::Debian(ref p) => p.exec(host),
-            RemoteProvider::Freebsd(ref p) => p.exec(host),
-            RemoteProvider::Macos(ref p) => p.exec(host)
+    fn exec(self, host: &Host) -> Result<Box<Serialize>> {
+        match self {
+            RemoteProvider::Centos(p) => p.exec(host),
+            RemoteProvider::Debian(p) => p.exec(host),
+            RemoteProvider::Freebsd(p) => p.exec(host),
+            RemoteProvider::Macos(p) => p.exec(host)
         }
     }
 }

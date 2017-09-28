@@ -30,9 +30,9 @@ use errors::*;
 use erased_serde::Serialize;
 
 pub trait ExecutableProvider<'de>: serde::Serialize + serde::Deserialize<'de> {
-    // It'd be nice to return Result<Serialize> here someday...
+    // @todo It'd be nice to return Result<Serialize> here someday...
     // See https://github.com/rust-lang/rfcs/issues/518.
-    fn exec(&self, &host::Host) -> Result<Box<Serialize>>;
+    fn exec(self, &host::Host) -> Result<Box<Serialize>>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -41,9 +41,9 @@ pub enum RemoteProvider {
 }
 
 impl <'de>ExecutableProvider<'de> for RemoteProvider {
-    fn exec(&self, host: &host::Host) -> Result<Box<Serialize>> {
-        match *self {
-            RemoteProvider::Telemetry(ref p) => p.exec(host)
+    fn exec(self, host: &host::Host) -> Result<Box<Serialize>> {
+        match self {
+            RemoteProvider::Telemetry(p) => p.exec(host)
         }
     }
 }

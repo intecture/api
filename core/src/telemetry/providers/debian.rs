@@ -22,8 +22,8 @@ pub enum RemoteProvider {
 }
 
 impl <'de>ExecutableProvider<'de> for RemoteProvider {
-    fn exec(&self, host: &Host) -> Result<Box<Serialize>> {
-        match *self {
+    fn exec(self, host: &Host) -> Result<Box<Serialize>> {
+        match self {
             RemoteProvider::Available => Ok(Box::new(Debian::available(host))),
             RemoteProvider::Load => {
                 let t: serializable::Telemetry = Debian::load(host)?.into();

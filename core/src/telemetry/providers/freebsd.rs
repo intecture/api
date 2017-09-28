@@ -24,8 +24,8 @@ pub enum RemoteProvider {
 }
 
 impl <'de>ExecutableProvider<'de> for RemoteProvider {
-    fn exec(&self, host: &Host) -> Result<Box<Serialize>> {
-        match *self {
+    fn exec(self, host: &Host) -> Result<Box<Serialize>> {
+        match self {
             RemoteProvider::Available => Ok(Box::new(Freebsd::available(host))),
             RemoteProvider::Load => {
                 let t: serializable::Telemetry = Freebsd::load(host)?.into();
