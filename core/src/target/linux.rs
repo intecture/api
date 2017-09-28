@@ -9,6 +9,47 @@ use regex::Regex;
 use std::{fs, process, str};
 use std::io::Read;
 
+#[derive(Eq, PartialEq)]
+pub enum LinuxFlavour {
+    Centos,
+    Debian,
+    Fedora,
+    Redhat,
+    Ubuntu,
+    NixOs,
+}
+
+pub fn fingerprint_os() -> Option<LinuxFlavour> {
+    // @todo Cache this result
+
+    // CentOS
+    if let Ok(_) = fs::metadata("/etc/centos-release") {
+        Some(LinuxFlavour::Centos)
+    }
+    // Ubuntu
+    else if let Ok(_) = fs::metadata("/etc/lsb-release") {
+        Some(LinuxFlavour::Ubuntu)
+    }
+    // Debian
+    else if let Ok(_) = fs::metadata("/etc/debian_version") {
+        Some(LinuxFlavour::Debian)
+    }
+    // Fedora
+    else if let Ok(_) = fs::metadata("/etc/fedora-release") {
+        Some(LinuxFlavour::Fedora)
+    }
+    // RedHat
+    else if let Ok(_) = fs::metadata("/etc/redhat-release") {
+        Some(LinuxFlavour::Redhat)
+    }
+    // NixOS
+    else if let Ok(_) = fs::metadata("/etc/nixos/configuration.nix") {
+        Some(LinuxFlavour::NixOs)
+    } else {
+        None
+    }
+}
+
 pub fn cpu_vendor() -> Result<String> {
     get_cpu_item("vendor_id")
 }

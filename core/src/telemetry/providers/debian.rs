@@ -11,6 +11,7 @@ use host::*;
 use pnet::datalink::interfaces;
 use std::{env, process, str};
 use target::{default, linux};
+use target::linux::LinuxFlavour;
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, TelemetryProvider, serializable};
 
 pub struct Debian;
@@ -36,7 +37,7 @@ impl <'de>ExecutableProvider<'de> for RemoteProvider {
 impl TelemetryProvider for Debian {
     fn available(host: &Host) -> bool {
         if host.is_local() {
-            cfg!(target_os="linux")
+            cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Debian)
         } else {
             unimplemented!();
             // let r = RemoteProvider::Available;
