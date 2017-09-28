@@ -18,8 +18,8 @@ use self::providers::NixRemoteProvider;
 
 #[derive(Serialize, Deserialize)]
 pub struct Command {
-    shell: String,
-    cmd: String,
+    shell: Vec<String>,
+    cmd: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -32,7 +32,7 @@ pub struct CommandResult {
 
 pub trait CommandProvider<'a> {
     fn available(&Host) -> bool where Self: Sized;
-    fn try_new<S: Into<String>>(&'a Host, S, Option<&str>) -> Option<Self> where Self: Sized;
+    fn try_new(&'a Host, &[&str], Option<&[&str]>) -> Option<Self> where Self: Sized;
     fn exec(&self) -> Result<CommandResult>;
 }
 
@@ -49,7 +49,7 @@ impl <'de>ExecutableProvider<'de> for RemoteProvider {
     }
 }
 
-pub fn factory<'a, S: Into<String>>(host: &'a Host, cmd: S, shell: Option<&str>) -> Result<Box<CommandProvider<'a> + 'a>> {
+pub fn factory<'a>(host: &'a Host, cmd: &[&str], shell: Option<&[&str]>) -> Result<Box<CommandProvider<'a> + 'a>> {
     if let Some(p) = Nix::try_new(host, cmd, shell) {
         Ok(Box::new(p))
     } else {

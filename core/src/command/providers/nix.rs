@@ -11,6 +11,8 @@ use ExecutableProvider;
 use host::*;
 use std::process;
 
+const DEFAULT_SHELL: [&'static str; 2] = ["/bin/sh", "-c"];
+
 pub struct Nix<'a> {
     host: &'a Host,
     inner: Command
@@ -46,11 +48,11 @@ impl <'a>CommandProvider<'a> for Nix<'a> {
         }
     }
 
-    fn try_new<S: Into<String>>(host: &'a Host, cmd: S, shell: Option<&str>) -> Option<Nix<'a>> {
+    fn try_new(host: &'a Host, cmd: &[&str], shell: Option<&[&str]>) -> Option<Nix<'a>> {
         if Self::available(host) {
             let inner = Command {
-                shell: shell.unwrap_or("/bin/sh").into(),
-                cmd: cmd.into(),
+                shell: shell.unwrap_or(&DEFAULT_SHELL).to_owned().iter().map(|s| s.to_string()).collect(),
+                cmd: cmd.to_owned().iter().map(|s| s.to_string()).collect(),
             };
             Some(Nix { host, inner })
         } else {
@@ -60,8 +62,11 @@ impl <'a>CommandProvider<'a> for Nix<'a> {
 
     fn exec(&self) -> Result<CommandResult> {
         if self.host.is_local() {
-            let out = process::Command::new(&self.inner.shell)
-                                       .arg(&self.inner.cmd)
+            let (shell, shell_args) = self.inner.shell.split_first()
+                                                      .ok_or("Invalid shell provided")?;
+            let out = process::Command::new(shell)
+                                       .args(shell_args)
+                                       .args(&self.inner.cmd)
                                        .output()
                                        .chain_err(|| "Command execution failed")?;
             Ok(CommandResult {
