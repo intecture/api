@@ -8,83 +8,51 @@
 
 mod providers;
 
-pub use self::providers::Macos;
+pub use self::providers::Nix;
 
+use erased_serde::Serialize;
 use errors::*;
 use ExecutableProvider;
 use host::Host;
-use self::providers::MacosRemoteProvider;
+use self::providers::NixRemoteProvider;
 
-pub trait TelemetryProvider<'a> {
+#[derive(Serialize, Deserialize)]
+pub struct Command {
+    shell: String,
+    cmd: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CommandResult {
+    pub success: bool,
+    pub exit_code: Option<i32>,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}
+
+pub trait CommandProvider<'a> {
     fn available(&Host) -> bool where Self: Sized;
-    fn try_new(&'a Host) -> Option<Self> where Self: Sized;
-    fn load(&self) -> Result<Telemetry>;
+    fn try_new<S: Into<String>>(&'a Host, S, Option<&str>) -> Option<Self> where Self: Sized;
+    fn exec(&self) -> Result<CommandResult>;
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
-    Macos(MacosRemoteProvider)
+    Nix(NixRemoteProvider)
 }
 
 impl <'de>ExecutableProvider<'de> for RemoteProvider {
-    fn exec(&self, host: &Host) -> Result<()> {
-        match *self {
-            RemoteProvider::Macos(ref p) => p.exec(host)
+    fn exec(self, host: &Host) -> Result<Box<Serialize>> {
+        match self {
+            RemoteProvider::Nix(p) => p.exec(host)
         }
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Telemetry {
-    pub cpu: Cpu,
-    pub fs: Vec<FsMount>,
-    pub hostname: String,
-    pub memory: u64,
-    pub net: Vec<Netif>,
-    pub os: Os,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Cpu {
-    pub vendor: String,
-    pub brand_string: String,
-    pub cores: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct FsMount {
-    pub filesystem: String,
-    pub mountpoint: String,
-    pub size: u64,
-    pub used: u64,
-    pub available: u64,
-    pub capacity: f32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Netif {
-    pub name: String,
-    pub index: u32,
-    pub mac: Option<String>,
-    pub ips: Option<Vec<String>>,
-    pub flags: u32,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Os {
-    pub arch: String,
-    pub family: String,
-    pub platform: String,
-    pub version_str: String,
-    pub version_maj: u32,
-    pub version_min: u32,
-    pub version_patch: u32,
-}
-
-pub fn factory<'a>(host: &'a Host) -> Result<Box<TelemetryProvider + 'a>> {
-    if let Some(p) = Macos::try_new(host) {
+pub fn factory<'a, S: Into<String>>(host: &'a Host, cmd: S, shell: Option<&str>) -> Result<Box<CommandProvider<'a> + 'a>> {
+    if let Some(p) = Nix::try_new(host, cmd, shell) {
         Ok(Box::new(p))
     } else {
-        Err(ErrorKind::ProviderUnavailable("Telemetry").into())
+        Err(ErrorKind::ProviderUnavailable("Command").into())
     }
 }

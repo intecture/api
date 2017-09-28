@@ -21,6 +21,7 @@ extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
 
+pub mod command;
 pub mod errors;
 pub mod host;
 mod target;
@@ -37,13 +38,15 @@ pub trait ExecutableProvider<'de>: serde::Serialize + serde::Deserialize<'de> {
 
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
-    Telemetry(telemetry::RemoteProvider)
+    Command(command::RemoteProvider),
+    Telemetry(telemetry::RemoteProvider),
 }
 
 impl <'de>ExecutableProvider<'de> for RemoteProvider {
     fn exec(self, host: &host::Host) -> Result<Box<Serialize>> {
         match self {
-            RemoteProvider::Telemetry(p) => p.exec(host)
+            RemoteProvider::Command(p) => p.exec(host),
+            RemoteProvider::Telemetry(p) => p.exec(host),
         }
     }
 }
