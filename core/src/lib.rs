@@ -24,6 +24,11 @@ extern crate serde_json;
 pub mod command;
 pub mod errors;
 pub mod host;
+pub mod prelude {
+    pub use command::Command;
+    pub use host::Host;
+    pub use telemetry::{Cpu, FsMount, Os, OsFamily, OsPlatform, Telemetry};
+}
 mod target;
 pub mod telemetry;
 
