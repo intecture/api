@@ -6,7 +6,7 @@
 
 //! A library for configuring your servers.
 //!
-//! The library is organised into a set of _primitives_, which are
+//! The library is organised into a set of endpoints, which are
 //! the building blocks for creating complex configurations.
 
 #![recursion_limit = "1024"]
@@ -35,12 +35,14 @@ pub mod telemetry;
 use errors::*;
 use erased_serde::Serialize;
 
+#[doc(hidden)]
 pub trait ExecutableProvider<'de>: serde::Serialize + serde::Deserialize<'de> {
     // @todo It'd be nice to return Result<Serialize> here someday...
     // See https://github.com/rust-lang/rfcs/issues/518.
     fn exec(self, &host::Host) -> Result<Box<Serialize>>;
 }
 
+#[doc(hidden)]
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
     Command(command::RemoteProvider),

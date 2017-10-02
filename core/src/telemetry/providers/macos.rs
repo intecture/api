@@ -15,6 +15,7 @@ use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, TelemetryProvider, ser
 
 pub struct Macos;
 
+#[doc(hidden)]
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
     Available,

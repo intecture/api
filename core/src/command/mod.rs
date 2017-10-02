@@ -4,18 +4,17 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Telemetry primitive.
+//! Endpoint for running shell commands.
 
-mod providers;
-
-pub use self::providers::Nix;
+pub mod providers;
 
 use erased_serde::Serialize;
 use errors::*;
 use ExecutableProvider;
 use host::Host;
-use self::providers::NixRemoteProvider;
+use self::providers::{Nix, NixRemoteProvider};
 
+#[doc(hidden)]
 #[derive(Serialize, Deserialize)]
 pub struct Command {
     shell: Vec<String>,
@@ -36,6 +35,7 @@ pub trait CommandProvider<'a> {
     fn exec(&self) -> Result<CommandResult>;
 }
 
+#[doc(hidden)]
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
     Nix(NixRemoteProvider)

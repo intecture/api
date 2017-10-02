@@ -18,6 +18,7 @@ pub struct Nix<'a> {
     inner: Command
 }
 
+#[doc(hidden)]
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
     Available,

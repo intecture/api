@@ -4,7 +4,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Host primitive.
+//! Manages the connection between the API and your host.
 
 use errors::*;
 use telemetry::{self, Telemetry};

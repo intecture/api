@@ -4,25 +4,25 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Telemetry primitive.
+//! System generated data about your host.
 
-mod providers;
+pub mod providers;
 mod serializable;
-
-pub use self::providers::{Centos, Debian, Freebsd, Macos};
 
 use erased_serde::Serialize;
 use errors::*;
 use ExecutableProvider;
 use host::Host;
 use pnet::datalink::NetworkInterface;
-use self::providers::{CentosRemoteProvider, DebianRemoteProvider, FreebsdRemoteProvider, MacosRemoteProvider};
+use self::providers::{Centos, CentosRemoteProvider, Debian, DebianRemoteProvider,
+                      Freebsd, FreebsdRemoteProvider, Macos, MacosRemoteProvider};
 
 pub trait TelemetryProvider {
     fn available(&Host) -> bool where Self: Sized;
     fn load(&Host) -> Result<Telemetry>;
 }
 
+#[doc(hidden)]
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
     Centos(CentosRemoteProvider),

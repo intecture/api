@@ -16,6 +16,7 @@ use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, TelemetryProvider, ser
 
 pub struct Debian;
 
+#[doc(hidden)]
 #[derive(Serialize, Deserialize)]
 pub enum RemoteProvider {
     Available,
