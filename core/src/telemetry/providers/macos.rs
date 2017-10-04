@@ -40,10 +40,8 @@ impl TelemetryProvider for Macos {
             cfg!(target_os="macos")
         } else {
             unimplemented!();
-            // let r = RemoteProvider::Available;
-            // self.host.send(r).chain_err(|| ErrorKind::RemoteProvider("Telemetry", "available"))?;
-            // let t: Telemetry = self.host.recv()?;
-            // Ok(t)
+            // host.call(RemoteProvider::Available)
+            //     .chain_err(|| ErrorKind::RemoteProvider { endpoint: "Telemetry", func: "available" })?
         }
     }
 
