@@ -10,15 +10,29 @@ pub mod providers;
 
 use erased_serde::Serialize;
 use errors::*;
-use ExecutableProvider;
+use Executable;
+use futures::{future, Future};
 use host::Host;
-use self::providers::{Nix, NixRemoteProvider};
+use self::providers::{Nix, NixRunnable};
+use std::sync::Arc;
+
+pub trait CommandProvider<H: Host> {
+    fn available(&Arc<H>) -> Box<Future<Item = bool, Error = Error>> where Self: Sized;
+    fn try_new(&Arc<H>, &str, Option<&[&str]>) -> Box<Future<Item = Option<Self>, Error = Error>> where Self: Sized;
+    fn exec(&mut self) -> Box<Future<Item = CommandResult, Error = Error>>;
+}
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize)]
+pub enum CommandRunnable {
+    Nix(NixRunnable)
+}
+
+#[doc(hidden)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct Command {
     shell: Vec<String>,
-    cmd: Vec<String>,
+    cmd: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,30 +43,18 @@ pub struct CommandResult {
     pub stderr: Vec<u8>,
 }
 
-pub trait CommandProvider<'a> {
-    fn available(&Host) -> bool where Self: Sized;
-    fn try_new(&'a Host, &[&str], Option<&[&str]>) -> Option<Self> where Self: Sized;
-    fn exec(&self) -> Result<CommandResult>;
-}
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum RemoteProvider {
-    Nix(NixRemoteProvider)
-}
-
-impl <'de>ExecutableProvider<'de> for RemoteProvider {
-    fn exec(self, host: &Host) -> Result<Box<Serialize>> {
+impl Executable for CommandRunnable {
+    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            RemoteProvider::Nix(p) => p.exec(host)
+            CommandRunnable::Nix(p) => p.exec()
         }
     }
 }
 
-pub fn factory<'a>(host: &'a Host, cmd: &[&str], shell: Option<&[&str]>) -> Result<Box<CommandProvider<'a> + 'a>> {
-    if let Some(p) = Nix::try_new(host, cmd, shell) {
-        Ok(Box::new(p))
-    } else {
-        Err(ErrorKind::ProviderUnavailable("Command").into())
-    }
+pub fn factory<H: Host + 'static>(host: &Arc<H>, cmd: &str, shell: Option<&[&str]>) -> Box<Future<Item = Box<CommandProvider<H>>, Error = Error>> {
+    Box::new(Nix::try_new(host, cmd, shell)
+                     .and_then(|opt| match opt {
+                         Some(provider) => future::ok(Box::new(provider) as Box<CommandProvider<H>>),
+                         None => future::err(ErrorKind::ProviderUnavailable("Command").into())
+                     }))
 }

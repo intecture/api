@@ -8,11 +8,12 @@
 
 use bytes::{BufMut, BytesMut};
 use errors::*;
-use futures::Future;
-use RemoteProvider;
+use futures::{future, Future};
+use {Executable, Runnable};
 use serde::Deserialize;
 use serde_json;
 use std::{io, result};
+use std::sync::Arc;
 use std::net::SocketAddr;
 use telemetry::{self, Telemetry};
 use tokio_core::net::TcpStream;
@@ -23,8 +24,53 @@ use tokio_proto::pipeline::{ClientProto, ClientService};
 use tokio_proto::TcpClient;
 use tokio_service::Service;
 
-pub struct Host {
+pub trait Host {
+    /// Retrieve Telemetry
+    fn telemetry(&self) -> &Telemetry;
+
+    #[doc(hidden)]
+    fn run<D: 'static>(&self, Runnable) -> Box<Future<Item = D, Error = Error>>
+        where for<'de> D: Deserialize<'de>;
+}
+
+pub struct LocalHost {
     telemetry: Option<Telemetry>,
+}
+
+impl LocalHost {
+    /// Create a new Host targeting the local machine.
+    pub fn new() -> Box<Future<Item = Arc<LocalHost>, Error = Error>> {
+        let mut host = Arc::new(LocalHost {
+            telemetry: None,
+        });
+
+        Box::new(telemetry::load(&host).map(|t| {
+            Arc::get_mut(&mut host).unwrap().telemetry = Some(t);
+            host
+        }))
+    }
+}
+
+impl Host for LocalHost {
+    fn telemetry(&self) -> &Telemetry {
+        self.telemetry.as_ref().unwrap()
+    }
+
+    fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
+        where for<'de> D: Deserialize<'de>
+    {
+        Box::new(provider.exec()
+                         .chain_err(|| "Could not run provider")
+                         .and_then(|s| {
+                             match serde_json::to_value(s).chain_err(|| "Could not run provider") {
+                                 Ok(v) => match serde_json::from_value::<D>(v).chain_err(|| "Could not run provider") {
+                                     Ok(d) => future::ok(d),
+                                     Err(e) => future::err(e),
+                                 },
+                                 Err(e) => future::err(e),
+                             }
+                         }))
+    }
 }
 
 pub struct RemoteHost {
@@ -35,62 +81,47 @@ pub struct RemoteHost {
 struct JsonCodec;
 struct JsonProto;
 
-impl Host {
-    /// Create a new Host targeting the local machine.
-    pub fn local() -> Result<Host> {
-        let mut host = Host {
-            telemetry: None,
-        };
+impl RemoteHost {
+    /// Create a new Host connected to addr.
+    pub fn connect(addr: &SocketAddr, handle: &Handle) -> Box<Future<Item = Arc<RemoteHost>, Error = Error>> {
+        Box::new(TcpClient::new(JsonProto)
+            .connect(addr, handle)
+            .chain_err(|| "Could not connect to host")
+            .and_then(|client_service| {
+                let mut host = Arc::new(RemoteHost {
+                    inner: client_service,
+                    telemetry: None,
+                });
 
-        host.telemetry = Some(telemetry::load(&host)?);
-
-        Ok(host)
-    }
-
-    /// Retrieve Telemetry
-    pub fn telemetry(&self) -> &Telemetry {
-        self.telemetry.as_ref().unwrap()
-    }
-
-    pub fn is_local(&self) -> bool {
-        true
+                telemetry::load(&host)
+                          .chain_err(|| "Could not load telemetry for host")
+                          .map(|t| {
+                    Arc::get_mut(&mut host).unwrap().telemetry = Some(t);
+                    host
+                })
+            }))
     }
 }
 
-impl RemoteHost {
-    /// Create a new Host connected to addr.
-    pub fn connect(addr: &SocketAddr, handle: &Handle) -> Box<Future<Item = RemoteHost, Error = io::Error>> {
-        let ret = TcpClient::new(JsonProto)
-            .connect(addr, handle)
-            .map(|client_service| {
-                RemoteHost {
-                    inner: client_service,
-                    telemetry: None,
-                }
-            });
-
-        Box::new(ret)
-    }
-
-    /// Retrieve Telemetry
-    pub fn telemetry(&self) -> &Telemetry {
+impl Host for RemoteHost {
+    fn telemetry(&self) -> &Telemetry {
         self.telemetry.as_ref().unwrap()
     }
 
-    pub fn is_local(&self) -> bool {
-        false
-    }
-
-    pub fn run<T>(&self, provider: RemoteProvider) -> Box<Future<Item = T, Error = io::Error>>
-        where for<'de> T: Deserialize<'de>
+    fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
+        where for<'de> D: Deserialize<'de>
     {
         Box::new(self.inner.call(provider)
-                           .map(|v| serde_json::from_value::<T>(v).unwrap()))
+                           .chain_err(|| "Could not run provider")
+                           .and_then(|v| match serde_json::from_value::<D>(v).chain_err(|| "Could not run provider") {
+                               Ok(d) => future::ok(d),
+                               Err(e) => future::err(e)
+                           }))
     }
 }
 
 impl Service for RemoteHost {
-    type Request = RemoteProvider;
+    type Request = Runnable;
     type Response = serde_json::Value;
     type Error = io::Error;
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
@@ -121,7 +152,7 @@ impl Decoder for JsonCodec {
 }
 
 impl Encoder for JsonCodec {
-    type Item = RemoteProvider;
+    type Item = Runnable;
     type Error = io::Error;
 
     fn encode(&mut self, provider: Self::Item, buf: &mut BytesMut) -> io::Result<()> {
@@ -135,7 +166,7 @@ impl Encoder for JsonCodec {
 }
 
 impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for JsonProto {
-    type Request = RemoteProvider;
+    type Request = Runnable;
     type Response = serde_json::Value;
     type Transport = Framed<T, JsonCodec>;
     type BindTransport = result::Result<Self::Transport, io::Error>;

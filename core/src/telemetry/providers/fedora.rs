@@ -10,27 +10,26 @@ use {Executable, Runnable};
 use futures::future::{self, Future, FutureResult};
 use host::*;
 use pnet::datalink::interfaces;
-use regex::Regex;
-use std::{env, fs, str};
-use std::io::Read;
+use std::{env, str};
 use std::sync::Arc;
-use target::{default, unix};
+use target::{default, linux, redhat};
+use target::linux::LinuxFlavour;
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry,
                 TelemetryProvider, TelemetryRunnable, serializable};
 
-pub struct Freebsd;
+pub struct Fedora;
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize)]
-pub enum FreebsdRunnable {
+pub enum FedoraRunnable {
     Available,
     Load,
 }
 
-impl <H: Host + 'static>TelemetryProvider<H> for Freebsd {
+impl <H: Host + 'static>TelemetryProvider<H> for Fedora {
     fn available(host: &Arc<H>) -> Box<Future<Item = bool, Error = Error>> {
-        host.run(Runnable::Telemetry(TelemetryRunnable::Freebsd(FreebsdRunnable::Available)))
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Freebsd", func: "available" })
+        host.run(Runnable::Telemetry(TelemetryRunnable::Fedora(FedoraRunnable::Available)))
+            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Fedora", func: "available" })
     }
 
     fn try_load(host: &Arc<H>) -> Box<Future<Item = Option<Telemetry>, Error = Error>> {
@@ -39,8 +38,8 @@ impl <H: Host + 'static>TelemetryProvider<H> for Freebsd {
         Box::new(Self::available(&host)
             .and_then(move |available| {
                 if available {
-                    Box::new(host.run::<serializable::Telemetry>(Runnable::Telemetry(TelemetryRunnable::Freebsd(FreebsdRunnable::Load)))
-                        .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Freebsd", func: "load" })
+                    Box::new(host.run::<serializable::Telemetry>(Runnable::Telemetry(TelemetryRunnable::Fedora(FedoraRunnable::Load)))
+                        .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Fedora", func: "load" })
                         .map(|t| {
                             let t: Telemetry = t.into();
                             Some(t)
@@ -52,14 +51,14 @@ impl <H: Host + 'static>TelemetryProvider<H> for Freebsd {
     }
 }
 
-impl Executable for FreebsdRunnable {
+impl Executable for FedoraRunnable {
     fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            FreebsdRunnable::Available =>
+            FedoraRunnable::Available =>
                 Box::new(future::ok(Box::new(
-                    cfg!(target_os="freebsd")
+                    cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Fedora)
                 ) as Box<Serialize>)),
-            FreebsdRunnable::Load => {
+            FedoraRunnable::Load => {
                 Box::new(future::lazy(move || -> FutureResult<Box<Serialize>, Error> {
                     match do_load() {
                         Ok(t) => {
@@ -75,46 +74,26 @@ impl Executable for FreebsdRunnable {
 }
 
 fn do_load() -> Result<Telemetry> {
-    let (version_str, version_maj, version_min) = unix::version()?;
+    let (version_str, version_maj, version_min, version_patch) = redhat::version()?;
 
     Ok(Telemetry {
         cpu: Cpu {
-            vendor: telemetry_cpu_vendor()?,
-            brand_string: unix::get_sysctl_item("hw\\.model")?,
-            cores: unix::get_sysctl_item("hw\\.ncpu")
-                        .chain_err(|| "could not resolve telemetry data")?
-                        .parse::<u32>()
-                        .chain_err(|| "could not resolve telemetry data")?,
+            vendor: linux::cpu_vendor()?,
+            brand_string: linux::cpu_brand_string()?,
+            cores: linux::cpu_cores()?,
         },
-        fs: default::fs()?,
+        fs: default::fs().chain_err(|| "could not resolve telemetry data")?,
         hostname: default::hostname()?,
-        memory: unix::get_sysctl_item("hw\\.physmem")
-                     .chain_err(|| "could not resolve telemetry data")?
-                     .parse::<u64>()
-                     .chain_err(|| "could not resolve telemetry data")?,
+        memory: linux::memory().chain_err(|| "could not resolve telemetry data")?,
         net: interfaces(),
         os: Os {
             arch: env::consts::ARCH.into(),
-            family: OsFamily::Bsd,
-            platform: OsPlatform::Freebsd,
+            family: OsFamily::Linux,
+            platform: OsPlatform::Fedora,
             version_str: version_str,
             version_maj: version_maj,
             version_min: version_min,
-            version_patch: 0
+            version_patch: version_patch
         },
     })
-}
-
-fn telemetry_cpu_vendor() -> Result<String> {
-    let mut fh = fs::File::open("/var/run/dmesg.boot")
-                          .chain_err(|| ErrorKind::SystemFile("/var/run/dmesg.boot"))?;
-    let mut fc = String::new();
-    fh.read_to_string(&mut fc).chain_err(|| ErrorKind::SystemFileOutput("/var/run/dmesg.boot"))?;
-
-    let regex = Regex::new(r#"(?m)^CPU:.+$\n\s+Origin="([A-Za-z]+)""#).unwrap();
-    if let Some(cap) = regex.captures(&fc) {
-        Ok(cap.get(1).unwrap().as_str().into())
-    } else {
-        Err(ErrorKind::SystemFileOutput("/var/run/dmesg.boot").into())
-    }
 }

@@ -6,4 +6,4 @@
 
 mod nix;
 
-pub use self::nix::{Nix, RemoteProvider as NixRemoteProvider};
+pub use self::nix::{Nix, NixRunnable};

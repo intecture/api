@@ -6,10 +6,16 @@
 
 mod centos;
 mod debian;
+mod fedora;
 mod freebsd;
 mod macos;
+mod nixos;
+mod ubuntu;
 
-pub use self::centos::{Centos, RemoteProvider as CentosRemoteProvider};
-pub use self::debian::{Debian, RemoteProvider as DebianRemoteProvider};
-pub use self::freebsd::{Freebsd, RemoteProvider as FreebsdRemoteProvider};
-pub use self::macos::{Macos, RemoteProvider as MacosRemoteProvider};
+pub use self::centos::{Centos, CentosRunnable};
+pub use self::debian::{Debian, DebianRunnable};
+pub use self::fedora::{Fedora, FedoraRunnable};
+pub use self::freebsd::{Freebsd, FreebsdRunnable};
+pub use self::macos::{Macos, MacosRunnable};
+pub use self::nixos::{Nixos, NixosRunnable};
+pub use self::ubuntu::{Ubuntu, UbuntuRunnable};

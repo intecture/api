@@ -31,35 +31,34 @@ pub mod command;
 pub mod errors;
 pub mod host;
 pub mod prelude {
-    pub use command::Command;
-    pub use host::Host;
-    pub use telemetry::{Cpu, FsMount, Os, OsFamily, OsPlatform, Telemetry};
+    pub use command;
+    pub use host::{Host, LocalHost, RemoteHost};
+    pub use telemetry::{self, Cpu, FsMount, Os, OsFamily, OsPlatform, Telemetry};
 }
 mod target;
 pub mod telemetry;
 
 use errors::*;
 use erased_serde::Serialize;
+use futures::Future;
 
 #[doc(hidden)]
-pub trait ExecutableProvider<'de>: serde::Serialize + serde::Deserialize<'de> {
-    // @todo It'd be nice to return Result<Serialize> here someday...
-    // See https://github.com/rust-lang/rfcs/issues/518.
-    fn exec(self, &host::Host) -> Result<Box<Serialize>>;
+pub trait Executable {
+    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>>;
 }
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize)]
-pub enum RemoteProvider {
-    Command(command::RemoteProvider),
-    Telemetry(telemetry::RemoteProvider),
+pub enum Runnable {
+    Command(command::CommandRunnable),
+    Telemetry(telemetry::TelemetryRunnable),
 }
 
-impl <'de>ExecutableProvider<'de> for RemoteProvider {
-    fn exec(self, host: &host::Host) -> Result<Box<Serialize>> {
+impl Executable for Runnable {
+    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            RemoteProvider::Command(p) => p.exec(host),
-            RemoteProvider::Telemetry(p) => p.exec(host),
+            Runnable::Command(p) => p.exec(),
+            Runnable::Telemetry(p) => p.exec(),
         }
     }
 }

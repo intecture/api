@@ -6,82 +6,96 @@
 
 use erased_serde::Serialize;
 use errors::*;
-use ExecutableProvider;
+use {Executable, Runnable};
+use futures::future::{self, Future, FutureResult};
 use host::*;
 use pnet::datalink::interfaces;
 use std::{env, process, str};
+use std::sync::Arc;
 use target::{default, linux};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, TelemetryProvider, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry,
+                TelemetryProvider, TelemetryRunnable, serializable};
 
 pub struct Debian;
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize)]
-pub enum RemoteProvider {
+pub enum DebianRunnable {
     Available,
     Load,
 }
 
-impl <'de>ExecutableProvider<'de> for RemoteProvider {
-    fn exec(self, host: &Host) -> Result<Box<Serialize>> {
+impl <H: Host + 'static>TelemetryProvider<H> for Debian {
+    fn available(host: &Arc<H>) -> Box<Future<Item = bool, Error = Error>> {
+        host.run(Runnable::Telemetry(TelemetryRunnable::Debian(DebianRunnable::Available)))
+            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Debian", func: "available" })
+    }
+
+    fn try_load(host: &Arc<H>) -> Box<Future<Item = Option<Telemetry>, Error = Error>> {
+        let host = host.clone();
+
+        Box::new(Self::available(&host)
+            .and_then(move |available| {
+                if available {
+                    Box::new(host.run::<serializable::Telemetry>(Runnable::Telemetry(TelemetryRunnable::Debian(DebianRunnable::Load)))
+                        .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Debian", func: "load" })
+                        .map(|t| {
+                            let t: Telemetry = t.into();
+                            Some(t)
+                        })) as Box<Future<Item = Option<Telemetry>, Error = Error>>
+                } else {
+                    Box::new(future::ok(None)) as Box<Future<Item = Option<Telemetry>, Error = Error>>
+                }
+          }))
+    }
+}
+
+impl Executable for DebianRunnable {
+    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            RemoteProvider::Available => Ok(Box::new(Debian::available(host))),
-            RemoteProvider::Load => {
-                let t: serializable::Telemetry = Debian::load(host)?.into();
-                Ok(Box::new(t))
-            },
+            DebianRunnable::Available =>
+                Box::new(future::ok(Box::new(
+                    cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Debian)
+                ) as Box<Serialize>)),
+            DebianRunnable::Load => {
+                Box::new(future::lazy(move || -> FutureResult<Box<Serialize>, Error> {
+                    match do_load() {
+                        Ok(t) => {
+                            let t: serializable::Telemetry = t.into();
+                            future::ok(Box::new(t) as Box<Serialize>)
+                        },
+                        Err(e) => future::err(e),
+                    }
+                }))
+            }
         }
     }
 }
 
-impl TelemetryProvider for Debian {
-    fn available(host: &Host) -> bool {
-        if host.is_local() {
-            cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Debian)
-        } else {
-            unimplemented!();
-            // let r = RemoteProvider::Available;
-            // self.host.send(r).chain_err(|| ErrorKind::RemoteProvider("Telemetry", "available"))?;
-            // let t: Telemetry = self.host.recv()?;
-            // Ok(t)
-        }
-    }
+fn do_load() -> Result<Telemetry> {
+    let (version_str, version_maj, version_min) = version()?;
 
-    fn load(host: &Host) -> Result<Telemetry> {
-        if host.is_local() {
-            let cpu_vendor = linux::cpu_vendor()?;
-            let cpu_brand = linux::cpu_brand_string()?;
-            let (version_str, version_maj, version_min) = version()?;
-
-            Ok(Telemetry {
-                cpu: Cpu {
-                    vendor: cpu_vendor,
-                    brand_string: cpu_brand,
-                    cores: linux::cpu_cores()?,
-                },
-                fs: default::fs().chain_err(|| "could not resolve telemetry data")?,
-                hostname: default::hostname()?,
-                memory: linux::memory().chain_err(|| "could not resolve telemetry data")?,
-                net: interfaces(),
-                os: Os {
-                    arch: env::consts::ARCH.into(),
-                    family: OsFamily::Linux,
-                    platform: OsPlatform::Centos,
-                    version_str: version_str,
-                    version_maj: version_maj,
-                    version_min: version_min,
-                    version_patch: 0
-                },
-            })
-        } else {
-            unimplemented!();
-            // let r = RemoteProvider::Load;
-            // self.host.send(r).chain_err(|| ErrorKind::RemoteProvider("Telemetry", "load"))?;
-            // let t: Telemetry = self.host.recv()?;
-            // Ok(t)
-        }
-    }
+    Ok(Telemetry {
+        cpu: Cpu {
+            vendor: linux::cpu_vendor()?,
+            brand_string: linux::cpu_brand_string()?,
+            cores: linux::cpu_cores()?,
+        },
+        fs: default::fs().chain_err(|| "could not resolve telemetry data")?,
+        hostname: default::hostname()?,
+        memory: linux::memory().chain_err(|| "could not resolve telemetry data")?,
+        net: interfaces(),
+        os: Os {
+            arch: env::consts::ARCH.into(),
+            family: OsFamily::Linux,
+            platform: OsPlatform::Debian,
+            version_str: version_str,
+            version_maj: version_maj,
+            version_min: version_min,
+            version_patch: 0
+        },
+    })
 }
 
 fn version() -> Result<(String, u32, u32)> {

@@ -16,7 +16,7 @@ pub enum LinuxFlavour {
     Fedora,
     Redhat,
     Ubuntu,
-    NixOs,
+    Nixos,
 }
 
 pub fn fingerprint_os() -> Option<LinuxFlavour> {
@@ -44,7 +44,7 @@ pub fn fingerprint_os() -> Option<LinuxFlavour> {
     }
     // NixOS
     else if let Ok(_) = fs::metadata("/etc/nixos/configuration.nix") {
-        Some(LinuxFlavour::NixOs)
+        Some(LinuxFlavour::Nixos)
     } else {
         None
     }

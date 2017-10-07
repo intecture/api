@@ -4,7 +4,14 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use futures::Future;
+use std::{error, io};
+
 error_chain! {
+    foreign_links {
+        Io(io::Error);
+    }
+
     errors {
         InvalidTelemetryKey {
             cmd: &'static str,
@@ -19,7 +26,7 @@ error_chain! {
             display("No providers available for {}", p),
         }
 
-        RemoteProvider {
+        Runnable {
             endpoint: &'static str,
             func: &'static str,
         } {
@@ -46,5 +53,28 @@ error_chain! {
             description("Could not understand output of system file"),
             display("Could not understand output of system file '{}'", c),
         }
+    }
+}
+
+// @todo This should disappear once Futures are officially supported
+// by error_chain.
+// See: https://github.com/rust-lang-nursery/error-chain/issues/90
+pub type SFuture<T> = Box<Future<Item = T, Error = Error>>;
+
+pub trait FutureChainErr<T> {
+    fn chain_err<F, E>(self, callback: F) -> SFuture<T>
+        where F: FnOnce() -> E + 'static,
+              E: Into<ErrorKind>;
+}
+
+impl<F> FutureChainErr<F::Item> for F
+    where F: Future + 'static,
+          F::Error: error::Error + Send + 'static,
+{
+    fn chain_err<C, E>(self, callback: C) -> SFuture<F::Item>
+        where C: FnOnce() -> E + 'static,
+              E: Into<ErrorKind>,
+    {
+        Box::new(self.then(|r| r.chain_err(callback)))
     }
 }
