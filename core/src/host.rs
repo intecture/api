@@ -20,7 +20,7 @@ use tokio_core::net::TcpStream;
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 use tokio_io::codec::{Encoder, Decoder, Framed};
-use tokio_proto::pipeline::{ClientProto, ClientService};
+use tokio_proto::pipeline::{ClientProto, ClientService, ServerProto};
 use tokio_proto::TcpClient;
 use tokio_service::Service;
 
@@ -78,16 +78,27 @@ pub struct RemoteHost {
     telemetry: Option<Telemetry>,
 }
 
-struct JsonCodec;
-struct JsonProto;
+#[doc(hidden)]
+pub struct JsonCodec;
+#[doc(hidden)]
+pub struct JsonProto;
 
 impl RemoteHost {
     /// Create a new Host connected to addr.
-    pub fn connect(addr: &SocketAddr, handle: &Handle) -> Box<Future<Item = Arc<RemoteHost>, Error = Error>> {
+    pub fn connect(addr: &str, handle: &Handle) -> Box<Future<Item = Arc<RemoteHost>, Error = Error>> {
+        let addr: SocketAddr = match addr.parse().chain_err(|| "Invalid host address") {
+            Ok(addr) => addr,
+            Err(e) => return Box::new(future::err(e)),
+        };
+
+        info!("Connecting to host {}", addr);
+
         Box::new(TcpClient::new(JsonProto)
-            .connect(addr, handle)
+            .connect(&addr, handle)
             .chain_err(|| "Could not connect to host")
             .and_then(|client_service| {
+                info!("Connected!");
+
                 let mut host = Arc::new(RemoteHost {
                     inner: client_service,
                     telemetry: None,
@@ -111,9 +122,13 @@ impl Host for RemoteHost {
     fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
         where for<'de> D: Deserialize<'de>
     {
-        Box::new(self.inner.call(provider)
-                           .chain_err(|| "Could not run provider")
-                           .and_then(|v| match serde_json::from_value::<D>(v).chain_err(|| "Could not run provider") {
+        let value = match serde_json::to_value(provider).chain_err(|| "Could not encode provider to send to host") {
+            Ok(v) => v,
+            Err(e) => return Box::new(future::err(e))
+        };
+        Box::new(self.inner.call(value)
+                           .chain_err(|| "Error while running provider on host")
+                           .and_then(|v| match serde_json::from_value::<D>(v).chain_err(|| "Could not understand response from host") {
                                Ok(d) => future::ok(d),
                                Err(e) => future::err(e)
                            }))
@@ -121,7 +136,7 @@ impl Host for RemoteHost {
 }
 
 impl Service for RemoteHost {
-    type Request = Runnable;
+    type Request = serde_json::Value;
     type Response = serde_json::Value;
     type Error = io::Error;
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
@@ -152,11 +167,11 @@ impl Decoder for JsonCodec {
 }
 
 impl Encoder for JsonCodec {
-    type Item = Runnable;
+    type Item = serde_json::Value;
     type Error = io::Error;
 
-    fn encode(&mut self, provider: Self::Item, buf: &mut BytesMut) -> io::Result<()> {
-        let json = serde_json::to_string(&provider).unwrap();
+    fn encode(&mut self, value: Self::Item, buf: &mut BytesMut) -> io::Result<()> {
+        let json = serde_json::to_string(&value).unwrap();
         buf.reserve(json.len() + 1);
         buf.extend(json.as_bytes());
         buf.put_u8(b'\n');
@@ -166,7 +181,18 @@ impl Encoder for JsonCodec {
 }
 
 impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for JsonProto {
-    type Request = Runnable;
+    type Request = serde_json::Value;
+    type Response = serde_json::Value;
+    type Transport = Framed<T, JsonCodec>;
+    type BindTransport = result::Result<Self::Transport, io::Error>;
+
+    fn bind_transport(&self, io: T) -> Self::BindTransport {
+        Ok(io.framed(JsonCodec))
+    }
+}
+
+impl<T: AsyncRead + AsyncWrite + 'static> ServerProto<T> for JsonProto {
+    type Request = serde_json::Value;
     type Response = serde_json::Value;
     type Transport = Framed<T, JsonCodec>;
     type BindTransport = result::Result<Self::Transport, io::Error>;

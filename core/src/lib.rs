@@ -17,6 +17,7 @@ extern crate erased_serde;
 extern crate futures;
 extern crate hostname;
 extern crate ipnetwork;
+#[macro_use] extern crate log;
 extern crate pnet;
 extern crate regex;
 extern crate serde;

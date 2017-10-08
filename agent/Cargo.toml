@@ -7,7 +7,7 @@ description = "Tiny daemon that wraps the core API"
 homepage = "https://intecture.io"
 repository = "https://github.com/intecture/api"
 documentation = "https://intecture.io/rust/inapi/"
-keywords = ["intecture", "remote"]
+keywords = ["intecture", "agent"]
 categories = ["servers"]
 readme = "README.md"
 include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
@@ -16,8 +16,10 @@ include = ["Cargo.toml", "src/**/*.rs", "README.md", "LICENSE"]
 travis-ci = { repository = "intecture/api" }
 
 [dependencies]
+env_logger = "0.4"
 error-chain = "0.11"
+futures = "0.1"
 intecture_api = { version = "0.4.0", path = "../core" }
-serde = "1.0"
-serde_derive = "1.0"
 serde_json = "1.0"
+tokio-proto = "0.1"
+tokio-service = "0.1"
