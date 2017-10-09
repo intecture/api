@@ -19,7 +19,7 @@ mod errors;
 use errors::*;
 use futures::{future, Future};
 use intecture_api::{Executable, Runnable};
-use intecture_api::host::JsonProto;
+use intecture_api::host::remote::JsonProto;
 use std::io;
 use tokio_proto::TcpServer;
 use tokio_service::Service;

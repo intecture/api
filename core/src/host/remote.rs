@@ -4,17 +4,16 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Manages the connection between the API and your host.
-
 use bytes::{BufMut, BytesMut};
 use errors::*;
 use futures::{future, Future};
-use {Executable, Runnable};
+use Runnable;
 use serde::Deserialize;
 use serde_json;
 use std::{io, result};
 use std::sync::Arc;
 use std::net::SocketAddr;
+use super::Host;
 use telemetry::{self, Telemetry};
 use tokio_core::net::TcpStream;
 use tokio_core::reactor::Handle;
@@ -24,56 +23,16 @@ use tokio_proto::pipeline::{ClientProto, ClientService, ServerProto};
 use tokio_proto::TcpClient;
 use tokio_service::Service;
 
-pub trait Host {
-    /// Retrieve Telemetry
-    fn telemetry(&self) -> &Telemetry;
-
-    #[doc(hidden)]
-    fn run<D: 'static>(&self, Runnable) -> Box<Future<Item = D, Error = Error>>
-        where for<'de> D: Deserialize<'de>;
+pub trait RemoteHost: Host {
+    fn connect(addr: &str, handle: &Handle) -> Box<Future<Item = Arc<Self>, Error = Error>>;
 }
 
-pub struct LocalHost {
-    telemetry: Option<Telemetry>,
-}
-
-impl LocalHost {
-    /// Create a new Host targeting the local machine.
-    pub fn new() -> Box<Future<Item = Arc<LocalHost>, Error = Error>> {
-        let mut host = Arc::new(LocalHost {
-            telemetry: None,
-        });
-
-        Box::new(telemetry::load(&host).map(|t| {
-            Arc::get_mut(&mut host).unwrap().telemetry = Some(t);
-            host
-        }))
-    }
-}
-
-impl Host for LocalHost {
-    fn telemetry(&self) -> &Telemetry {
-        self.telemetry.as_ref().unwrap()
-    }
-
-    fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
-        where for<'de> D: Deserialize<'de>
-    {
-        Box::new(provider.exec()
-                         .chain_err(|| "Could not run provider")
-                         .and_then(|s| {
-                             match serde_json::to_value(s).chain_err(|| "Could not run provider") {
-                                 Ok(v) => match serde_json::from_value::<D>(v).chain_err(|| "Could not run provider") {
-                                     Ok(d) => future::ok(d),
-                                     Err(e) => future::err(e),
-                                 },
-                                 Err(e) => future::err(e),
-                             }
-                         }))
-    }
-}
-
-pub struct RemoteHost {
+/// A Host type that uses an unencrypted socket.
+///
+/// *Warning! This Host type is susceptible to eavesdropping and MITM
+/// attacks, and ideally should only be used for testing on secure private
+/// networks.*
+pub struct Plain {
     inner: ClientService<TcpStream, JsonProto>,
     telemetry: Option<Telemetry>,
 }
@@ -83,9 +42,9 @@ pub struct JsonCodec;
 #[doc(hidden)]
 pub struct JsonProto;
 
-impl RemoteHost {
+impl Plain {
     /// Create a new Host connected to addr.
-    pub fn connect(addr: &str, handle: &Handle) -> Box<Future<Item = Arc<RemoteHost>, Error = Error>> {
+    pub fn connect(addr: &str, handle: &Handle) -> Box<Future<Item = Arc<Plain>, Error = Error>> {
         let addr: SocketAddr = match addr.parse().chain_err(|| "Invalid host address") {
             Ok(addr) => addr,
             Err(e) => return Box::new(future::err(e)),
@@ -99,7 +58,7 @@ impl RemoteHost {
             .and_then(|client_service| {
                 info!("Connected!");
 
-                let mut host = Arc::new(RemoteHost {
+                let mut host = Arc::new(Plain {
                     inner: client_service,
                     telemetry: None,
                 });
@@ -114,7 +73,7 @@ impl RemoteHost {
     }
 }
 
-impl Host for RemoteHost {
+impl Host for Plain {
     fn telemetry(&self) -> &Telemetry {
         self.telemetry.as_ref().unwrap()
     }
@@ -135,7 +94,7 @@ impl Host for RemoteHost {
     }
 }
 
-impl Service for RemoteHost {
+impl Service for Plain {
     type Request = serde_json::Value;
     type Response = serde_json::Value;
     type Error = io::Error;

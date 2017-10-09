@@ -33,7 +33,9 @@ pub mod errors;
 pub mod host;
 pub mod prelude {
     pub use command;
-    pub use host::{Host, LocalHost, RemoteHost};
+    pub use host::Host;
+    pub use host::remote::{self, RemoteHost};
+    pub use host::local::{self, Local};
     pub use telemetry::{self, Cpu, FsMount, Os, OsFamily, OsPlatform, Telemetry};
 }
 mod target;
