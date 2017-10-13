@@ -12,7 +12,7 @@ For example, to listen to localhost on port 7101, run:
 intecture_agent --address localhost:7101
 ```
 
-More likely though you'll want to listen on your public interface so that Intecture can talk to the host remotely. In this case you should specify the host's IP address manually, or use `0.0.0.0` to listen on all interfaces.
+More likely though you'll want to listen on your public interface so that Intecture can talk to the host remotely. In this case you should specify the host's IP address, or use `0.0.0.0` to listen on all interfaces.
 
 ## Config file
 
@@ -22,7 +22,7 @@ You can also store agent parameters in a configuration file. The file must be in
 address = "0.0.0.0:7101"
 ```
 
-Once you've created a config file, pass it to the agent binary:
+Once you've created a config file, you can start the agent by passing it the file path:
 
 ```sh
 intecture_agent --config agent.toml
