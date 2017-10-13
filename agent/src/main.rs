@@ -59,7 +59,7 @@ impl Service for Api {
 
 #[derive(Deserialize)]
 struct Config {
-    addr: SocketAddr,
+    address: SocketAddr,
 }
 
 quick_main!(|| -> Result<()> {
@@ -92,11 +92,11 @@ quick_main!(|| -> Result<()> {
         fh.read_to_end(&mut buf).chain_err(|| "Could not read config file")?;
         toml::from_slice(&buf).chain_err(|| "Config file contained invalid TOML")?
     } else {
-        let addr = matches.value_of("addr").unwrap().parse().chain_err(|| "Invalid server address")?;
-        Config { addr }
+        let address = matches.value_of("addr").unwrap().parse().chain_err(|| "Invalid server address")?;
+        Config { address }
     };
 
-    let server = TcpServer::new(JsonProto, config.addr);
+    let server = TcpServer::new(JsonProto, config.address);
     server.serve(|| Ok(Api));
     Ok(())
 });
