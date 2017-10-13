@@ -1,8 +1,12 @@
-# Intecture API
+# Intecture APIs [![Build Status](https://travis-ci.org/intecture/api.svg?branch=master)](https://travis-ci.org/intecture/api) [![Coverage Status](https://coveralls.io/repos/github/Intecture/api/badge.svg?branch=master)](https://coveralls.io/github/Intecture/api?branch=master) [![Gitter](https://badges.gitter.im/Join\%20Chat.svg)](https://gitter.im/intecture/Lobby)
 
-This is a major restructuring of Intecture's core components. It goes like this:
+**Intecture is an API for managing your servers. Visit [intecture.io](https://intecture.io).**
+
+---
+
+Intecture's APIs (_cough_ and a binary) are the heart and soul of Intecture. Check out each component's `README.md` for details:
 
 - [core](core/) - The core API that does all the heavy lifting
 - [bindings](bindings/) - Rust FFI and language bindings
-- [proj](proj/) - Project helper functions
-- [agent](agent/) - Tiny daemon that wraps the core API
+- [proj](proj/) - Helpers and boilerplate to use in your Intecture projects
+- [agent](agent/) - Tiny daemon that exposes the core API as a service (for your hosts!)
