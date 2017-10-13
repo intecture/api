@@ -4,15 +4,16 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-#![recursion_limit = "1024"]
-
+extern crate clap;
 extern crate env_logger;
 #[macro_use] extern crate error_chain;
 extern crate futures;
 extern crate intecture_api;
+#[macro_use] extern crate serde_derive;
 extern crate serde_json;
 extern crate tokio_proto;
 extern crate tokio_service;
+extern crate toml;
 
 mod errors;
 
@@ -20,7 +21,9 @@ use errors::*;
 use futures::{future, Future};
 use intecture_api::{Executable, Runnable};
 use intecture_api::host::remote::JsonProto;
-use std::io;
+use std::fs::File;
+use std::io::{self, Read};
+use std::net::SocketAddr;
 use tokio_proto::TcpServer;
 use tokio_service::Service;
 
@@ -54,11 +57,46 @@ impl Service for Api {
     }
 }
 
+#[derive(Deserialize)]
+struct Config {
+    addr: SocketAddr,
+}
+
 quick_main!(|| -> Result<()> {
     env_logger::init().chain_err(|| "Could not start logging")?;
 
-    let addr = "127.0.0.1:7101".parse().chain_err(|| "Invalid server address")?;
-    let server = TcpServer::new(JsonProto, addr);
+    let matches = clap::App::new("Intecture Agent")
+                            .version(env!("CARGO_PKG_VERSION"))
+                            .author(env!("CARGO_PKG_AUTHORS"))
+                            .about(env!("CARGO_PKG_DESCRIPTION"))
+                            .arg(clap::Arg::with_name("config")
+                                .short("c")
+                                .long("config")
+                                .value_name("FILE")
+                                .help("Path to the agent configuration file")
+                                .takes_value(true))
+                            .arg(clap::Arg::with_name("addr")
+                                .short("a")
+                                .long("address")
+                                .value_name("ADDR")
+                                .help("Set the socket address this server will listen on (e.g. 0.0.0.0:7101)")
+                                .takes_value(true))
+                            .group(clap::ArgGroup::with_name("config_or_else")
+                                .args(&["config", "addr"])
+                                .required(true))
+                            .get_matches();
+
+    let config = if let Some(c) = matches.value_of("config") {
+        let mut fh = File::open(c).chain_err(|| "Could not open config file")?;
+        let mut buf = Vec::new();
+        fh.read_to_end(&mut buf).chain_err(|| "Could not read config file")?;
+        toml::from_slice(&buf).chain_err(|| "Config file contained invalid TOML")?
+    } else {
+        let addr = matches.value_of("addr").unwrap().parse().chain_err(|| "Invalid server address")?;
+        Config { addr }
+    };
+
+    let server = TcpServer::new(JsonProto, config.addr);
     server.serve(|| Ok(Api));
     Ok(())
 });
