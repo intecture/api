@@ -1,4 +1,4 @@
-# Intecture Agent
+# Agent
 
 Intecture Agent is a tiny daemon that exposes Intecture's core API as a service. This service should be running on each of your hosts to allow Intecture to manage them remotely. To connect to a remote host, use the `host::remote::Plain` type from [core](../core/).
 
