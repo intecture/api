@@ -1,0 +1,22 @@
+language: rust
+rust:
+  - stable
+  - beta
+  - nightly
+matrix:
+  allow_failures:
+    - rust: nightly
+cache: cargo
+script:
+  - cargo build --verbose --all
+  - cargo test --verbose --all
+  - cargo doc --verbose --all --no-deps
+deploy:
+  provider: pages
+  skip_cleanup: true
+  local_dir: $TRAVIS_BUILD_DIR/target/doc
+  github_token: $GITHUB_TOKEN
+  on:
+    branch: master
+env:
+  - TRAVIS_CARGO_NIGHTLY_FEATURE=""
