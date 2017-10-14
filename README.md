@@ -8,5 +8,5 @@ Intecture's APIs (_cough_ and a binary) are the heart and soul of Intecture. Che
 
 - [core](core/) - The core API that does all the heavy lifting
 - [bindings](bindings/) - Rust FFI and language bindings
-- [proj](proj/) - Helpers and boilerplate to use in your Intecture projects
+- [proj](proj/) - Helpers and boilerplate for building Intecture projects
 - [agent](agent/) - Tiny daemon that exposes the core API as a service (for your hosts!)
