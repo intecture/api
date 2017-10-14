@@ -2,6 +2,8 @@
 
 **Intecture is an API for managing your servers. Visit [intecture.io](https://intecture.io).**
 
+**API docs can be found here: [intecture.github.io/api/intecture_api/](https://intecture.github.io/api/intecture_api/).**
+
 ---
 
 Intecture's APIs (_cough_ and a binary) are the heart and soul of Intecture. Check out each component's `README.md` for details:
