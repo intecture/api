@@ -2,7 +2,7 @@
 
 **Intecture is an API for managing your servers. Visit [intecture.io](https://intecture.io).**
 
-**API docs can be found here: [intecture.io/api/intecture_api/](https://intecture.io/api/intecture_api/).**
+**API docs can be found here: [intecture.io/api/intecture_api/](http://intecture.io/api/intecture_api/).**
 
 ---
 
