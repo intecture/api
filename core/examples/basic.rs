@@ -16,7 +16,7 @@ fn main() {
     let mut core = Core::new().unwrap();
 
     let host = Local::new().and_then(|host| {
-        command::factory(&host, "whoami", None).and_then(|mut cmd| {
+        Command::new(&host, "whoami", None).and_then(|mut cmd| {
             cmd.exec().map(|out| {
                 println!("I'm currently running as {}", String::from_utf8_lossy(&out.stdout).trim());
             })
