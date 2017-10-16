@@ -7,13 +7,13 @@
 use bytes::{BufMut, BytesMut};
 use errors::*;
 use futures::{future, Future};
-use Runnable;
+use remote::Runnable;
 use serde::Deserialize;
 use serde_json;
 use std::{io, result};
 use std::sync::Arc;
 use std::net::SocketAddr;
-use super::Host;
+use super::{Host, HostType};
 use telemetry::{self, Telemetry};
 use tokio_core::net::TcpStream;
 use tokio_core::reactor::Handle;
@@ -23,28 +23,27 @@ use tokio_proto::pipeline::{ClientProto, ClientService, ServerProto};
 use tokio_proto::TcpClient;
 use tokio_service::Service;
 
-pub trait RemoteHost: Host {
-    fn connect(addr: &str, handle: &Handle) -> Box<Future<Item = Arc<Self>, Error = Error>>;
-}
-
-/// A Host type that uses an unencrypted socket.
+/// A `Host` type that uses an unencrypted socket.
 ///
-/// *Warning! This Host type is susceptible to eavesdropping and MITM
+/// *Warning! An unencrypted host is susceptible to eavesdropping and MITM
 /// attacks, and ideally should only be used for testing on secure private
 /// networks.*
+#[derive(Clone)]
 pub struct Plain {
+    inner: Arc<Inner>,
+}
+
+struct Inner {
     inner: ClientService<TcpStream, JsonProto>,
     telemetry: Option<Telemetry>,
 }
 
-#[doc(hidden)]
 pub struct JsonCodec;
-#[doc(hidden)]
 pub struct JsonProto;
 
 impl Plain {
     /// Create a new Host connected to addr.
-    pub fn connect(addr: &str, handle: &Handle) -> Box<Future<Item = Arc<Plain>, Error = Error>> {
+    pub fn connect(addr: &str, handle: &Handle) -> Box<Future<Item = Plain, Error = Error>> {
         let addr: SocketAddr = match addr.parse().chain_err(|| "Invalid host address") {
             Ok(addr) => addr,
             Err(e) => return Box::new(future::err(e)),
@@ -58,39 +57,47 @@ impl Plain {
             .and_then(|client_service| {
                 info!("Connected!");
 
-                let mut host = Arc::new(Plain {
-                    inner: client_service,
-                    telemetry: None,
-                });
+                let mut host = Plain {
+                    inner: Arc::new(
+                        Inner {
+                            inner: client_service,
+                            telemetry: None,
+                        }),
+                };
 
-                telemetry::load(&host)
-                          .chain_err(|| "Could not load telemetry for host")
-                          .map(|t| {
-                    Arc::get_mut(&mut host).unwrap().telemetry = Some(t);
-                    host
-                })
+                telemetry::providers::factory(&host)
+                    .chain_err(|| "Could not load telemetry for host")
+                    .map(|t| {
+                        Arc::get_mut(&mut host.inner).unwrap().telemetry = Some(t);
+                        host
+                    })
             }))
     }
-}
 
-impl Host for Plain {
-    fn telemetry(&self) -> &Telemetry {
-        self.telemetry.as_ref().unwrap()
-    }
-
-    fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
+    #[doc(hidden)]
+    pub fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
         where for<'de> D: Deserialize<'de>
     {
         let value = match serde_json::to_value(provider).chain_err(|| "Could not encode provider to send to host") {
             Ok(v) => v,
             Err(e) => return Box::new(future::err(e))
         };
-        Box::new(self.inner.call(value)
-                           .chain_err(|| "Error while running provider on host")
-                           .and_then(|v| match serde_json::from_value::<D>(v).chain_err(|| "Could not understand response from host") {
-                               Ok(d) => future::ok(d),
-                               Err(e) => future::err(e)
-                           }))
+        Box::new(self.call(value)
+            .chain_err(|| "Error while running provider on host")
+            .and_then(|v| match serde_json::from_value::<D>(v).chain_err(|| "Could not understand response from host") {
+                Ok(d) => future::ok(d),
+                Err(e) => future::err(e)
+            }))
+    }
+}
+
+impl Host for Plain {
+    fn telemetry(&self) -> &Telemetry {
+        self.inner.telemetry.as_ref().unwrap()
+    }
+
+    fn get_type<'a>(&'a self) -> HostType<'a> {
+        HostType::Remote(&self)
     }
 }
 
@@ -101,7 +108,7 @@ impl Service for Plain {
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        Box::new(self.inner.call(req))
+        Box::new(self.inner.inner.call(req)) as Self::Future
     }
 }
 

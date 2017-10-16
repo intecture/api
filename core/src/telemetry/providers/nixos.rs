@@ -6,18 +6,25 @@
 
 use erased_serde::Serialize;
 use errors::*;
-use {Executable, Runnable};
-use futures::future::{self, Future, FutureResult};
-use host::*;
+use futures::{future, Future};
+use host::{Host, HostType};
+use host::local::Local;
+use host::remote::Plain;
 use pnet::datalink::interfaces;
+use provider::Provider;
+use remote::{Executable, Runnable};
 use std::{env, process, str};
-use std::sync::Arc;
+use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, linux};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry,
-                TelemetryProvider, TelemetryRunnable, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
 
-pub struct Nixos;
+pub struct Nixos<H: Host> {
+    host: H,
+}
+
+struct LocalNixos;
+struct RemoteNixos;
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize)]
@@ -26,49 +33,78 @@ pub enum NixosRunnable {
     Load,
 }
 
-impl <H: Host + 'static>TelemetryProvider<H> for Nixos {
-    fn available(host: &Arc<H>) -> Box<Future<Item = bool, Error = Error>> {
-        host.run(Runnable::Telemetry(TelemetryRunnable::Nixos(NixosRunnable::Available)))
+impl<H: Host + 'static> Provider<H> for Nixos<H> {
+    fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(l) => LocalNixos::available(l),
+            HostType::Remote(r) => RemoteNixos::available(r),
+        }
+    }
+
+    fn try_new(host: &H) -> Box<Future<Item = Option<Nixos<H>>, Error = Error>> {
+        let host = host.clone();
+        Box::new(Self::available(&host)
+            .and_then(|available| {
+                if available {
+                    future::ok(Some(Nixos { host }))
+                } else {
+                    future::ok(None)
+                }
+            }))
+    }
+}
+
+impl<H: Host + 'static> TelemetryProvider<H> for Nixos<H> {
+    fn load(&mut self) -> Box<Future<Item = Telemetry, Error = Error>> {
+        match self.host.get_type() {
+            HostType::Local(l) => LocalNixos::load(l),
+            HostType::Remote(r) => RemoteNixos::load(r),
+        }
+    }
+}
+
+impl LocalNixos {
+    fn available(_: &Local) -> Box<Future<Item = bool, Error = Error>> {
+        Box::new(future::ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Nixos)))
+    }
+
+    fn load(_: &Local) -> Box<Future<Item = Telemetry, Error = Error>> {
+        Box::new(future::lazy(|| match do_load() {
+            Ok(t) => future::ok(t),
+            Err(e) => future::err(e),
+        }))
+    }
+}
+
+impl RemoteNixos {
+    fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
+        let runnable = Runnable::Telemetry(
+                           TelemetryRunnable::Nixos(
+                               NixosRunnable::Available));
+        host.run(runnable)
             .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Nixos", func: "available" })
     }
 
-    fn try_load(host: &Arc<H>) -> Box<Future<Item = Option<Telemetry>, Error = Error>> {
+    fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
+        let runnable = Runnable::Telemetry(
+                           TelemetryRunnable::Nixos(
+                               NixosRunnable::Load));
         let host = host.clone();
 
-        Box::new(Self::available(&host)
-            .and_then(move |available| {
-                if available {
-                    Box::new(host.run::<serializable::Telemetry>(Runnable::Telemetry(TelemetryRunnable::Nixos(NixosRunnable::Load)))
-                        .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Nixos", func: "load" })
-                        .map(|t| {
-                            let t: Telemetry = t.into();
-                            Some(t)
-                        })) as Box<Future<Item = Option<Telemetry>, Error = Error>>
-                } else {
-                    Box::new(future::ok(None)) as Box<Future<Item = Option<Telemetry>, Error = Error>>
-                }
-          }))
+        Box::new(host.run(runnable)
+            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Nixos", func: "load" })
+            .map(|t: serializable::Telemetry| Telemetry::from(t)))
     }
 }
 
 impl Executable for NixosRunnable {
-    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, host: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            NixosRunnable::Available =>
-                Box::new(future::ok(Box::new(
-                    cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Nixos)
-                ) as Box<Serialize>)),
-            NixosRunnable::Load => {
-                Box::new(future::lazy(move || -> FutureResult<Box<Serialize>, Error> {
-                    match do_load() {
-                        Ok(t) => {
-                            let t: serializable::Telemetry = t.into();
-                            future::ok(Box::new(t) as Box<Serialize>)
-                        },
-                        Err(e) => future::err(e),
-                    }
-                }))
-            }
+            NixosRunnable::Available => Box::new(LocalNixos::available(host).map(|b| Box::new(b) as Box<Serialize>)),
+            NixosRunnable::Load => Box::new(LocalNixos::load(host).map(|t| {
+                let t: serializable::Telemetry = t.into();
+                Box::new(t) as Box<Serialize>
+            }))
         }
     }
 }

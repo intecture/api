@@ -19,7 +19,8 @@ mod errors;
 
 use errors::*;
 use futures::{future, Future};
-use intecture_api::{Executable, Runnable};
+use intecture_api::remote::{Executable, Runnable};
+use intecture_api::host::local::Local;
 use intecture_api::host::remote::JsonProto;
 use std::fs::File;
 use std::io::{self, Read};
@@ -27,7 +28,9 @@ use std::net::SocketAddr;
 use tokio_proto::TcpServer;
 use tokio_service::Service;
 
-pub struct Api;
+pub struct Api {
+    host: Local,
+}
 
 impl Service for Api {
     type Request = serde_json::Value;
@@ -46,7 +49,7 @@ impl Service for Api {
                         io::ErrorKind::Other, e.description()
                     ))),
         };
-        Box::new(runnable.exec()
+        Box::new(runnable.exec(&self.host)
             // @todo Can't wrap 'e' as error_chain Error doesn't derive Sync.
             // Waiting for https://github.com/rust-lang-nursery/error-chain/pull/163
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.description()))
@@ -96,7 +99,8 @@ quick_main!(|| -> Result<()> {
         Config { address }
     };
 
+    let host = Local::new().wait()?;
     let server = TcpServer::new(JsonProto, config.address);
-    server.serve(|| Ok(Api));
+    server.serve(move || Ok(Api { host: host.clone() }));
     Ok(())
 });

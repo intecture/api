@@ -32,36 +32,15 @@ pub mod command;
 pub mod errors;
 pub mod host;
 pub mod prelude {
-    pub use command;
-    pub use host::Host;
-    pub use host::remote::{self, Plain, RemoteHost};
+    pub use command::{self, Command};
+    pub use command::providers::CommandProvider;
+    pub use host::{Host, HostType};
+    pub use host::remote::{self, Plain};
     pub use host::local::{self, Local};
+    pub use provider::Provider;
     pub use telemetry::{self, Cpu, FsMount, Os, OsFamily, OsPlatform, Telemetry};
 }
+mod provider;
+#[doc(hidden)] pub mod remote;
 mod target;
 pub mod telemetry;
-
-use errors::*;
-use erased_serde::Serialize;
-use futures::Future;
-
-#[doc(hidden)]
-pub trait Executable {
-    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>>;
-}
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum Runnable {
-    Command(command::CommandRunnable),
-    Telemetry(telemetry::TelemetryRunnable),
-}
-
-impl Executable for Runnable {
-    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
-        match self {
-            Runnable::Command(p) => p.exec(),
-            Runnable::Telemetry(p) => p.exec(),
-        }
-    }
-}
