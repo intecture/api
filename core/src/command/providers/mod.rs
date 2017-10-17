@@ -17,7 +17,7 @@ pub use self::generic::{Generic, GenericRunnable};
 use super::CommandResult;
 
 pub trait CommandProvider<H: Host>: Provider<H> {
-    fn exec(&mut self, &str, &[String]) -> Box<Future<Item = CommandResult, Error = Error>>;
+    fn exec(&self, &H, &str, &[String]) -> Box<Future<Item = CommandResult, Error = Error>>;
 }
 
 #[doc(hidden)]

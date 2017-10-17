@@ -30,7 +30,7 @@ use remote::Executable;
 use super::Telemetry;
 
 pub trait TelemetryProvider<H: Host>: Provider<H> {
-    fn load(&mut self) -> Box<Future<Item = Telemetry, Error = Error>>;
+    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>>;
 }
 
 #[doc(hidden)]
@@ -62,23 +62,30 @@ impl Executable for TelemetryRunnable {
 pub fn factory<H: Host + 'static>(host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
     let mut providers: Vec<Box<Future<Item = Telemetry, Error = Error>>> = Vec::new();
 
-    providers.push(Box::new(Centos::try_new(host).and_then(option_to_result)));
-    providers.push(Box::new(Debian::try_new(host).and_then(option_to_result)));
-    providers.push(Box::new(Fedora::try_new(host).and_then(option_to_result)));
-    providers.push(Box::new(Freebsd::try_new(host).and_then(option_to_result)));
-    providers.push(Box::new(Macos::try_new(host).and_then(option_to_result)));
-    providers.push(Box::new(Nixos::try_new(host).and_then(option_to_result)));
-    providers.push(Box::new(Ubuntu::try_new(host).and_then(option_to_result)));
+    let h = host.clone();
+    providers.push(Box::new(Centos::try_new(host).and_then(move |o| option_to_result(&h, o))));
+    let h = host.clone();
+    providers.push(Box::new(Debian::try_new(host).and_then(move |o| option_to_result(&h, o))));
+    let h = host.clone();
+    providers.push(Box::new(Fedora::try_new(host).and_then(move |o| option_to_result(&h, o))));
+    let h = host.clone();
+    providers.push(Box::new(Freebsd::try_new(host).and_then(move |o| option_to_result(&h, o))));
+    let h = host.clone();
+    providers.push(Box::new(Macos::try_new(host).and_then(move |o| option_to_result(&h, o))));
+    let h = host.clone();
+    providers.push(Box::new(Nixos::try_new(host).and_then(move |o| option_to_result(&h, o))));
+    let h = host.clone();
+    providers.push(Box::new(Ubuntu::try_new(host).and_then(move |o| option_to_result(&h, o))));
 
     Box::new(future::select_ok(providers).map(|p| p.0))
 }
 
-fn option_to_result<H, P>(opt: Option<P>) -> Box<Future<Item = Telemetry, Error = Error>>
+fn option_to_result<H, P>(host: &H, opt: Option<P>) -> Box<Future<Item = Telemetry, Error = Error>>
     where H: Host,
           P: TelemetryProvider<H>
 {
     match opt {
-        Some(mut t) => t.load(),
+        Some(t) => t.load(host),
         None => Box::new(future::err(ErrorKind::ProviderUnavailable("Telemetry").into()))
     }
 }

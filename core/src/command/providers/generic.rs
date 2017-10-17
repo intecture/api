@@ -17,10 +17,7 @@ use std::process;
 use super::{CommandProvider, CommandRunnable};
 
 #[derive(Clone)]
-pub struct Generic<H: Host> {
-    host: H
-}
-
+pub struct Generic;
 struct LocalGeneric;
 struct RemoteGeneric;
 
@@ -31,20 +28,20 @@ pub enum GenericRunnable {
     Exec(String, Vec<String>),
 }
 
-impl<H: Host + 'static> Provider<H> for Generic<H> {
+impl<H: Host + 'static> Provider<H> for Generic {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
         match host.get_type() {
-            HostType::Local(l) => LocalGeneric::available(l),
+            HostType::Local(_) => LocalGeneric::available(),
             HostType::Remote(r) => RemoteGeneric::available(r),
         }
     }
 
-    fn try_new(host: &H) -> Box<Future<Item = Option<Generic<H>>, Error = Error>> {
+    fn try_new(host: &H) -> Box<Future<Item = Option<Generic>, Error = Error>> {
         let host = host.clone();
         Box::new(Self::available(&host)
             .and_then(|available| {
                 if available {
-                    future::ok(Some(Generic { host }))
+                    future::ok(Some(Generic))
                 } else {
                     future::ok(None)
                 }
@@ -52,21 +49,21 @@ impl<H: Host + 'static> Provider<H> for Generic<H> {
     }
 }
 
-impl<H: Host + 'static> CommandProvider<H> for Generic<H> {
-    fn exec(&mut self, cmd: &str, shell: &[String]) -> Box<Future<Item = CommandResult, Error = Error>> {
-        match self.host.get_type() {
-            HostType::Local(l) => LocalGeneric::exec(l, cmd, shell),
+impl<H: Host + 'static> CommandProvider<H> for Generic {
+    fn exec(&self, host: &H, cmd: &str, shell: &[String]) -> Box<Future<Item = CommandResult, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(_) => LocalGeneric::exec(cmd, shell),
             HostType::Remote(r) => RemoteGeneric::exec(r, cmd, shell),
         }
     }
 }
 
 impl LocalGeneric {
-    fn available(_: &Local) -> Box<Future<Item = bool, Error = Error>> {
+    fn available() -> Box<Future<Item = bool, Error = Error>> {
         Box::new(future::ok(cfg!(unix)))
     }
 
-    fn exec(_: &Local, cmd: &str, shell: &[String]) -> Box<Future<Item = CommandResult, Error = Error>> {
+    fn exec(cmd: &str, shell: &[String]) -> Box<Future<Item = CommandResult, Error = Error>> {
         let cmd_owned = cmd.to_owned();
         let shell_owned = shell.to_owned();
 
@@ -113,10 +110,10 @@ impl RemoteGeneric {
 }
 
 impl Executable for GenericRunnable {
-    fn exec(self, host: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            GenericRunnable::Available => Box::new(LocalGeneric::available(host).map(|b| Box::new(b) as Box<Serialize>)),
-            GenericRunnable::Exec(cmd, shell) => Box::new(LocalGeneric::exec(host, &cmd, &shell).map(|r| Box::new(r) as Box<Serialize>)),
+            GenericRunnable::Available => Box::new(LocalGeneric::available().map(|b| Box::new(b) as Box<Serialize>)),
+            GenericRunnable::Exec(cmd, shell) => Box::new(LocalGeneric::exec(&cmd, &shell).map(|r| Box::new(r) as Box<Serialize>)),
         }
     }
 }

@@ -19,6 +19,7 @@ const DEFAULT_SHELL: [&'static str; 2] = ["/bin/sh", "-c"];
 const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support windows :("];
 
 pub struct Command<H: Host> {
+    host: H,
     inner: Box<CommandProvider<H>>,
     shell: Vec<String>,
     cmd: String,
@@ -34,8 +35,9 @@ pub struct CommandResult {
 
 impl<H: Host + 'static> Command<H> {
     pub fn new(host: &H, cmd: &str, shell: Option<&[&str]>) -> Box<Future<Item = Command<H>, Error = Error>> {
-        let cmd_owned = cmd.to_owned();
-        let shell_owned: Vec<String> = shell.unwrap_or(&DEFAULT_SHELL)
+        let host = host.clone();
+        let cmd = cmd.to_owned();
+        let shell: Vec<String> = shell.unwrap_or(&DEFAULT_SHELL)
             .to_owned()
             .iter()
             .map(|s| s.to_string())
@@ -43,16 +45,18 @@ impl<H: Host + 'static> Command<H> {
 
         Box::new(host.command_provider()
             .and_then(|provider| future::ok(Command {
+                host: host,
                 inner: provider,
-                shell: shell_owned,
-                cmd: cmd_owned,
+                shell: shell,
+                cmd: cmd,
             })))
     }
 
-    pub fn with_provider<P>(provider: P, cmd: &str, shell: Option<&[&str]>) -> Command<H>
+    pub fn with_provider<P>(host: &H, provider: P, cmd: &str, shell: Option<&[&str]>) -> Command<H>
         where P: CommandProvider<H> + 'static
     {
         Command {
+            host: host.clone(),
             inner: Box::new(provider),
             shell: shell.unwrap_or(&DEFAULT_SHELL)
                         .to_owned()
@@ -64,6 +68,6 @@ impl<H: Host + 'static> Command<H> {
     }
 
     pub fn exec(&mut self) -> Box<Future<Item = CommandResult, Error = Error>> {
-        self.inner.exec(&self.cmd, &self.shell)
+        self.inner.exec(&self.host, &self.cmd, &self.shell)
     }
 }

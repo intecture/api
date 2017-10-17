@@ -18,10 +18,7 @@ use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, unix};
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
 
-pub struct Macos<H: Host> {
-    host: H,
-}
-
+pub struct Macos;
 struct LocalMacos;
 struct RemoteMacos;
 
@@ -32,20 +29,20 @@ pub enum MacosRunnable {
     Load,
 }
 
-impl<H: Host + 'static> Provider<H> for Macos<H> {
+impl<H: Host + 'static> Provider<H> for Macos {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
         match host.get_type() {
-            HostType::Local(l) => LocalMacos::available(l),
+            HostType::Local(_) => LocalMacos::available(),
             HostType::Remote(r) => RemoteMacos::available(r),
         }
     }
 
-    fn try_new(host: &H) -> Box<Future<Item = Option<Macos<H>>, Error = Error>> {
+    fn try_new(host: &H) -> Box<Future<Item = Option<Macos>, Error = Error>> {
         let host = host.clone();
         Box::new(Self::available(&host)
             .and_then(|available| {
                 if available {
-                    future::ok(Some(Macos { host }))
+                    future::ok(Some(Macos))
                 } else {
                     future::ok(None)
                 }
@@ -53,21 +50,21 @@ impl<H: Host + 'static> Provider<H> for Macos<H> {
     }
 }
 
-impl<H: Host + 'static> TelemetryProvider<H> for Macos<H> {
-    fn load(&mut self) -> Box<Future<Item = Telemetry, Error = Error>> {
-        match self.host.get_type() {
-            HostType::Local(l) => LocalMacos::load(l),
+impl<H: Host + 'static> TelemetryProvider<H> for Macos {
+    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(_) => LocalMacos::load(),
             HostType::Remote(r) => RemoteMacos::load(r),
         }
     }
 }
 
 impl LocalMacos {
-    fn available(_: &Local) -> Box<Future<Item = bool, Error = Error>> {
+    fn available() -> Box<Future<Item = bool, Error = Error>> {
         Box::new(future::ok(cfg!(target_os="macos")))
     }
 
-    fn load(_: &Local) -> Box<Future<Item = Telemetry, Error = Error>> {
+    fn load() -> Box<Future<Item = Telemetry, Error = Error>> {
         Box::new(future::lazy(|| match do_load() {
             Ok(t) => future::ok(t),
             Err(e) => future::err(e),
@@ -97,10 +94,10 @@ impl RemoteMacos {
 }
 
 impl Executable for MacosRunnable {
-    fn exec(self, host: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            MacosRunnable::Available => Box::new(LocalMacos::available(host).map(|b| Box::new(b) as Box<Serialize>)),
-            MacosRunnable::Load => Box::new(LocalMacos::load(host).map(|t| {
+            MacosRunnable::Available => Box::new(LocalMacos::available().map(|b| Box::new(b) as Box<Serialize>)),
+            MacosRunnable::Load => Box::new(LocalMacos::load().map(|t| {
                 let t: serializable::Telemetry = t.into();
                 Box::new(t) as Box<Serialize>
             }))

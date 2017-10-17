@@ -20,10 +20,7 @@ use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, unix};
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
 
-pub struct Freebsd<H: Host> {
-    host: H,
-}
-
+pub struct Freebsd;
 struct LocalFreebsd;
 struct RemoteFreebsd;
 
@@ -34,20 +31,20 @@ pub enum FreebsdRunnable {
     Load,
 }
 
-impl<H: Host + 'static> Provider<H> for Freebsd<H> {
+impl<H: Host + 'static> Provider<H> for Freebsd {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
         match host.get_type() {
-            HostType::Local(l) => LocalFreebsd::available(l),
+            HostType::Local(_) => LocalFreebsd::available(),
             HostType::Remote(r) => RemoteFreebsd::available(r),
         }
     }
 
-    fn try_new(host: &H) -> Box<Future<Item = Option<Freebsd<H>>, Error = Error>> {
+    fn try_new(host: &H) -> Box<Future<Item = Option<Freebsd>, Error = Error>> {
         let host = host.clone();
         Box::new(Self::available(&host)
             .and_then(|available| {
                 if available {
-                    future::ok(Some(Freebsd { host }))
+                    future::ok(Some(Freebsd))
                 } else {
                     future::ok(None)
                 }
@@ -55,21 +52,21 @@ impl<H: Host + 'static> Provider<H> for Freebsd<H> {
     }
 }
 
-impl<H: Host + 'static> TelemetryProvider<H> for Freebsd<H> {
-    fn load(&mut self) -> Box<Future<Item = Telemetry, Error = Error>> {
-        match self.host.get_type() {
-            HostType::Local(l) => LocalFreebsd::load(l),
+impl<H: Host + 'static> TelemetryProvider<H> for Freebsd {
+    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(_) => LocalFreebsd::load(),
             HostType::Remote(r) => RemoteFreebsd::load(r),
         }
     }
 }
 
 impl LocalFreebsd {
-    fn available(_: &Local) -> Box<Future<Item = bool, Error = Error>> {
+    fn available() -> Box<Future<Item = bool, Error = Error>> {
         Box::new(future::ok(cfg!(target_os="freebsd")))
     }
 
-    fn load(_: &Local) -> Box<Future<Item = Telemetry, Error = Error>> {
+    fn load() -> Box<Future<Item = Telemetry, Error = Error>> {
         Box::new(future::lazy(|| match do_load() {
             Ok(t) => future::ok(t),
             Err(e) => future::err(e),
@@ -99,10 +96,10 @@ impl RemoteFreebsd {
 }
 
 impl Executable for FreebsdRunnable {
-    fn exec(self, host: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            FreebsdRunnable::Available => Box::new(LocalFreebsd::available(host).map(|b| Box::new(b) as Box<Serialize>)),
-            FreebsdRunnable::Load => Box::new(LocalFreebsd::load(host).map(|t| {
+            FreebsdRunnable::Available => Box::new(LocalFreebsd::available().map(|b| Box::new(b) as Box<Serialize>)),
+            FreebsdRunnable::Load => Box::new(LocalFreebsd::load().map(|t| {
                 let t: serializable::Telemetry = t.into();
                 Box::new(t) as Box<Serialize>
             }))

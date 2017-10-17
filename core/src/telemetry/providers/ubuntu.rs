@@ -20,10 +20,7 @@ use target::{default, linux};
 use target::linux::LinuxFlavour;
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
 
-pub struct Ubuntu<H: Host> {
-    host: H,
-}
-
+pub struct Ubuntu;
 struct LocalUbuntu;
 struct RemoteUbuntu;
 
@@ -34,20 +31,20 @@ pub enum UbuntuRunnable {
     Load,
 }
 
-impl<H: Host + 'static> Provider<H> for Ubuntu<H> {
+impl<H: Host + 'static> Provider<H> for Ubuntu {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
         match host.get_type() {
-            HostType::Local(l) => LocalUbuntu::available(l),
+            HostType::Local(_) => LocalUbuntu::available(),
             HostType::Remote(r) => RemoteUbuntu::available(r),
         }
     }
 
-    fn try_new(host: &H) -> Box<Future<Item = Option<Ubuntu<H>>, Error = Error>> {
+    fn try_new(host: &H) -> Box<Future<Item = Option<Ubuntu>, Error = Error>> {
         let host = host.clone();
         Box::new(Self::available(&host)
             .and_then(|available| {
                 if available {
-                    future::ok(Some(Ubuntu { host }))
+                    future::ok(Some(Ubuntu))
                 } else {
                     future::ok(None)
                 }
@@ -55,21 +52,21 @@ impl<H: Host + 'static> Provider<H> for Ubuntu<H> {
     }
 }
 
-impl<H: Host + 'static> TelemetryProvider<H> for Ubuntu<H> {
-    fn load(&mut self) -> Box<Future<Item = Telemetry, Error = Error>> {
-        match self.host.get_type() {
-            HostType::Local(l) => LocalUbuntu::load(l),
+impl<H: Host + 'static> TelemetryProvider<H> for Ubuntu {
+    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(_) => LocalUbuntu::load(),
             HostType::Remote(r) => RemoteUbuntu::load(r),
         }
     }
 }
 
 impl LocalUbuntu {
-    fn available(_: &Local) -> Box<Future<Item = bool, Error = Error>> {
+    fn available() -> Box<Future<Item = bool, Error = Error>> {
         Box::new(future::ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Ubuntu)))
     }
 
-    fn load(_: &Local) -> Box<Future<Item = Telemetry, Error = Error>> {
+    fn load() -> Box<Future<Item = Telemetry, Error = Error>> {
         Box::new(future::lazy(|| match do_load() {
             Ok(t) => future::ok(t),
             Err(e) => future::err(e),
@@ -99,10 +96,10 @@ impl RemoteUbuntu {
 }
 
 impl Executable for UbuntuRunnable {
-    fn exec(self, host: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            UbuntuRunnable::Available => Box::new(LocalUbuntu::available(host).map(|b| Box::new(b) as Box<Serialize>)),
-            UbuntuRunnable::Load => Box::new(LocalUbuntu::load(host).map(|t| {
+            UbuntuRunnable::Available => Box::new(LocalUbuntu::available().map(|b| Box::new(b) as Box<Serialize>)),
+            UbuntuRunnable::Load => Box::new(LocalUbuntu::load().map(|t| {
                 let t: serializable::Telemetry = t.into();
                 Box::new(t) as Box<Serialize>
             }))
