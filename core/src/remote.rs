@@ -10,9 +10,10 @@ use errors::*;
 use futures::Future;
 use host::local::Local;
 use telemetry::providers::TelemetryRunnable;
+use tokio_core::reactor::Handle;
 
 pub trait Executable {
-    fn exec(self, &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>>;
+    fn exec(self, &Local, &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>>;
 }
 
 #[derive(Serialize, Deserialize)]
@@ -22,10 +23,10 @@ pub enum Runnable {
 }
 
 impl Executable for Runnable {
-    fn exec(self, host: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, host: &Local, handle: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            Runnable::Command(p) => p.exec(host),
-            Runnable::Telemetry(p) => p.exec(host),
+            Runnable::Command(p) => p.exec(host, handle),
+            Runnable::Telemetry(p) => p.exec(host, handle),
         }
     }
 }

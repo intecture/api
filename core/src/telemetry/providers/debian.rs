@@ -18,6 +18,7 @@ use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, linux};
 use target::linux::LinuxFlavour;
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use tokio_core::reactor::Handle;
 
 pub struct Debian;
 struct LocalDebian;
@@ -95,7 +96,7 @@ impl RemoteDebian {
 }
 
 impl Executable for DebianRunnable {
-    fn exec(self, _: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
             DebianRunnable::Available => Box::new(LocalDebian::available().map(|b| Box::new(b) as Box<Serialize>)),
             DebianRunnable::Load => Box::new(LocalDebian::load().map(|t| {

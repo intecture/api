@@ -17,6 +17,7 @@ use std::{env, process, str};
 use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, unix};
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use tokio_core::reactor::Handle;
 
 pub struct Macos;
 struct LocalMacos;
@@ -94,7 +95,7 @@ impl RemoteMacos {
 }
 
 impl Executable for MacosRunnable {
-    fn exec(self, _: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
             MacosRunnable::Available => Box::new(LocalMacos::available().map(|b| Box::new(b) as Box<Serialize>)),
             MacosRunnable::Load => Box::new(LocalMacos::load().map(|t| {

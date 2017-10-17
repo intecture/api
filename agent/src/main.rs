@@ -11,6 +11,7 @@ extern crate futures;
 extern crate intecture_api;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
+extern crate tokio_core;
 extern crate tokio_proto;
 extern crate tokio_service;
 extern crate toml;
@@ -25,11 +26,14 @@ use intecture_api::host::remote::JsonProto;
 use std::fs::File;
 use std::io::{self, Read};
 use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio_core::reactor::Remote;
 use tokio_proto::TcpServer;
-use tokio_service::Service;
+use tokio_service::{NewService, Service};
 
 pub struct Api {
     host: Local,
+    remote: Remote,
 }
 
 impl Service for Api {
@@ -49,7 +53,14 @@ impl Service for Api {
                         io::ErrorKind::Other, e.description()
                     ))),
         };
-        Box::new(runnable.exec(&self.host)
+
+        // XXX Danger zone! If we're running multiple threads, this `unwrap()`
+        // will explode. The API requires a `Handle`, but we can only send a
+        // `Remote` to this Service. Currently we force the `Handle`, which is
+        // only safe for the current thread.
+        // See https://github.com/alexcrichton/tokio-process/issues/23
+        let handle = self.remote.handle().unwrap();
+        Box::new(runnable.exec(&self.host, &handle)
             // @todo Can't wrap 'e' as error_chain Error doesn't derive Sync.
             // Waiting for https://github.com/rust-lang-nursery/error-chain/pull/163
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.description()))
@@ -57,6 +68,19 @@ impl Service for Api {
                 Ok(v) => future::ok(v),
                 Err(e) => future::err(io::Error::new(io::ErrorKind::Other, e.description())),
             }))
+    }
+}
+
+impl NewService for Api {
+    type Request = serde_json::Value;
+    type Response = serde_json::Value;
+    type Error = io::Error;
+    type Instance = Api;
+    fn new_service(&self) -> io::Result<Self::Instance> {
+        Ok(Api {
+            host: self.host.clone(),
+            remote: self.remote.clone(),
+        })
     }
 }
 
@@ -100,7 +124,18 @@ quick_main!(|| -> Result<()> {
     };
 
     let host = Local::new().wait()?;
+    // XXX We can only run a single thread here, or big boom!!
+    // The API requires a `Handle`, but we can only send a `Remote`.
+    // Currently we force the issue (`unwrap()`), which is only safe
+    // for the current thread.
+    // See https://github.com/alexcrichton/tokio-process/issues/23
     let server = TcpServer::new(JsonProto, config.address);
-    server.serve(move || Ok(Api { host: host.clone() }));
+    server.with_handle(move |handle| {
+        let api = Api {
+            host: host.clone(),
+            remote: handle.remote().clone(),
+        };
+        Arc::new(api)
+    });
     Ok(())
 });

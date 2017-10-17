@@ -18,6 +18,7 @@ use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, linux};
 use target::linux::LinuxFlavour;
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use tokio_core::reactor::Handle;
 
 pub struct Nixos;
 struct LocalNixos;
@@ -95,7 +96,7 @@ impl RemoteNixos {
 }
 
 impl Executable for NixosRunnable {
-    fn exec(self, _: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
             NixosRunnable::Available => Box::new(LocalNixos::available().map(|b| Box::new(b) as Box<Serialize>)),
             NixosRunnable::Load => Box::new(LocalNixos::load().map(|t| {

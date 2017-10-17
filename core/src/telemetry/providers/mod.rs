@@ -28,6 +28,7 @@ use host::local::Local;
 use provider::Provider;
 use remote::Executable;
 use super::Telemetry;
+use tokio_core::reactor::Handle;
 
 pub trait TelemetryProvider<H: Host>: Provider<H> {
     fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>>;
@@ -46,15 +47,15 @@ pub enum TelemetryRunnable {
 }
 
 impl Executable for TelemetryRunnable {
-    fn exec(self, host: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, host: &Local, handle: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            TelemetryRunnable::Centos(p) => p.exec(host),
-            TelemetryRunnable::Debian(p) => p.exec(host),
-            TelemetryRunnable::Fedora(p) => p.exec(host),
-            TelemetryRunnable::Freebsd(p) => p.exec(host),
-            TelemetryRunnable::Macos(p) => p.exec(host),
-            TelemetryRunnable::Nixos(p) => p.exec(host),
-            TelemetryRunnable::Ubuntu(p) => p.exec(host),
+            TelemetryRunnable::Centos(p) => p.exec(host, handle),
+            TelemetryRunnable::Debian(p) => p.exec(host, handle),
+            TelemetryRunnable::Fedora(p) => p.exec(host, handle),
+            TelemetryRunnable::Freebsd(p) => p.exec(host, handle),
+            TelemetryRunnable::Macos(p) => p.exec(host, handle),
+            TelemetryRunnable::Nixos(p) => p.exec(host, handle),
+            TelemetryRunnable::Ubuntu(p) => p.exec(host, handle),
         }
     }
 }

@@ -12,6 +12,7 @@ use errors::*;
 use futures::{future, Future};
 use host::Host;
 use self::providers::CommandProvider;
+use tokio_core::reactor::Handle;
 
 #[cfg(not(windows))]
 const DEFAULT_SHELL: [&'static str; 2] = ["/bin/sh", "-c"];
@@ -67,7 +68,7 @@ impl<H: Host + 'static> Command<H> {
         }
     }
 
-    pub fn exec(&mut self) -> Box<Future<Item = CommandResult, Error = Error>> {
-        self.inner.exec(&self.host, &self.cmd, &self.shell)
+    pub fn exec(&mut self, handle: &Handle) -> Box<Future<Item = CommandResult, Error = Error>> {
+        self.inner.exec(&self.host, handle, &self.cmd, &self.shell)
     }
 }

@@ -19,6 +19,7 @@ use std::io::Read;
 use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, unix};
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use tokio_core::reactor::Handle;
 
 pub struct Freebsd;
 struct LocalFreebsd;
@@ -96,7 +97,7 @@ impl RemoteFreebsd {
 }
 
 impl Executable for FreebsdRunnable {
-    fn exec(self, _: &Local) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
             FreebsdRunnable::Available => Box::new(LocalFreebsd::available().map(|b| Box::new(b) as Box<Serialize>)),
             FreebsdRunnable::Load => Box::new(LocalFreebsd::load().map(|t| {
