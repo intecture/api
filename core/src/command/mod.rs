@@ -68,7 +68,7 @@ impl<H: Host + 'static> Command<H> {
         }
     }
 
-    pub fn exec(&mut self, handle: &Handle) -> Box<Future<Item = CommandResult, Error = Error>> {
+    pub fn exec(&self, handle: &Handle) -> Box<Future<Item = CommandResult, Error = Error>> {
         self.inner.exec(&self.host, handle, &self.cmd, &self.shell)
     }
 }

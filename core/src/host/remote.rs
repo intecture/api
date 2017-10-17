@@ -4,7 +4,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use bytes::{BufMut, BytesMut};
+use bytes::BytesMut;
 use errors::*;
 use futures::{future, Future};
 use remote::Runnable;
@@ -15,13 +15,17 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use super::{Host, HostType};
 use telemetry::{self, Telemetry};
-use tokio_core::net::TcpStream;
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
 use tokio_io::codec::{Encoder, Decoder, Framed};
-use tokio_proto::pipeline::{ClientProto, ClientService, ServerProto};
+use tokio_proto::streaming::{Body, Message};
+use tokio_proto::streaming::pipeline::{ClientProto, Frame, ServerProto};
 use tokio_proto::TcpClient;
+use tokio_proto::util::client_proxy::ClientProxy;
 use tokio_service::Service;
+
+#[doc(hidden)]
+pub type LineMessage = Message<serde_json::Value, Body<Vec<u8>, io::Error>>;
 
 /// A `Host` type that uses an unencrypted socket.
 ///
@@ -34,12 +38,14 @@ pub struct Plain {
 }
 
 struct Inner {
-    inner: ClientService<TcpStream, JsonProto>,
+    inner: ClientProxy<LineMessage, LineMessage, io::Error>,
     telemetry: Option<Telemetry>,
 }
 
-pub struct JsonCodec;
-pub struct JsonProto;
+pub struct JsonLineCodec {
+    decoding_head: bool,
+}
+pub struct JsonLineProto;
 
 impl Plain {
     /// Create a new Host connected to addr.
@@ -51,7 +57,7 @@ impl Plain {
 
         info!("Connecting to host {}", addr);
 
-        Box::new(TcpClient::new(JsonProto)
+        Box::new(TcpClient::new(JsonLineProto)
             .connect(&addr, handle)
             .chain_err(|| "Could not connect to host")
             .and_then(|client_service| {
@@ -78,15 +84,30 @@ impl Plain {
     pub fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
         where for<'de> D: Deserialize<'de>
     {
+        Box::new(self.run_msg::<D>(provider)
+            .map(|msg| msg.into_inner()))
+    }
+
+    #[doc(hidden)]
+    pub fn run_msg<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = Message<D, Body<Vec<u8>, io::Error>>, Error = Error>>
+        where for<'de> D: Deserialize<'de>
+    {
         let value = match serde_json::to_value(provider).chain_err(|| "Could not encode provider to send to host") {
             Ok(v) => v,
             Err(e) => return Box::new(future::err(e))
         };
-        Box::new(self.call(value)
+        Box::new(self.inner.inner.call(Message::WithoutBody(value))
             .chain_err(|| "Error while running provider on host")
-            .and_then(|v| match serde_json::from_value::<D>(v).chain_err(|| "Could not understand response from host") {
-                Ok(d) => future::ok(d),
-                Err(e) => future::err(e)
+            .and_then(|mut msg| {
+                let body = msg.take_body();
+                let msg = match serde_json::from_value::<D>(msg.into_inner()).chain_err(|| "Could not understand response from host") {
+                    Ok(d) => d,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                Box::new(future::ok(match body {
+                    Some(b) => Message::WithBody(msg, b),
+                    None => Message::WithoutBody(msg),
+                }))
             }))
     }
 }
@@ -102,8 +123,8 @@ impl Host for Plain {
 }
 
 impl Service for Plain {
-    type Request = serde_json::Value;
-    type Response = serde_json::Value;
+    type Request = LineMessage;
+    type Response = LineMessage;
     type Error = io::Error;
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
@@ -112,58 +133,113 @@ impl Service for Plain {
     }
 }
 
-impl Decoder for JsonCodec {
-    type Item = serde_json::Value;
+impl Decoder for JsonLineCodec {
+    type Item = Frame<serde_json::Value, Vec<u8>, io::Error>;
     type Error = io::Error;
 
-    fn decode(&mut self, buf: &mut BytesMut) -> result::Result<Option<Self::Item>, Self::Error> {
-        // Check to see if the frame contains a new line
-        if let Some(n) = buf.as_ref().iter().position(|b| *b == b'\n') {
-            // remove the serialized frame from the buffer.
-            let line = buf.split_to(n);
+    fn decode(&mut self, buf: &mut BytesMut) -> io::Result<Option<Self::Item>> {
+        let line = match buf.iter().position(|b| *b == b'\n') {
+            Some(n) => buf.split_to(n),
+            None => return Ok(None),
+        };
 
-            // Also remove the '\n'
-            buf.split_to(1);
+        buf.split_to(1);
 
-            return Ok(Some(serde_json::from_slice(&line).unwrap()));
+        if line.is_empty() {
+            let decoding_head = self.decoding_head;
+            self.decoding_head = !decoding_head;
+
+            if decoding_head {
+                Ok(Some(Frame::Message {
+                    message: serde_json::Value::Null,
+                    body: true,
+                }))
+            } else {
+                Ok(Some(Frame::Body {
+                    chunk: None
+                }))
+            }
+        } else {
+            if self.decoding_head {
+                Ok(Some(Frame::Message {
+                    message: serde_json::from_slice(&line).map_err(|e| {
+                        io::Error::new(io::ErrorKind::Other, e)
+                    })?,
+                    body: false,
+                }))
+            } else {
+                Ok(Some(Frame::Body {
+                    chunk: Some(line.to_vec()),
+                }))
+            }
         }
-
-        Ok(None)
     }
 }
 
-impl Encoder for JsonCodec {
-    type Item = serde_json::Value;
+impl Encoder for JsonLineCodec {
+    type Item = Frame<serde_json::Value, Vec<u8>, io::Error>;
     type Error = io::Error;
 
-    fn encode(&mut self, value: Self::Item, buf: &mut BytesMut) -> io::Result<()> {
-        let json = serde_json::to_string(&value).unwrap();
-        buf.reserve(json.len() + 1);
-        buf.extend(json.as_bytes());
-        buf.put_u8(b'\n');
+    fn encode(&mut self, msg: Self::Item, buf: &mut BytesMut) -> io::Result<()> {
+        match msg {
+            Frame::Message { message, body } => {
+                // Our protocol dictates that a message head that
+                // includes a streaming body is an empty string.
+                assert!(message.is_null() == body);
+
+                let json = serde_json::to_vec(&message)
+                    .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+                buf.extend(&json);
+            }
+            Frame::Body { chunk } => {
+                if let Some(chunk) = chunk {
+                    buf.extend(&chunk);
+                }
+            }
+            Frame::Error { error } => {
+                // @todo Support error frames
+                return Err(error)
+            }
+        }
+
+        buf.extend(b"\n");
 
         Ok(())
     }
 }
 
-impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for JsonProto {
+impl<T: AsyncRead + AsyncWrite + 'static> ClientProto<T> for JsonLineProto {
     type Request = serde_json::Value;
+    type RequestBody = Vec<u8>;
     type Response = serde_json::Value;
-    type Transport = Framed<T, JsonCodec>;
-    type BindTransport = result::Result<Self::Transport, io::Error>;
+    type ResponseBody = Vec<u8>;
+    type Error = io::Error;
+    type Transport = Framed<T, JsonLineCodec>;
+    type BindTransport = result::Result<Self::Transport, Self::Error>;
 
     fn bind_transport(&self, io: T) -> Self::BindTransport {
-        Ok(io.framed(JsonCodec))
+        let codec = JsonLineCodec {
+            decoding_head: true,
+        };
+
+        Ok(io.framed(codec))
     }
 }
 
-impl<T: AsyncRead + AsyncWrite + 'static> ServerProto<T> for JsonProto {
+impl<T: AsyncRead + AsyncWrite + 'static> ServerProto<T> for JsonLineProto {
     type Request = serde_json::Value;
+    type RequestBody = Vec<u8>;
     type Response = serde_json::Value;
-    type Transport = Framed<T, JsonCodec>;
-    type BindTransport = result::Result<Self::Transport, io::Error>;
+    type ResponseBody = Vec<u8>;
+    type Error = io::Error;
+    type Transport = Framed<T, JsonLineCodec>;
+    type BindTransport = result::Result<Self::Transport, Self::Error>;
 
     fn bind_transport(&self, io: T) -> Self::BindTransport {
-        Ok(io.framed(JsonCodec))
+        let codec = JsonLineCodec {
+            decoding_head: true,
+        };
+
+        Ok(io.framed(codec))
     }
 }

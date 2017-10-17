@@ -22,12 +22,13 @@ use errors::*;
 use futures::{future, Future};
 use intecture_api::remote::{Executable, Runnable};
 use intecture_api::host::local::Local;
-use intecture_api::host::remote::JsonProto;
+use intecture_api::host::remote::{JsonLineProto, LineMessage};
 use std::fs::File;
 use std::io::{self, Read};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio_core::reactor::Remote;
+use tokio_proto::streaming::Message;
 use tokio_proto::TcpServer;
 use tokio_service::{NewService, Service};
 
@@ -37,12 +38,17 @@ pub struct Api {
 }
 
 impl Service for Api {
-    type Request = serde_json::Value;
-    type Response = serde_json::Value;
+    type Request = LineMessage;
+    type Response = LineMessage;
     type Error = io::Error;
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
+        let req = match req {
+            Message::WithBody(req, _) => req,
+            Message::WithoutBody(req) => req,
+        };
+
         let runnable: Runnable = match serde_json::from_value(req).chain_err(|| "Received invalid Runnable") {
             Ok(r) => r,
             Err(e) => return Box::new(
@@ -65,15 +71,15 @@ impl Service for Api {
             // Waiting for https://github.com/rust-lang-nursery/error-chain/pull/163
             .map_err(|e| io::Error::new(io::ErrorKind::Other, e.description()))
             .and_then(|ser| match serde_json::to_value(ser).chain_err(|| "Could not serialize result") {
-                Ok(v) => future::ok(v),
+                Ok(v) => future::ok(Message::WithoutBody(v)),
                 Err(e) => future::err(io::Error::new(io::ErrorKind::Other, e.description())),
             }))
     }
 }
 
 impl NewService for Api {
-    type Request = serde_json::Value;
-    type Response = serde_json::Value;
+    type Request = LineMessage;
+    type Response = LineMessage;
     type Error = io::Error;
     type Instance = Api;
     fn new_service(&self) -> io::Result<Self::Instance> {
@@ -129,7 +135,7 @@ quick_main!(|| -> Result<()> {
     // Currently we force the issue (`unwrap()`), which is only safe
     // for the current thread.
     // See https://github.com/alexcrichton/tokio-process/issues/23
-    let server = TcpServer::new(JsonProto, config.address);
+    let server = TcpServer::new(JsonLineProto, config.address);
     server.with_handle(move |handle| {
         let api = Api {
             host: host.clone(),
