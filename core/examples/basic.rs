@@ -14,10 +14,11 @@ use tokio_core::reactor::Core;
 
 fn main() {
     let mut core = Core::new().unwrap();
+    let handle = core.handle();
 
     let host = Local::new().and_then(|host| {
-        command::factory(&host, "whoami", None).and_then(|mut cmd| {
-            cmd.exec().map(|out| {
+        Command::new(&host, "whoami", None).and_then(|mut cmd| {
+            cmd.exec(&handle).map(|out| {
                 println!("I'm currently running as {}", String::from_utf8_lossy(&out.stdout).trim());
             })
         })
@@ -25,3 +26,4 @@ fn main() {
 
     core.run(host).unwrap();
 }
+

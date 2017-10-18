@@ -8,29 +8,20 @@
 
 pub mod providers;
 
-use erased_serde::Serialize;
 use errors::*;
-use Executable;
 use futures::{future, Future};
 use host::Host;
-use self::providers::{Nix, NixRunnable};
-use std::sync::Arc;
+use self::providers::CommandProvider;
+use tokio_core::reactor::Handle;
 
-pub trait CommandProvider<H: Host> {
-    fn available(&Arc<H>) -> Box<Future<Item = bool, Error = Error>> where Self: Sized;
-    fn try_new(&Arc<H>, &str, Option<&[&str]>) -> Box<Future<Item = Option<Self>, Error = Error>> where Self: Sized;
-    fn exec(&mut self) -> Box<Future<Item = CommandResult, Error = Error>>;
-}
+#[cfg(not(windows))]
+const DEFAULT_SHELL: [&'static str; 2] = ["/bin/sh", "-c"];
+#[cfg(windows)]
+const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support windows :("];
 
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum CommandRunnable {
-    Nix(NixRunnable)
-}
-
-#[doc(hidden)]
-#[derive(Clone, Serialize, Deserialize)]
-pub struct Command {
+pub struct Command<H: Host> {
+    host: H,
+    inner: Box<CommandProvider<H>>,
     shell: Vec<String>,
     cmd: String,
 }
@@ -43,18 +34,41 @@ pub struct CommandResult {
     pub stderr: Vec<u8>,
 }
 
-impl Executable for CommandRunnable {
-    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
-        match self {
-            CommandRunnable::Nix(p) => p.exec()
+impl<H: Host + 'static> Command<H> {
+    pub fn new(host: &H, cmd: &str, shell: Option<&[&str]>) -> Box<Future<Item = Command<H>, Error = Error>> {
+        let host = host.clone();
+        let cmd = cmd.to_owned();
+        let shell: Vec<String> = shell.unwrap_or(&DEFAULT_SHELL)
+            .to_owned()
+            .iter()
+            .map(|s| s.to_string())
+            .collect();
+
+        Box::new(host.command_provider()
+            .and_then(|provider| future::ok(Command {
+                host: host,
+                inner: provider,
+                shell: shell,
+                cmd: cmd,
+            })))
+    }
+
+    pub fn with_provider<P>(host: &H, provider: P, cmd: &str, shell: Option<&[&str]>) -> Command<H>
+        where P: CommandProvider<H> + 'static
+    {
+        Command {
+            host: host.clone(),
+            inner: Box::new(provider),
+            shell: shell.unwrap_or(&DEFAULT_SHELL)
+                        .to_owned()
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+            cmd: cmd.into(),
         }
     }
-}
 
-pub fn factory<H: Host + 'static>(host: &Arc<H>, cmd: &str, shell: Option<&[&str]>) -> Box<Future<Item = Box<CommandProvider<H>>, Error = Error>> {
-    Box::new(Nix::try_new(host, cmd, shell)
-                     .and_then(|opt| match opt {
-                         Some(provider) => future::ok(Box::new(provider) as Box<CommandProvider<H>>),
-                         None => future::err(ErrorKind::ProviderUnavailable("Command").into())
-                     }))
+    pub fn exec(&mut self, handle: &Handle) -> Box<Future<Item = CommandResult, Error = Error>> {
+        self.inner.exec(&self.host, handle, &self.cmd, &self.shell)
+    }
 }

@@ -9,17 +9,23 @@
 pub mod local;
 pub mod remote;
 
+use command::providers::{CommandProvider, factory as cmd_factory};
 use errors::*;
-use Runnable;
 use futures::Future;
-use serde::Deserialize;
 use telemetry::Telemetry;
 
-pub trait Host {
-    /// Retrieve Telemetry
+pub trait Host: Clone {
+    //// Retrieve Telemetry
     fn telemetry(&self) -> &Telemetry;
-
     #[doc(hidden)]
-    fn run<D: 'static>(&self, Runnable) -> Box<Future<Item = D, Error = Error>>
-        where for<'de> D: Deserialize<'de>;
+    fn get_type<'a>(&'a self) -> HostType<'a>;
+    #[doc(hidden)]
+    fn command_provider(&self) -> Box<Future<Item = Box<CommandProvider<Self>>, Error = Error>> where Self: 'static {
+        cmd_factory(&self)
+    }
+}
+
+pub enum HostType<'a> {
+    Local(&'a local::Local),
+    Remote(&'a remote::Plain),
 }

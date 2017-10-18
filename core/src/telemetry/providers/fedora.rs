@@ -6,18 +6,23 @@
 
 use erased_serde::Serialize;
 use errors::*;
-use {Executable, Runnable};
-use futures::future::{self, Future, FutureResult};
-use host::*;
+use futures::{future, Future};
+use host::{Host, HostType};
+use host::local::Local;
+use host::remote::Plain;
 use pnet::datalink::interfaces;
+use provider::Provider;
+use remote::{Executable, Runnable};
 use std::{env, str};
-use std::sync::Arc;
+use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, linux, redhat};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry,
-                TelemetryProvider, TelemetryRunnable, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use tokio_core::reactor::Handle;
 
 pub struct Fedora;
+struct LocalFedora;
+struct RemoteFedora;
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize)]
@@ -26,49 +31,78 @@ pub enum FedoraRunnable {
     Load,
 }
 
-impl <H: Host + 'static>TelemetryProvider<H> for Fedora {
-    fn available(host: &Arc<H>) -> Box<Future<Item = bool, Error = Error>> {
-        host.run(Runnable::Telemetry(TelemetryRunnable::Fedora(FedoraRunnable::Available)))
+impl<H: Host + 'static> Provider<H> for Fedora {
+    fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(_) => LocalFedora::available(),
+            HostType::Remote(r) => RemoteFedora::available(r),
+        }
+    }
+
+    fn try_new(host: &H) -> Box<Future<Item = Option<Fedora>, Error = Error>> {
+        let host = host.clone();
+        Box::new(Self::available(&host)
+            .and_then(|available| {
+                if available {
+                    future::ok(Some(Fedora))
+                } else {
+                    future::ok(None)
+                }
+            }))
+    }
+}
+
+impl<H: Host + 'static> TelemetryProvider<H> for Fedora {
+    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(_) => LocalFedora::load(),
+            HostType::Remote(r) => RemoteFedora::load(r),
+        }
+    }
+}
+
+impl LocalFedora {
+    fn available() -> Box<Future<Item = bool, Error = Error>> {
+        Box::new(future::ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Fedora)))
+    }
+
+    fn load() -> Box<Future<Item = Telemetry, Error = Error>> {
+        Box::new(future::lazy(|| match do_load() {
+            Ok(t) => future::ok(t),
+            Err(e) => future::err(e),
+        }))
+    }
+}
+
+impl RemoteFedora {
+    fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
+        let runnable = Runnable::Telemetry(
+                           TelemetryRunnable::Fedora(
+                               FedoraRunnable::Available));
+        host.run(runnable)
             .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Fedora", func: "available" })
     }
 
-    fn try_load(host: &Arc<H>) -> Box<Future<Item = Option<Telemetry>, Error = Error>> {
+    fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
+        let runnable = Runnable::Telemetry(
+                           TelemetryRunnable::Fedora(
+                               FedoraRunnable::Load));
         let host = host.clone();
 
-        Box::new(Self::available(&host)
-            .and_then(move |available| {
-                if available {
-                    Box::new(host.run::<serializable::Telemetry>(Runnable::Telemetry(TelemetryRunnable::Fedora(FedoraRunnable::Load)))
-                        .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Fedora", func: "load" })
-                        .map(|t| {
-                            let t: Telemetry = t.into();
-                            Some(t)
-                        })) as Box<Future<Item = Option<Telemetry>, Error = Error>>
-                } else {
-                    Box::new(future::ok(None)) as Box<Future<Item = Option<Telemetry>, Error = Error>>
-                }
-          }))
+        Box::new(host.run(runnable)
+            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Fedora", func: "load" })
+            .map(|t: serializable::Telemetry| Telemetry::from(t)))
     }
 }
 
 impl Executable for FedoraRunnable {
-    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            FedoraRunnable::Available =>
-                Box::new(future::ok(Box::new(
-                    cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Fedora)
-                ) as Box<Serialize>)),
-            FedoraRunnable::Load => {
-                Box::new(future::lazy(move || -> FutureResult<Box<Serialize>, Error> {
-                    match do_load() {
-                        Ok(t) => {
-                            let t: serializable::Telemetry = t.into();
-                            future::ok(Box::new(t) as Box<Serialize>)
-                        },
-                        Err(e) => future::err(e),
-                    }
-                }))
-            }
+            FedoraRunnable::Available => Box::new(LocalFedora::available().map(|b| Box::new(b) as Box<Serialize>)),
+            FedoraRunnable::Load => Box::new(LocalFedora::load().map(|t| {
+                let t: serializable::Telemetry = t.into();
+                Box::new(t) as Box<Serialize>
+            }))
         }
     }
 }

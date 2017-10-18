@@ -6,18 +6,23 @@
 
 use erased_serde::Serialize;
 use errors::*;
-use {Executable, Runnable};
-use futures::future::{self, Future, FutureResult};
-use host::*;
+use remote::{Executable, Runnable};
+use futures::{future, Future};
+use host::{Host, HostType};
+use host::local::Local;
+use host::remote::Plain;
 use pnet::datalink::interfaces;
+use provider::Provider;
 use std::{env, process, str};
-use std::sync::Arc;
+use super::{TelemetryProvider, TelemetryRunnable};
 use target::{default, linux};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry,
-                TelemetryProvider, TelemetryRunnable, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use tokio_core::reactor::Handle;
 
 pub struct Debian;
+struct LocalDebian;
+struct RemoteDebian;
 
 #[doc(hidden)]
 #[derive(Serialize, Deserialize)]
@@ -26,49 +31,78 @@ pub enum DebianRunnable {
     Load,
 }
 
-impl <H: Host + 'static>TelemetryProvider<H> for Debian {
-    fn available(host: &Arc<H>) -> Box<Future<Item = bool, Error = Error>> {
-        host.run(Runnable::Telemetry(TelemetryRunnable::Debian(DebianRunnable::Available)))
+impl<H: Host + 'static> Provider<H> for Debian {
+    fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(_) => LocalDebian::available(),
+            HostType::Remote(r) => RemoteDebian::available(r),
+        }
+    }
+
+    fn try_new(host: &H) -> Box<Future<Item = Option<Debian>, Error = Error>> {
+        let host = host.clone();
+        Box::new(Self::available(&host)
+            .and_then(|available| {
+                if available {
+                    future::ok(Some(Debian))
+                } else {
+                    future::ok(None)
+                }
+            }))
+    }
+}
+
+impl<H: Host + 'static> TelemetryProvider<H> for Debian {
+    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
+        match host.get_type() {
+            HostType::Local(_) => LocalDebian::load(),
+            HostType::Remote(r) => RemoteDebian::load(r),
+        }
+    }
+}
+
+impl LocalDebian {
+    fn available() -> Box<Future<Item = bool, Error = Error>> {
+        Box::new(future::ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Debian)))
+    }
+
+    fn load() -> Box<Future<Item = Telemetry, Error = Error>> {
+        Box::new(future::lazy(|| match do_load() {
+            Ok(t) => future::ok(t),
+            Err(e) => future::err(e),
+        }))
+    }
+}
+
+impl RemoteDebian {
+    fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
+        let runnable = Runnable::Telemetry(
+                           TelemetryRunnable::Debian(
+                               DebianRunnable::Available));
+        host.run(runnable)
             .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Debian", func: "available" })
     }
 
-    fn try_load(host: &Arc<H>) -> Box<Future<Item = Option<Telemetry>, Error = Error>> {
+    fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
+        let runnable = Runnable::Telemetry(
+                           TelemetryRunnable::Debian(
+                               DebianRunnable::Load));
         let host = host.clone();
 
-        Box::new(Self::available(&host)
-            .and_then(move |available| {
-                if available {
-                    Box::new(host.run::<serializable::Telemetry>(Runnable::Telemetry(TelemetryRunnable::Debian(DebianRunnable::Load)))
-                        .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Debian", func: "load" })
-                        .map(|t| {
-                            let t: Telemetry = t.into();
-                            Some(t)
-                        })) as Box<Future<Item = Option<Telemetry>, Error = Error>>
-                } else {
-                    Box::new(future::ok(None)) as Box<Future<Item = Option<Telemetry>, Error = Error>>
-                }
-          }))
+        Box::new(host.run(runnable)
+            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Debian", func: "load" })
+            .map(|t: serializable::Telemetry| Telemetry::from(t)))
     }
 }
 
 impl Executable for DebianRunnable {
-    fn exec(self) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
         match self {
-            DebianRunnable::Available =>
-                Box::new(future::ok(Box::new(
-                    cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Debian)
-                ) as Box<Serialize>)),
-            DebianRunnable::Load => {
-                Box::new(future::lazy(move || -> FutureResult<Box<Serialize>, Error> {
-                    match do_load() {
-                        Ok(t) => {
-                            let t: serializable::Telemetry = t.into();
-                            future::ok(Box::new(t) as Box<Serialize>)
-                        },
-                        Err(e) => future::err(e),
-                    }
-                }))
-            }
+            DebianRunnable::Available => Box::new(LocalDebian::available().map(|b| Box::new(b) as Box<Serialize>)),
+            DebianRunnable::Load => Box::new(LocalDebian::load().map(|t| {
+                let t: serializable::Telemetry = t.into();
+                Box::new(t) as Box<Serialize>
+            }))
         }
     }
 }

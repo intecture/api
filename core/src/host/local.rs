@@ -5,50 +5,42 @@
 // modified, or distributed except according to those terms.
 
 use errors::*;
-use futures::{future, Future};
-use {Executable, Runnable};
-use serde::Deserialize;
-use serde_json;
+use futures::Future;
 use std::sync::Arc;
-use super::Host;
+use super::{Host, HostType};
 use telemetry::{self, Telemetry};
 
+#[derive(Clone)]
 pub struct Local {
+    inner: Arc<Inner>,
+}
+
+struct Inner {
     telemetry: Option<Telemetry>,
 }
 
 impl Local {
     /// Create a new Host targeting the local machine.
-    pub fn new() -> Box<Future<Item = Arc<Local>, Error = Error>> {
-        let mut host = Arc::new(Local {
-            telemetry: None,
-        });
+    pub fn new() -> Box<Future<Item = Local, Error = Error>> {
+        let mut host = Local {
+            inner: Arc::new(Inner { telemetry: None }),
+        };
 
-        Box::new(telemetry::load(&host).map(|t| {
-            Arc::get_mut(&mut host).unwrap().telemetry = Some(t);
-            host
-        }))
+        Box::new(telemetry::providers::factory(&host)
+            .chain_err(|| "Could not load telemetry for host")
+            .map(|t| {
+                Arc::get_mut(&mut host.inner).unwrap().telemetry = Some(t);
+                host
+            }))
     }
 }
 
 impl Host for Local {
     fn telemetry(&self) -> &Telemetry {
-        self.telemetry.as_ref().unwrap()
+        self.inner.telemetry.as_ref().unwrap()
     }
 
-    fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
-        where for<'de> D: Deserialize<'de>
-    {
-        Box::new(provider.exec()
-            .chain_err(|| "Could not run provider")
-                .and_then(|s| {
-                    match serde_json::to_value(s).chain_err(|| "Could not run provider") {
-                        Ok(v) => match serde_json::from_value::<D>(v).chain_err(|| "Could not run provider") {
-                            Ok(d) => future::ok(d),
-                            Err(e) => future::err(e),
-                        },
-                        Err(e) => future::err(e),
-                    }
-                }))
+    fn get_type<'a>(&'a self) -> HostType<'a> {
+        HostType::Local(&self)
     }
 }
