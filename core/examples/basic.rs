@@ -17,7 +17,7 @@ fn main() {
     let handle = core.handle();
 
     let host = Local::new().and_then(|host| {
-        Command::new(&host, "whoami", None).and_then(|mut cmd| {
+        Command::new(&host, "whoami", None).and_then(|cmd| {
             cmd.exec(&handle).map(|out| {
                 println!("I'm currently running as {}", String::from_utf8_lossy(&out.stdout).trim());
             })
@@ -26,4 +26,3 @@ fn main() {
 
     core.run(host).unwrap();
 }
-
