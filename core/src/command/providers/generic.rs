@@ -5,30 +5,24 @@
 // modified, or distributed except according to those terms.
 
 use command::CommandResult;
-use erased_serde::Serialize;
 use errors::*;
 use futures::{future, Future};
 use host::{Host, HostType};
 use host::local::Local;
 use host::remote::Plain;
 use provider::Provider;
-use remote::{Executable, Runnable};
+use remote::{CommandRequest, CommandResponse, Executable, ExecutableResult,
+             GenericRequest, Request, Response, ResponseResult};
 use std::process;
-use super::{CommandProvider, CommandRunnable};
+use super::CommandProvider;
 use tokio_core::reactor::Handle;
 use tokio_process::CommandExt;
+use tokio_proto::streaming::Message;
 
 #[derive(Clone)]
 pub struct Generic;
 struct LocalGeneric;
 struct RemoteGeneric;
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum GenericRunnable {
-    Available,
-    Exec(String, Vec<String>),
-}
 
 impl<H: Host + 'static> Provider<H> for Generic {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
@@ -91,27 +85,38 @@ impl LocalGeneric {
 
 impl RemoteGeneric {
     fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Runnable::Command(
-                          CommandRunnable::Generic(
-                              GenericRunnable::Available));
+        let runnable = Request::Command(
+                          CommandRequest::Generic(
+                              GenericRequest::Available));
         host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Command::Generic", func: "available" })
+            .chain_err(|| ErrorKind::Request { endpoint: "Command::Generic", func: "available" })
     }
 
     fn exec(host: &Plain, cmd: &str, shell: &[String]) -> Box<Future<Item = CommandResult, Error = Error>> {
-        let runnable = Runnable::Command(
-                          CommandRunnable::Generic(
-                              GenericRunnable::Exec(cmd.into(), shell.to_owned())));
+        let runnable = Request::Command(
+                          CommandRequest::Generic(
+                              GenericRequest::Exec(cmd.into(), shell.to_owned())));
         host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Command::Generic", func: "exec" })
+            .chain_err(|| ErrorKind::Request { endpoint: "Command::Generic", func: "exec" })
     }
 }
 
-impl Executable for GenericRunnable {
-    fn exec(self, _: &Local, handle: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+impl Executable for GenericRequest {
+    fn exec(self, _: &Local, handle: &Handle) -> ExecutableResult {
         match self {
-            GenericRunnable::Available => Box::new(LocalGeneric::available().map(|b| Box::new(b) as Box<Serialize>)),
-            GenericRunnable::Exec(cmd, shell) => Box::new(LocalGeneric::exec(handle, &cmd, &shell).map(|r| Box::new(r) as Box<Serialize>)),
+            GenericRequest::Available => Box::new(
+                LocalGeneric::available()
+                    .map(|b| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Command(
+                                CommandResponse::Available(b)))))),
+            GenericRequest::Exec(cmd, shell) => Box::new(
+                LocalGeneric::exec(handle, &cmd, &shell)
+                    .map(|t| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Command(
+                                CommandResponse::Exec(t.into()))))
+                ))
         }
     }
 }

@@ -26,7 +26,7 @@ error_chain! {
             display("No providers available for {}", p),
         }
 
-        Runnable {
+        Request {
             endpoint: &'static str,
             func: &'static str,
         } {

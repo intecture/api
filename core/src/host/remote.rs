@@ -7,7 +7,7 @@
 use bytes::BytesMut;
 use errors::*;
 use futures::{future, Future};
-use remote::Runnable;
+use remote::Request;
 use serde::Deserialize;
 use serde_json;
 use std::{io, result};
@@ -81,7 +81,7 @@ impl Plain {
     }
 
     #[doc(hidden)]
-    pub fn run<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = D, Error = Error>>
+    pub fn run<D: 'static>(&self, provider: Request) -> Box<Future<Item = D, Error = Error>>
         where for<'de> D: Deserialize<'de>
     {
         Box::new(self.run_msg::<D>(provider)
@@ -89,7 +89,7 @@ impl Plain {
     }
 
     #[doc(hidden)]
-    pub fn run_msg<D: 'static>(&self, provider: Runnable) -> Box<Future<Item = Message<D, Body<Vec<u8>, io::Error>>, Error = Error>>
+    pub fn run_msg<D: 'static>(&self, provider: Request) -> Box<Future<Item = Message<D, Body<Vec<u8>, io::Error>>, Error = Error>>
         where for<'de> D: Deserialize<'de>
     {
         let value = match serde_json::to_value(provider).chain_err(|| "Could not encode provider to send to host") {

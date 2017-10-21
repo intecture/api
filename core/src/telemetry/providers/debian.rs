@@ -4,32 +4,26 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use erased_serde::Serialize;
 use errors::*;
-use remote::{Executable, Runnable};
 use futures::{future, Future};
 use host::{Host, HostType};
 use host::local::Local;
 use host::remote::Plain;
 use pnet::datalink::interfaces;
 use provider::Provider;
+use remote::{DebianRequest, Executable, ExecutableResult, Request, Response,
+             ResponseResult, TelemetryRequest, TelemetryResponse};
 use std::{env, process, str};
-use super::{TelemetryProvider, TelemetryRunnable};
+use super::TelemetryProvider;
 use target::{default, linux};
 use target::linux::LinuxFlavour;
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
 use tokio_core::reactor::Handle;
+use tokio_proto::streaming::Message;
 
 pub struct Debian;
 struct LocalDebian;
 struct RemoteDebian;
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum DebianRunnable {
-    Available,
-    Load,
-}
 
 impl<H: Host + 'static> Provider<H> for Debian {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
@@ -76,33 +70,41 @@ impl LocalDebian {
 
 impl RemoteDebian {
     fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Debian(
-                               DebianRunnable::Available));
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Debian(
+                               DebianRequest::Available));
         host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Debian", func: "available" })
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Debian", func: "available" })
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Debian(
-                               DebianRunnable::Load));
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Debian(
+                               DebianRequest::Load));
         let host = host.clone();
 
         Box::new(host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Debian", func: "load" })
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Debian", func: "load" })
             .map(|t: serializable::Telemetry| Telemetry::from(t)))
     }
 }
 
-impl Executable for DebianRunnable {
-    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+impl Executable for DebianRequest {
+    fn exec(self, _: &Local, _: &Handle) -> ExecutableResult {
         match self {
-            DebianRunnable::Available => Box::new(LocalDebian::available().map(|b| Box::new(b) as Box<Serialize>)),
-            DebianRunnable::Load => Box::new(LocalDebian::load().map(|t| {
-                let t: serializable::Telemetry = t.into();
-                Box::new(t) as Box<Serialize>
-            }))
+            DebianRequest::Available => Box::new(
+                LocalDebian::available()
+                    .map(|b| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Available(b)))))),
+            DebianRequest::Load => Box::new(
+                LocalDebian::load()
+                    .map(|t| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Load(t.into()))))
+                ))
         }
     }
 }

@@ -4,7 +4,6 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use erased_serde::Serialize;
 use errors::*;
 use futures::{future, Future};
 use host::{Host, HostType};
@@ -12,24 +11,19 @@ use host::local::Local;
 use host::remote::Plain;
 use pnet::datalink::interfaces;
 use provider::Provider;
-use remote::{Executable, Runnable};
-use std::{env, str};
-use super::{TelemetryProvider, TelemetryRunnable};
+use remote::{Executable, ExecutableResult, FedoraRequest, Request, Response,
+             ResponseResult, TelemetryRequest, TelemetryResponse};
+use std::env;
+use super::TelemetryProvider;
 use target::{default, linux, redhat};
 use target::linux::LinuxFlavour;
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
 use tokio_core::reactor::Handle;
+use tokio_proto::streaming::Message;
 
 pub struct Fedora;
 struct LocalFedora;
 struct RemoteFedora;
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum FedoraRunnable {
-    Available,
-    Load,
-}
 
 impl<H: Host + 'static> Provider<H> for Fedora {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
@@ -76,33 +70,41 @@ impl LocalFedora {
 
 impl RemoteFedora {
     fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Fedora(
-                               FedoraRunnable::Available));
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Fedora(
+                               FedoraRequest::Available));
         host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Fedora", func: "available" })
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Fedora", func: "available" })
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Fedora(
-                               FedoraRunnable::Load));
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Fedora(
+                               FedoraRequest::Load));
         let host = host.clone();
 
         Box::new(host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Fedora", func: "load" })
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Fedora", func: "load" })
             .map(|t: serializable::Telemetry| Telemetry::from(t)))
     }
 }
 
-impl Executable for FedoraRunnable {
-    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+impl Executable for FedoraRequest {
+    fn exec(self, _: &Local, _: &Handle) -> ExecutableResult {
         match self {
-            FedoraRunnable::Available => Box::new(LocalFedora::available().map(|b| Box::new(b) as Box<Serialize>)),
-            FedoraRunnable::Load => Box::new(LocalFedora::load().map(|t| {
-                let t: serializable::Telemetry = t.into();
-                Box::new(t) as Box<Serialize>
-            }))
+            FedoraRequest::Available => Box::new(
+                LocalFedora::available()
+                    .map(|b| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Available(b)))))),
+            FedoraRequest::Load => Box::new(
+                LocalFedora::load()
+                    .map(|t| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Load(t.into()))))
+                ))
         }
     }
 }
