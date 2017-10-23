@@ -15,7 +15,7 @@ use futures::Future;
 use telemetry::Telemetry;
 
 pub trait Host: Clone {
-    //// Retrieve Telemetry
+    /// Retrieve Telemetry
     fn telemetry(&self) -> &Telemetry;
     #[doc(hidden)]
     fn get_type<'a>(&'a self) -> HostType<'a>;

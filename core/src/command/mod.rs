@@ -10,6 +10,7 @@ pub mod providers;
 
 use errors::*;
 use futures::{future, Future};
+use futures::stream::Stream;
 use host::Host;
 use self::providers::CommandProvider;
 use tokio_core::reactor::Handle;
@@ -27,11 +28,9 @@ pub struct Command<H: Host> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct CommandResult {
+pub struct ExitStatus {
     pub success: bool,
-    pub exit_code: Option<i32>,
-    pub stdout: Vec<u8>,
-    pub stderr: Vec<u8>,
+    pub code: Option<i32>,
 }
 
 impl<H: Host + 'static> Command<H> {
@@ -68,7 +67,12 @@ impl<H: Host + 'static> Command<H> {
         }
     }
 
-    pub fn exec(&self, handle: &Handle) -> Box<Future<Item = CommandResult, Error = Error>> {
+    pub fn exec(&self, handle: &Handle) ->
+        Box<Future<Item = (
+            Box<Stream<Item = String, Error = Error>>,
+            Box<Future<Item = ExitStatus, Error = Error>>
+        ), Error = Error>>
+    {
         self.inner.exec(&self.host, handle, &self.cmd, &self.shell)
     }
 }

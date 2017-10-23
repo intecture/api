@@ -18,7 +18,7 @@ use std::{env, fs};
 use std::io::Read;
 use super::TelemetryProvider;
 use target::{default, unix};
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_core::reactor::Handle;
 use tokio_proto::streaming::Message;
 
@@ -74,19 +74,24 @@ impl RemoteFreebsd {
         let runnable = Request::Telemetry(
                            TelemetryRequest::Freebsd(
                                FreebsdRequest::Available));
-        host.run(runnable)
+        Box::new(host.call_req(runnable)
             .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Freebsd", func: "available" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Available(b)) => b,
+                _ => unreachable!(),
+            }))
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
         let runnable = Request::Telemetry(
                            TelemetryRequest::Freebsd(
                                FreebsdRequest::Load));
-        let host = host.clone();
-
-        Box::new(host.run(runnable)
+        Box::new(host.call_req(runnable)
             .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Freebsd", func: "load" })
-            .map(|t: serializable::Telemetry| Telemetry::from(t)))
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
+                _ => unreachable!(),
+            }))
     }
 }
 

@@ -34,6 +34,11 @@ error_chain! {
             display("Could not run {}::{}() on host", endpoint, func),
         }
 
+        Remote(e: String) {
+            description("Error running command on remote host"),
+            display("Error running command on remote host: {}", e),
+        }
+
         SystemCommand(c: &'static str) {
             description("Error running system command"),
             display("Error running system command '{}'", c),

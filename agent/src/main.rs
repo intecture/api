@@ -20,9 +20,9 @@ mod errors;
 
 use errors::*;
 use futures::{future, Future};
-use intecture_api::remote::{Executable, Runnable};
 use intecture_api::host::local::Local;
 use intecture_api::host::remote::{JsonLineProto, LineMessage};
+use intecture_api::remote::{Executable, Request};
 use std::fs::File;
 use std::io::{self, Read};
 use std::net::SocketAddr;
@@ -40,7 +40,7 @@ pub struct Api {
 impl Service for Api {
     type Request = LineMessage;
     type Response = LineMessage;
-    type Error = io::Error;
+    type Error = Error;
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
@@ -49,15 +49,9 @@ impl Service for Api {
             Message::WithoutBody(req) => req,
         };
 
-        let runnable: Runnable = match serde_json::from_value(req).chain_err(|| "Received invalid Runnable") {
+        let request: Request = match serde_json::from_value(req).chain_err(|| "Received invalid Request") {
             Ok(r) => r,
-            Err(e) => return Box::new(
-                future::err(
-                    io::Error::new(
-                        // @todo Can't wrap 'e' as error_chain Error doesn't derive Sync.
-                        // Waiting for https://github.com/rust-lang-nursery/error-chain/pull/163
-                        io::ErrorKind::Other, e.description()
-                    ))),
+            Err(e) => return Box::new(future::err(e))
         };
 
         // XXX Danger zone! If we're running multiple threads, this `unwrap()`
@@ -66,13 +60,17 @@ impl Service for Api {
         // only safe for the current thread.
         // See https://github.com/alexcrichton/tokio-process/issues/23
         let handle = self.remote.handle().unwrap();
-        Box::new(runnable.exec(&self.host, &handle)
-            // @todo Can't wrap 'e' as error_chain Error doesn't derive Sync.
-            // Waiting for https://github.com/rust-lang-nursery/error-chain/pull/163
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.description()))
-            .and_then(|ser| match serde_json::to_value(ser).chain_err(|| "Could not serialize result") {
-                Ok(v) => future::ok(Message::WithoutBody(v)),
-                Err(e) => future::err(io::Error::new(io::ErrorKind::Other, e.description())),
+        Box::new(request.exec(&self.host, &handle)
+            .chain_err(|| "Failed to execute Request")
+            .and_then(|mut msg| {
+                let body = msg.take_body();
+                match serde_json::to_value(msg.into_inner()).chain_err(|| "Could not serialize result") {
+                    Ok(v) => match body {
+                        Some(b) => future::ok(Message::WithBody(v, b)),
+                        None => future::ok(Message::WithoutBody(v)),
+                    },
+                    Err(e) => future::err(e),
+                }
             }))
     }
 }
@@ -80,7 +78,7 @@ impl Service for Api {
 impl NewService for Api {
     type Request = LineMessage;
     type Response = LineMessage;
-    type Error = io::Error;
+    type Error = Error;
     type Instance = Api;
     fn new_service(&self) -> io::Result<Self::Instance> {
         Ok(Api {

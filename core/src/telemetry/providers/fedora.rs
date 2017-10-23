@@ -17,7 +17,7 @@ use std::env;
 use super::TelemetryProvider;
 use target::{default, linux, redhat};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_core::reactor::Handle;
 use tokio_proto::streaming::Message;
 
@@ -73,19 +73,24 @@ impl RemoteFedora {
         let runnable = Request::Telemetry(
                            TelemetryRequest::Fedora(
                                FedoraRequest::Available));
-        host.run(runnable)
+        Box::new(host.call_req(runnable)
             .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Fedora", func: "available" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Available(b)) => b,
+                _ => unreachable!(),
+            }))
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
         let runnable = Request::Telemetry(
                            TelemetryRequest::Fedora(
                                FedoraRequest::Load));
-        let host = host.clone();
-
-        Box::new(host.run(runnable)
+        Box::new(host.call_req(runnable)
             .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Fedora", func: "load" })
-            .map(|t: serializable::Telemetry| Telemetry::from(t)))
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
+                _ => unreachable!(),
+            }))
     }
 }
 

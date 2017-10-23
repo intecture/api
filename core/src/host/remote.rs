@@ -7,8 +7,7 @@
 use bytes::BytesMut;
 use errors::*;
 use futures::{future, Future};
-use remote::Request;
-use serde::Deserialize;
+use remote::{Request, Response, ResponseResult};
 use serde_json;
 use std::{io, result};
 use std::sync::Arc;
@@ -81,34 +80,8 @@ impl Plain {
     }
 
     #[doc(hidden)]
-    pub fn run<D: 'static>(&self, provider: Request) -> Box<Future<Item = D, Error = Error>>
-        where for<'de> D: Deserialize<'de>
-    {
-        Box::new(self.run_msg::<D>(provider)
-            .map(|msg| msg.into_inner()))
-    }
-
-    #[doc(hidden)]
-    pub fn run_msg<D: 'static>(&self, provider: Request) -> Box<Future<Item = Message<D, Body<Vec<u8>, io::Error>>, Error = Error>>
-        where for<'de> D: Deserialize<'de>
-    {
-        let value = match serde_json::to_value(provider).chain_err(|| "Could not encode provider to send to host") {
-            Ok(v) => v,
-            Err(e) => return Box::new(future::err(e))
-        };
-        Box::new(self.inner.inner.call(Message::WithoutBody(value))
-            .chain_err(|| "Error while running provider on host")
-            .and_then(|mut msg| {
-                let body = msg.take_body();
-                let msg = match serde_json::from_value::<D>(msg.into_inner()).chain_err(|| "Could not understand response from host") {
-                    Ok(d) => d,
-                    Err(e) => return Box::new(future::err(e)),
-                };
-                Box::new(future::ok(match body {
-                    Some(b) => Message::WithBody(msg, b),
-                    None => Message::WithoutBody(msg),
-                }))
-            }))
+    pub fn call_req(&self, request: Request) -> Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>> {
+        self.call(Message::WithoutBody(request))
     }
 }
 
@@ -123,13 +96,49 @@ impl Host for Plain {
 }
 
 impl Service for Plain {
-    type Request = LineMessage;
-    type Response = LineMessage;
-    type Error = io::Error;
+    type Request = Message<Request, Body<Vec<u8>, io::Error>>;
+    type Response = Message<Response, Body<Vec<u8>, io::Error>>;
+    type Error = Error;
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
-    fn call(&self, req: Self::Request) -> Self::Future {
-        Box::new(self.inner.inner.call(req)) as Self::Future
+    fn call(&self, mut req: Self::Request) -> Self::Future {
+        let body = req.take_body();
+        let request = req.into_inner();
+
+        let value = match serde_json::to_value(request).chain_err(|| "Could not encode provider to send to host") {
+            Ok(v) => v,
+            Err(e) => return Box::new(future::err(e))
+        };
+
+        debug!("Sending JSON request: {}", value);
+
+        let json_msg = match body {
+            Some(b) => Message::WithBody(value, b),
+            None => Message::WithoutBody(value),
+        };
+
+        Box::new(self.inner.inner.call(json_msg)
+            .chain_err(|| "Error while running provider on host")
+            .and_then(|mut msg| {
+                let body = msg.take_body();
+                let header = msg.into_inner();
+
+                debug!("Received JSON response: {}", header);
+
+                let result: ResponseResult = match serde_json::from_value(header).chain_err(|| "Could not understand response from host") {
+                    Ok(d) => d,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+
+                let msg = match result {
+                    ResponseResult::Ok(msg) => msg,
+                    ResponseResult::Err(e) => return Box::new(future::err(ErrorKind::Remote(e).into())),
+                };
+                Box::new(future::ok(match body {
+                    Some(b) => Message::WithBody(msg, b),
+                    None => Message::WithoutBody(msg),
+                }))
+            }))
     }
 }
 
@@ -145,33 +154,45 @@ impl Decoder for JsonLineCodec {
 
         buf.split_to(1);
 
-        if line.is_empty() {
-            let decoding_head = self.decoding_head;
-            self.decoding_head = !decoding_head;
+        if self.decoding_head {
+            debug!("Decoding header: {:?}", line);
 
-            if decoding_head {
-                Ok(Some(Frame::Message {
-                    message: serde_json::Value::Null,
-                    body: true,
-                }))
-            } else {
-                Ok(Some(Frame::Body {
-                    chunk: None
-                }))
+            // The last byte in this frame is a bool that indicates
+            // whether we have a body stream following or not.
+            // This byte must exist, or our codec is buggered and
+            // panicking is appropriate.
+            let (has_body, line) = line.split_last()
+                .expect("Missing body byte at end of message frame");
+
+            debug!("Body byte: {:?}", has_body);
+
+            if *has_body == 1 {
+                self.decoding_head = false;
             }
+
+            let frame = Frame::Message {
+                message: serde_json::from_slice(&line).map_err(|e| {
+                    io::Error::new(io::ErrorKind::Other, e)
+                })?,
+                body: *has_body == 1,
+            };
+
+            debug!("Decoded header: {:?}", frame);
+
+            Ok(Some(frame))
         } else {
-            if self.decoding_head {
-                Ok(Some(Frame::Message {
-                    message: serde_json::from_slice(&line).map_err(|e| {
-                        io::Error::new(io::ErrorKind::Other, e)
-                    })?,
-                    body: false,
-                }))
+            debug!("Decoding body chunk: {:?}", line);
+
+            let frame = if line.is_empty() {
+                self.decoding_head = true;
+                Frame::Body { chunk: None }
             } else {
-                Ok(Some(Frame::Body {
-                    chunk: Some(line.to_vec()),
-                }))
-            }
+                Frame::Body { chunk: Some(line.to_vec()) }
+            };
+
+            debug!("Decoded body chunk: {:?}", frame);
+
+            Ok(Some(frame))
         }
     }
 }
@@ -183,15 +204,17 @@ impl Encoder for JsonLineCodec {
     fn encode(&mut self, msg: Self::Item, buf: &mut BytesMut) -> io::Result<()> {
         match msg {
             Frame::Message { message, body } => {
-                // Our protocol dictates that a message head that
-                // includes a streaming body is an empty string.
-                assert!(message.is_null() == body);
+                debug!("Encoding header: {:?}, {:?}", message, body);
 
                 let json = serde_json::to_vec(&message)
                     .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
                 buf.extend(&json);
+                // Add 'has-body' flag
+                buf.extend(if body { &[1] } else { &[0] });
             }
             Frame::Body { chunk } => {
+                debug!("Encoding chunk: {:?}", chunk);
+
                 if let Some(chunk) = chunk {
                     buf.extend(&chunk);
                 }

@@ -6,16 +6,21 @@
 
 mod generic;
 
+use command::ExitStatus;
 use errors::*;
 use futures::{future, Future};
+use futures::stream::Stream;
 use host::Host;
 use provider::Provider;
 pub use self::generic::Generic;
-use super::CommandResult;
 use tokio_core::reactor::Handle;
 
 pub trait CommandProvider<H: Host>: Provider<H> {
-    fn exec(&self, &H, &Handle, &str, &[String]) -> Box<Future<Item = CommandResult, Error = Error>>;
+    fn exec(&self, &H, &Handle, &str, &[String]) ->
+        Box<Future<Item = (
+            Box<Stream<Item = String, Error = Error>>,
+            Box<Future<Item = ExitStatus, Error = Error>>
+        ), Error = Error>>;
 }
 
 pub fn factory<H: Host + 'static>(host: &H) -> Box<Future<Item = Box<CommandProvider<H>>, Error = Error>> {

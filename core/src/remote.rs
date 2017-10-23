@@ -6,15 +6,15 @@
 
 // Hopefully in the near future this will be auto-generated from `derive` attributes.
 
-use command::CommandResult;
 use errors::*;
 use futures::Future;
 use host::local::Local;
+use std::io;
 use telemetry::serializable::Telemetry;
 use tokio_core::reactor::Handle;
 use tokio_proto::streaming::{Body, Message};
 
-pub type ExecutableResult = Box<Future<Item = Message<ResponseResult, Body<Vec<u8>, Error>>, Error = Error>>;
+pub type ExecutableResult = Box<Future<Item = Message<ResponseResult, Body<Vec<u8>, io::Error>>, Error = Error>>;
 
 pub trait Executable {
     fn exec(self, &Local, &Handle) -> ExecutableResult;
@@ -65,7 +65,7 @@ pub enum GenericRequest {
 #[derive(Serialize, Deserialize)]
 pub enum CommandResponse {
     Available(bool),
-    Exec(CommandResult),
+    Exec,
 }
 
 impl Executable for CommandRequest {

@@ -17,7 +17,7 @@ use std::env;
 use super::TelemetryProvider;
 use target::{default, linux, redhat};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_core::reactor::Handle;
 use tokio_proto::streaming::Message;
 
@@ -73,17 +73,24 @@ impl RemoteCentos {
         let runnable = Request::Telemetry(
                            TelemetryRequest::Centos(
                                CentosRequest::Available));
-        host.run(runnable)
+        Box::new(host.call_req(runnable)
             .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Centos", func: "available" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Available(b)) => b,
+                _ => unreachable!(),
+            }))
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
         let runnable = Request::Telemetry(
                            TelemetryRequest::Centos(
                                CentosRequest::Load));
-        Box::new(host.run(runnable)
+        Box::new(host.call_req(runnable)
             .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Centos", func: "load" })
-            .map(|t: serializable::Telemetry| Telemetry::from(t)))
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
+                _ => unreachable!(),
+            }))
     }
 }
 
