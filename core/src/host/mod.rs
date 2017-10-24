@@ -4,7 +4,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-//! Manages the connection between the API and your servers.
+//! Manages the connection between the API and a server.
 
 pub mod local;
 pub mod remote;
@@ -14,8 +14,9 @@ use errors::*;
 use futures::Future;
 use telemetry::Telemetry;
 
+/// Trait for local and remote host types.
 pub trait Host: Clone {
-    /// Retrieve Telemetry
+    /// Get `Telemetry` for this host.
     fn telemetry(&self) -> &Telemetry;
     #[doc(hidden)]
     fn get_type<'a>(&'a self) -> HostType<'a>;
@@ -25,6 +26,7 @@ pub trait Host: Clone {
     }
 }
 
+#[doc(hidden)]
 pub enum HostType<'a> {
     Local(&'a local::Local),
     Remote(&'a remote::Plain),

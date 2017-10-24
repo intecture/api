@@ -26,6 +26,8 @@ use tokio_io::io::lines;
 use tokio_process::CommandExt;
 use tokio_proto::streaming::{Body, Message};
 
+
+/// The generic `Command` provider.
 #[derive(Clone)]
 pub struct Generic;
 struct LocalGeneric;
