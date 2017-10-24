@@ -17,6 +17,7 @@ deploy:
   local_dir: $TRAVIS_BUILD_DIR/target/doc
   github_token: $GITHUB_TOKEN
   on:
+    repo: intecture/api
     branch: master
 env:
   - TRAVIS_CARGO_NIGHTLY_FEATURE=""
