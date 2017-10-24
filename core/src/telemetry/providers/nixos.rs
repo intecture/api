@@ -4,7 +4,6 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use erased_serde::Serialize;
 use errors::*;
 use futures::{future, Future};
 use host::{Host, HostType};
@@ -12,24 +11,19 @@ use host::local::Local;
 use host::remote::Plain;
 use pnet::datalink::interfaces;
 use provider::Provider;
-use remote::{Executable, Runnable};
+use remote::{Executable, ExecutableResult, NixosRequest, Request, Response,
+             ResponseResult, TelemetryRequest, TelemetryResponse};
 use std::{env, process, str};
-use super::{TelemetryProvider, TelemetryRunnable};
+use super::TelemetryProvider;
 use target::{default, linux};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_core::reactor::Handle;
+use tokio_proto::streaming::Message;
 
 pub struct Nixos;
 struct LocalNixos;
 struct RemoteNixos;
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum NixosRunnable {
-    Available,
-    Load,
-}
 
 impl<H: Host + 'static> Provider<H> for Nixos {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
@@ -76,33 +70,46 @@ impl LocalNixos {
 
 impl RemoteNixos {
     fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Nixos(
-                               NixosRunnable::Available));
-        host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Nixos", func: "available" })
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Nixos(
+                               NixosRequest::Available));
+        Box::new(host.call_req(runnable)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Nixos", func: "available" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Available(b)) => b,
+                _ => unreachable!(),
+            }))
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Nixos(
-                               NixosRunnable::Load));
-        let host = host.clone();
-
-        Box::new(host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Nixos", func: "load" })
-            .map(|t: serializable::Telemetry| Telemetry::from(t)))
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Nixos(
+                               NixosRequest::Load));
+        Box::new(host.call_req(runnable)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Nixos", func: "load" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
+                _ => unreachable!(),
+            }))
     }
 }
 
-impl Executable for NixosRunnable {
-    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+impl Executable for NixosRequest {
+    fn exec(self, _: &Local, _: &Handle) -> ExecutableResult {
         match self {
-            NixosRunnable::Available => Box::new(LocalNixos::available().map(|b| Box::new(b) as Box<Serialize>)),
-            NixosRunnable::Load => Box::new(LocalNixos::load().map(|t| {
-                let t: serializable::Telemetry = t.into();
-                Box::new(t) as Box<Serialize>
-            }))
+            NixosRequest::Available => Box::new(
+                LocalNixos::available()
+                    .map(|b| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Available(b)))))),
+            NixosRequest::Load => Box::new(
+                LocalNixos::load()
+                    .map(|t| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Load(t.into()))))
+                ))
         }
     }
 }

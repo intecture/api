@@ -12,52 +12,22 @@ mod macos;
 mod nixos;
 mod ubuntu;
 
-pub use self::centos::{Centos, CentosRunnable};
-pub use self::debian::{Debian, DebianRunnable};
-pub use self::fedora::{Fedora, FedoraRunnable};
-pub use self::freebsd::{Freebsd, FreebsdRunnable};
-pub use self::macos::{Macos, MacosRunnable};
-pub use self::nixos::{Nixos, NixosRunnable};
-pub use self::ubuntu::{Ubuntu, UbuntuRunnable};
+pub use self::centos::Centos;
+pub use self::debian::Debian;
+pub use self::fedora::Fedora;
+pub use self::freebsd::Freebsd;
+pub use self::macos::Macos;
+pub use self::nixos::Nixos;
+pub use self::ubuntu::Ubuntu;
 
-use erased_serde::Serialize;
 use errors::*;
 use futures::future::{self, Future};
 use host::Host;
-use host::local::Local;
 use provider::Provider;
-use remote::Executable;
 use super::Telemetry;
-use tokio_core::reactor::Handle;
 
 pub trait TelemetryProvider<H: Host>: Provider<H> {
     fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>>;
-}
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum TelemetryRunnable {
-    Centos(CentosRunnable),
-    Debian(DebianRunnable),
-    Fedora(FedoraRunnable),
-    Freebsd(FreebsdRunnable),
-    Macos(MacosRunnable),
-    Nixos(NixosRunnable),
-    Ubuntu(UbuntuRunnable),
-}
-
-impl Executable for TelemetryRunnable {
-    fn exec(self, host: &Local, handle: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
-        match self {
-            TelemetryRunnable::Centos(p) => p.exec(host, handle),
-            TelemetryRunnable::Debian(p) => p.exec(host, handle),
-            TelemetryRunnable::Fedora(p) => p.exec(host, handle),
-            TelemetryRunnable::Freebsd(p) => p.exec(host, handle),
-            TelemetryRunnable::Macos(p) => p.exec(host, handle),
-            TelemetryRunnable::Nixos(p) => p.exec(host, handle),
-            TelemetryRunnable::Ubuntu(p) => p.exec(host, handle),
-        }
-    }
 }
 
 pub fn factory<H: Host + 'static>(host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {

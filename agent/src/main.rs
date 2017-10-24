@@ -18,16 +18,18 @@ extern crate toml;
 
 mod errors;
 
+use error_chain::ChainedError;
 use errors::*;
 use futures::{future, Future};
-use intecture_api::remote::{Executable, Runnable};
 use intecture_api::host::local::Local;
-use intecture_api::host::remote::JsonProto;
+use intecture_api::host::remote::{JsonLineProto, LineMessage};
+use intecture_api::remote::{Executable, Request, ResponseResult};
 use std::fs::File;
 use std::io::{self, Read};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio_core::reactor::Remote;
+use tokio_proto::streaming::Message;
 use tokio_proto::TcpServer;
 use tokio_service::{NewService, Service};
 
@@ -37,21 +39,20 @@ pub struct Api {
 }
 
 impl Service for Api {
-    type Request = serde_json::Value;
-    type Response = serde_json::Value;
-    type Error = io::Error;
+    type Request = LineMessage;
+    type Response = LineMessage;
+    type Error = Error;
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
     fn call(&self, req: Self::Request) -> Self::Future {
-        let runnable: Runnable = match serde_json::from_value(req).chain_err(|| "Received invalid Runnable") {
+        let req = match req {
+            Message::WithBody(req, _) => req,
+            Message::WithoutBody(req) => req,
+        };
+
+        let request: Request = match serde_json::from_value(req).chain_err(|| "Could not deserialize Request") {
             Ok(r) => r,
-            Err(e) => return Box::new(
-                future::err(
-                    io::Error::new(
-                        // @todo Can't wrap 'e' as error_chain Error doesn't derive Sync.
-                        // Waiting for https://github.com/rust-lang-nursery/error-chain/pull/163
-                        io::ErrorKind::Other, e.description()
-                    ))),
+            Err(e) => return Box::new(future::ok(error_to_msg(e))),
         };
 
         // XXX Danger zone! If we're running multiple threads, this `unwrap()`
@@ -60,21 +61,30 @@ impl Service for Api {
         // only safe for the current thread.
         // See https://github.com/alexcrichton/tokio-process/issues/23
         let handle = self.remote.handle().unwrap();
-        Box::new(runnable.exec(&self.host, &handle)
-            // @todo Can't wrap 'e' as error_chain Error doesn't derive Sync.
-            // Waiting for https://github.com/rust-lang-nursery/error-chain/pull/163
-            .map_err(|e| io::Error::new(io::ErrorKind::Other, e.description()))
-            .and_then(|ser| match serde_json::to_value(ser).chain_err(|| "Could not serialize result") {
-                Ok(v) => future::ok(v),
-                Err(e) => future::err(io::Error::new(io::ErrorKind::Other, e.description())),
+        Box::new(request.exec(&self.host, &handle)
+            .chain_err(|| "Failed to execute Request")
+            .then(|req| {
+                match req {
+                    Ok(mut msg) => {
+                        let body = msg.take_body();
+                        match serde_json::to_value(msg.into_inner()).chain_err(|| "Could not serialize Result") {
+                            Ok(v) => match body {
+                                Some(b) => future::ok(Message::WithBody(v, b)),
+                                None => future::ok(Message::WithoutBody(v)),
+                            },
+                            Err(e) => future::ok(error_to_msg(e)),
+                        }
+                    },
+                    Err(e) => future::ok(error_to_msg(e)),
+                }
             }))
     }
 }
 
 impl NewService for Api {
-    type Request = serde_json::Value;
-    type Response = serde_json::Value;
-    type Error = io::Error;
+    type Request = LineMessage;
+    type Response = LineMessage;
+    type Error = Error;
     type Instance = Api;
     fn new_service(&self) -> io::Result<Self::Instance> {
         Ok(Api {
@@ -129,7 +139,7 @@ quick_main!(|| -> Result<()> {
     // Currently we force the issue (`unwrap()`), which is only safe
     // for the current thread.
     // See https://github.com/alexcrichton/tokio-process/issues/23
-    let server = TcpServer::new(JsonProto, config.address);
+    let server = TcpServer::new(JsonLineProto, config.address);
     server.with_handle(move |handle| {
         let api = Api {
             host: host.clone(),
@@ -139,3 +149,12 @@ quick_main!(|| -> Result<()> {
     });
     Ok(())
 });
+
+fn error_to_msg(e: Error) -> LineMessage {
+    let response = ResponseResult::Err(format!("{}", e.display_chain()));
+    // If we can't serialize this, we can't serialize anything, so
+    // panicking is appropriate.
+    let value = serde_json::to_value(response)
+        .expect("Cannot serialize ResponseResult::Err. This is bad...");
+    Message::WithoutBody(value)
+}

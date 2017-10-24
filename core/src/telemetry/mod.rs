@@ -7,7 +7,8 @@
 //! System generated data about your host.
 
 pub mod providers;
-mod serializable;
+#[doc(hidden)]
+pub mod serializable;
 
 use pnet::datalink::NetworkInterface;
 

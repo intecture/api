@@ -6,33 +6,21 @@
 
 mod generic;
 
+use command::ExitStatus;
 use errors::*;
-use erased_serde::Serialize;
 use futures::{future, Future};
+use futures::stream::Stream;
 use host::Host;
-use host::local::Local;
 use provider::Provider;
-use remote::Executable;
-pub use self::generic::{Generic, GenericRunnable};
-use super::CommandResult;
+pub use self::generic::Generic;
 use tokio_core::reactor::Handle;
 
 pub trait CommandProvider<H: Host>: Provider<H> {
-    fn exec(&self, &H, &Handle, &str, &[String]) -> Box<Future<Item = CommandResult, Error = Error>>;
-}
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum CommandRunnable {
-    Generic(GenericRunnable)
-}
-
-impl Executable for CommandRunnable {
-    fn exec(self, host: &Local, handle: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
-        match self {
-            CommandRunnable::Generic(p) => p.exec(host, handle)
-        }
-    }
+    fn exec(&self, &H, &Handle, &str, &[String]) ->
+        Box<Future<Item = (
+            Box<Stream<Item = String, Error = Error>>,
+            Box<Future<Item = ExitStatus, Error = Error>>
+        ), Error = Error>>;
 }
 
 pub fn factory<H: Host + 'static>(host: &H) -> Box<Future<Item = Box<CommandProvider<H>>, Error = Error>> {

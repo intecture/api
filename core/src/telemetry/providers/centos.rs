@@ -4,7 +4,6 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use erased_serde::Serialize;
 use errors::*;
 use futures::{future, Future};
 use host::{Host, HostType};
@@ -12,24 +11,19 @@ use host::local::Local;
 use host::remote::Plain;
 use pnet::datalink::interfaces;
 use provider::Provider;
-use remote::{Executable, Runnable};
-use std::{env, str};
-use super::{TelemetryProvider, TelemetryRunnable};
+use remote::{CentosRequest, Executable, ExecutableResult, Request, Response,
+             ResponseResult, TelemetryRequest, TelemetryResponse};
+use std::env;
+use super::TelemetryProvider;
 use target::{default, linux, redhat};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_core::reactor::Handle;
+use tokio_proto::streaming::Message;
 
 pub struct Centos;
 struct LocalCentos;
 struct RemoteCentos;
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum CentosRunnable {
-    Available,
-    Load,
-}
 
 impl<H: Host + 'static> Provider<H> for Centos {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
@@ -76,31 +70,46 @@ impl LocalCentos {
 
 impl RemoteCentos {
     fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Centos(
-                               CentosRunnable::Available));
-        host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Centos", func: "available" })
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Centos(
+                               CentosRequest::Available));
+        Box::new(host.call_req(runnable)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Centos", func: "available" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Available(b)) => b,
+                _ => unreachable!(),
+            }))
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Centos(
-                               CentosRunnable::Load));
-        Box::new(host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Centos", func: "load" })
-            .map(|t: serializable::Telemetry| Telemetry::from(t)))
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Centos(
+                               CentosRequest::Load));
+        Box::new(host.call_req(runnable)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Centos", func: "load" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
+                _ => unreachable!(),
+            }))
     }
 }
 
-impl Executable for CentosRunnable {
-    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+impl Executable for CentosRequest {
+    fn exec(self, _: &Local, _: &Handle) -> ExecutableResult {
         match self {
-            CentosRunnable::Available => Box::new(LocalCentos::available().map(|b| Box::new(b) as Box<Serialize>)),
-            CentosRunnable::Load => Box::new(LocalCentos::load().map(|t| {
-                let t: serializable::Telemetry = t.into();
-                Box::new(t) as Box<Serialize>
-            }))
+            CentosRequest::Available => Box::new(
+                LocalCentos::available()
+                    .map(|b| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Available(b)))))),
+            CentosRequest::Load => Box::new(
+                LocalCentos::load()
+                    .map(|t| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Load(t.into()))))
+                ))
         }
     }
 }

@@ -4,7 +4,6 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use erased_serde::Serialize;
 use errors::*;
 use futures::{future, Future};
 use host::{Host, HostType};
@@ -12,23 +11,18 @@ use host::local::Local;
 use host::remote::Plain;
 use pnet::datalink::interfaces;
 use provider::Provider;
-use remote::{Executable, Runnable};
+use remote::{Executable, ExecutableResult, MacosRequest, Request, Response,
+             ResponseResult, TelemetryRequest, TelemetryResponse};
 use std::{env, process, str};
-use super::{TelemetryProvider, TelemetryRunnable};
+use super::TelemetryProvider;
 use target::{default, unix};
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_core::reactor::Handle;
+use tokio_proto::streaming::Message;
 
 pub struct Macos;
 struct LocalMacos;
 struct RemoteMacos;
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum MacosRunnable {
-    Available,
-    Load,
-}
 
 impl<H: Host + 'static> Provider<H> for Macos {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
@@ -75,33 +69,46 @@ impl LocalMacos {
 
 impl RemoteMacos {
     fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Macos(
-                               MacosRunnable::Available));
-        host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Macos", func: "available" })
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Macos(
+                               MacosRequest::Available));
+        Box::new(host.call_req(runnable)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Macos", func: "available" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Available(b)) => b,
+                _ => unreachable!(),
+            }))
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Macos(
-                               MacosRunnable::Load));
-        let host = host.clone();
-
-        Box::new(host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Macos", func: "load" })
-            .map(|t: serializable::Telemetry| Telemetry::from(t)))
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Macos(
+                               MacosRequest::Load));
+        Box::new(host.call_req(runnable)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Macos", func: "load" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
+                _ => unreachable!(),
+            }))
     }
 }
 
-impl Executable for MacosRunnable {
-    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+impl Executable for MacosRequest {
+    fn exec(self, _: &Local, _: &Handle) -> ExecutableResult {
         match self {
-            MacosRunnable::Available => Box::new(LocalMacos::available().map(|b| Box::new(b) as Box<Serialize>)),
-            MacosRunnable::Load => Box::new(LocalMacos::load().map(|t| {
-                let t: serializable::Telemetry = t.into();
-                Box::new(t) as Box<Serialize>
-            }))
+            MacosRequest::Available => Box::new(
+                LocalMacos::available()
+                    .map(|b| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Available(b)))))),
+            MacosRequest::Load => Box::new(
+                LocalMacos::load()
+                    .map(|t| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Load(t.into()))))
+                ))
         }
     }
 }

@@ -26,12 +26,17 @@ error_chain! {
             display("No providers available for {}", p),
         }
 
-        Runnable {
+        Request {
             endpoint: &'static str,
             func: &'static str,
         } {
             description("Could not run provider function on host"),
             display("Could not run {}::{}() on host", endpoint, func),
+        }
+
+        Remote(e: String) {
+            description("Error running command on remote host"),
+            display("Error running command on remote host: {}", e),
         }
 
         SystemCommand(c: &'static str) {

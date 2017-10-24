@@ -4,7 +4,6 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use erased_serde::Serialize;
 use errors::*;
 use futures::{future, Future};
 use host::{Host, HostType};
@@ -13,24 +12,19 @@ use host::remote::Plain;
 use pnet::datalink::interfaces;
 use provider::Provider;
 use regex::Regex;
-use remote::{Executable, Runnable};
+use remote::{Executable, ExecutableResult, Request, Response, ResponseResult,
+             TelemetryRequest, TelemetryResponse, UbuntuRequest};
 use std::{env, process, str};
-use super::{TelemetryProvider, TelemetryRunnable};
+use super::TelemetryProvider;
 use target::{default, linux};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry, serializable};
+use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_core::reactor::Handle;
+use tokio_proto::streaming::Message;
 
 pub struct Ubuntu;
 struct LocalUbuntu;
 struct RemoteUbuntu;
-
-#[doc(hidden)]
-#[derive(Serialize, Deserialize)]
-pub enum UbuntuRunnable {
-    Available,
-    Load,
-}
 
 impl<H: Host + 'static> Provider<H> for Ubuntu {
     fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
@@ -77,33 +71,46 @@ impl LocalUbuntu {
 
 impl RemoteUbuntu {
     fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Ubuntu(
-                               UbuntuRunnable::Available));
-        host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Ubuntu", func: "available" })
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Ubuntu(
+                               UbuntuRequest::Available));
+        Box::new(host.call_req(runnable)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Ubuntu", func: "available" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Available(b)) => b,
+                _ => unreachable!(),
+            }))
     }
 
     fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
-        let runnable = Runnable::Telemetry(
-                           TelemetryRunnable::Ubuntu(
-                               UbuntuRunnable::Load));
-        let host = host.clone();
-
-        Box::new(host.run(runnable)
-            .chain_err(|| ErrorKind::Runnable { endpoint: "Telemetry::Ubuntu", func: "load" })
-            .map(|t: serializable::Telemetry| Telemetry::from(t)))
+        let runnable = Request::Telemetry(
+                           TelemetryRequest::Ubuntu(
+                               UbuntuRequest::Load));
+        Box::new(host.call_req(runnable)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Ubuntu", func: "load" })
+            .map(|msg| match msg.into_inner() {
+                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
+                _ => unreachable!(),
+            }))
     }
 }
 
-impl Executable for UbuntuRunnable {
-    fn exec(self, _: &Local, _: &Handle) -> Box<Future<Item = Box<Serialize>, Error = Error>> {
+impl Executable for UbuntuRequest {
+    fn exec(self, _: &Local, _: &Handle) -> ExecutableResult {
         match self {
-            UbuntuRunnable::Available => Box::new(LocalUbuntu::available().map(|b| Box::new(b) as Box<Serialize>)),
-            UbuntuRunnable::Load => Box::new(LocalUbuntu::load().map(|t| {
-                let t: serializable::Telemetry = t.into();
-                Box::new(t) as Box<Serialize>
-            }))
+            UbuntuRequest::Available => Box::new(
+                LocalUbuntu::available()
+                    .map(|b| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Available(b)))))),
+            UbuntuRequest::Load => Box::new(
+                LocalUbuntu::load()
+                    .map(|t| Message::WithoutBody(
+                        ResponseResult::Ok(
+                            Response::Telemetry(
+                                TelemetryResponse::Load(t.into()))))
+                ))
         }
     }
 }
