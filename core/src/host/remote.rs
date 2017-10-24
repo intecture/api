@@ -4,6 +4,8 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+//! A connection to a remote host.
+
 use bytes::BytesMut;
 use errors::*;
 use futures::{future, Future};
@@ -28,9 +30,8 @@ pub type LineMessage = Message<serde_json::Value, Body<Vec<u8>, io::Error>>;
 
 /// A `Host` type that uses an unencrypted socket.
 ///
-/// *Warning! An unencrypted host is susceptible to eavesdropping and MITM
-/// attacks, and ideally should only be used for testing on secure private
-/// networks.*
+/// >**Warning!** An unencrypted host is susceptible to eavesdropping and MITM
+/// attacks, and should only be used on secure private networks.
 #[derive(Clone)]
 pub struct Plain {
     inner: Arc<Inner>,
@@ -41,13 +42,15 @@ struct Inner {
     telemetry: Option<Telemetry>,
 }
 
+#[doc(hidden)]
 pub struct JsonLineCodec {
     decoding_head: bool,
 }
+#[doc(hidden)]
 pub struct JsonLineProto;
 
 impl Plain {
-    /// Create a new Host connected to addr.
+    /// Create a new Host connected to the given address.
     pub fn connect(addr: &str, handle: &Handle) -> Box<Future<Item = Plain, Error = Error>> {
         let addr: SocketAddr = match addr.parse().chain_err(|| "Invalid host address") {
             Ok(addr) => addr,
@@ -90,6 +93,7 @@ impl Host for Plain {
         self.inner.telemetry.as_ref().unwrap()
     }
 
+    #[doc(hidden)]
     fn get_type<'a>(&'a self) -> HostType<'a> {
         HostType::Remote(&self)
     }

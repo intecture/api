@@ -4,6 +4,8 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+//! OS abstractions for `Telemetry`.
+
 mod centos;
 mod debian;
 mod fedora;
@@ -26,10 +28,13 @@ use host::Host;
 use provider::Provider;
 use super::Telemetry;
 
+/// Trait for `Telemetry` providers.
 pub trait TelemetryProvider<H: Host>: Provider<H> {
+    /// Load `Telemetry` for the given `Host`.
     fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>>;
 }
 
+/// Instantiate a new `Telemetry` struct appropriate for the `Host`.
 pub fn factory<H: Host + 'static>(host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
     let mut providers: Vec<Box<Future<Item = Telemetry, Error = Error>>> = Vec::new();
 
