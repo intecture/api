@@ -4,6 +4,7 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use error_chain::ChainedError;
 use futures::Future;
 use intecture_api;
 use std::{convert, error, io};
@@ -16,8 +17,7 @@ error_chain! {
 
 impl convert::From<Error> for io::Error {
     fn from(e: Error) -> io::Error {
-        // @todo Return whole error chain
-        io::Error::new(io::ErrorKind::Other, e.description())
+        io::Error::new(io::ErrorKind::Other, format!("{}", e.display_chain()))
     }
 }
 
