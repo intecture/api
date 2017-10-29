@@ -9,25 +9,24 @@
 pub mod local;
 pub mod remote;
 
-use command::providers::{CommandProvider, factory as cmd_factory};
 use errors::*;
 use futures::Future;
+use remote::{Request, Response};
+use std::io;
 use telemetry::Telemetry;
+use tokio_proto::streaming::{Body, Message};
 
 /// Trait for local and remote host types.
 pub trait Host: Clone {
     /// Get `Telemetry` for this host.
     fn telemetry(&self) -> &Telemetry;
     #[doc(hidden)]
-    fn get_type<'a>(&'a self) -> HostType<'a>;
-    #[doc(hidden)]
-    fn command_provider(&self) -> Box<Future<Item = Box<CommandProvider<Self>>, Error = Error>> where Self: 'static {
-        cmd_factory(&self)
+    fn request(&self, request: Request) ->
+        Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>>
+    {
+        self.request_msg(Message::WithoutBody(request))
     }
-}
-
-#[doc(hidden)]
-pub enum HostType<'a> {
-    Local(&'a local::Local),
-    Remote(&'a remote::Plain),
+    #[doc(hidden)]
+    fn request_msg(&self, Message<Request, Body<Vec<u8>, io::Error>>) ->
+        Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>>;
 }

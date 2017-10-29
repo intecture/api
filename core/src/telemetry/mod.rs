@@ -13,7 +13,11 @@ pub mod providers;
 #[doc(hidden)]
 pub mod serializable;
 
+use errors::*;
+use futures::Future;
+use host::Host;
 use pnet::datalink::NetworkInterface;
+use remote::{Request, Response};
 
 /// Top level structure that contains static information about a `Host`.
 #[derive(Debug)]
@@ -97,4 +101,15 @@ pub enum OsPlatform {
     Macos,
     Nixos,
     Ubuntu,
+}
+
+impl Telemetry {
+    pub fn load<H: Host>(host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
+        Box::new(host.request(Request::TelemetryLoad)
+            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry", func: "load" })
+            .map(|msg| match msg.into_inner() {
+                Response::TelemetryLoad(t) => Telemetry::from(t),
+                _ => unreachable!(),
+            }))
+    }
 }

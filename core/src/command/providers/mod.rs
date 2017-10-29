@@ -10,28 +10,22 @@ mod generic;
 
 use command::ExitStatus;
 use errors::*;
-use futures::{future, Future};
-use futures::stream::Stream;
-use host::Host;
 use provider::Provider;
+use remote::ExecutableResult;
 pub use self::generic::Generic;
 use tokio_core::reactor::Handle;
 
-/// Trait for `Command` providers.
-pub trait CommandProvider<H: Host>: Provider<H> {
-    /// Execute the command for the given `Host`.
-    fn exec(&self, &H, &Handle, &str, &[String]) ->
-        Box<Future<Item = (
-            Box<Stream<Item = String, Error = Error>>,
-            Box<Future<Item = ExitStatus, Error = Error>>
-        ), Error = Error>>;
+/// Trait for specific `Command` implementations.
+pub trait CommandProvider: Provider {
+    #[doc(hidden)]
+    fn exec(&self, &Handle, &str, &[String]) -> ExecutableResult;
 }
 
-/// Instantiate a new `CommandProvider` appropriate for the `Host`.
-pub fn factory<H: Host + 'static>(host: &H) -> Box<Future<Item = Box<CommandProvider<H>>, Error = Error>> {
-    Box::new(Generic::try_new(host)
-        .and_then(|opt| match opt {
-            Some(provider) => future::ok(Box::new(provider) as Box<CommandProvider<H>>),
-            None => future::err(ErrorKind::ProviderUnavailable("Command").into())
-        }))
+#[doc(hidden)]
+pub fn factory() -> Result<Box<CommandProvider>> {
+    if Generic::available() {
+        return Ok(Box::new(Generic));
+    } else {
+        Err(ErrorKind::ProviderUnavailable("Command").into())
+    }
 }

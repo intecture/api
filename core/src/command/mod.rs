@@ -12,16 +12,23 @@
 pub mod providers;
 
 use errors::*;
-use futures::{future, Future};
+use futures::Future;
 use futures::stream::Stream;
+use futures::sync::oneshot;
 use host::Host;
+use remote::Request;
 use self::providers::CommandProvider;
-use tokio_core::reactor::Handle;
+use serde_json;
 
 #[cfg(not(windows))]
 const DEFAULT_SHELL: [&'static str; 2] = ["/bin/sh", "-c"];
 #[cfg(windows)]
 const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support windows :("];
+
+pub type ExecResult = Box<Future<Item = (
+    Box<Stream<Item = String, Error = Error>>,
+    Box<Future<Item = ExitStatus, Error = Error>>
+), Error = Error>>;
 
 /// Represents a shell command to be executed on a host.
 ///
@@ -42,24 +49,19 @@ const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support win
 ///let mut core = Core::new().unwrap();
 ///let handle = core.handle();
 ///
-///let host = Local::new().wait().unwrap();
+///let host = Local::new(&handle).wait().unwrap();
 ///
-///let cmd = Command::new(&host, "ls /path/to/foo", None)
-///    // Remember that `Command::new()` returns a `Future`, so we need
-///    // to wait for it to resolve before using it.
-///    .and_then(|cmd| {
-///        // Now that we have our `Command` instance, let's run it.
-///        cmd.exec(&handle).and_then(|(stream, status)| {
-///            // Print the command's stdout/stderr to stdout
-///            stream.for_each(|line| { println!("{}", line); Ok(()) })
-///                // When it's ready, also print the exit status
-///                .join(status.map(|s| println!("This command {} {}",
-///                    if s.success { "succeeded" } else { "failed" },
-///                    if let Some(e) = s.code { format!("with code {}", e) } else { String::new() })))
-///        })
-///    });
+///let cmd = Command::new(&host, "ls /path/to/foo", None);
+///let result = cmd.exec().and_then(|(stream, status)| {
+///    // Print the command's stdout/stderr to stdout
+///    stream.for_each(|line| { println!("{}", line); Ok(()) })
+///        // When it's ready, also print the exit status
+///        .join(status.map(|s| println!("This command {} {}",
+///            if s.success { "succeeded" } else { "failed" },
+///            if let Some(e) = s.code { format!("with code {}", e) } else { String::new() })))
+///});
 ///
-/// core.run(cmd).unwrap();
+///core.run(result).unwrap();
 ///# }
 ///```
 ///
@@ -81,22 +83,21 @@ const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support win
 ///let mut core = Core::new().unwrap();
 ///let handle = core.handle();
 ///
-///let host = Local::new().wait().unwrap();
+///let host = Local::new(&handle).wait().unwrap();
 ///
-///let cmd = Command::new(&host, "ls /path/to/foo", None).and_then(|cmd| {
-///    cmd.exec(&handle).and_then(|(stream, _)| {
-///        // Concatenate the buffer into a `String`
-///        stream.fold(String::new(), |mut acc, line| {
-///                acc.push_str(&line);
-///                future::ok::<_, Error>(acc)
-///            })
-///            .map(|_output| {
-///                // The binding `output` is our accumulated buffer
-///            })
+///let cmd = Command::new(&host, "ls /path/to/foo", None);
+///let result = cmd.exec().and_then(|(stream, _)| {
+///    // Concatenate the buffer into a `String`
+///    stream.fold(String::new(), |mut acc, line| {
+///        acc.push_str(&line);
+///        future::ok::<_, Error>(acc)
 ///    })
+///        .map(|_output| {
+///            // The binding `output` is our accumulated buffer
+///        })
 ///});
 ///
-/// core.run(cmd).unwrap();
+///core.run(result).unwrap();
 ///# }
 ///```
 ///
@@ -116,24 +117,23 @@ const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support win
 ///let mut core = Core::new().unwrap();
 ///let handle = core.handle();
 ///
-///let host = Local::new().wait().unwrap();
+///let host = Local::new(&handle).wait().unwrap();
 ///
-///let cmd = Command::new(&host, "ls /path/to/foo", None).and_then(|cmd| {
-///    cmd.exec(&handle).and_then(|(stream, status)| {
-///        // Concatenate the buffer into a `String`
-///        stream.for_each(|_| Ok(()))
-///            .join(status.map(|_status| {
-///                // Enjoy the status, baby...
-///            }))
-///    })
+///let cmd = Command::new(&host, "ls /path/to/foo", None);
+///let result = cmd.exec().and_then(|(stream, status)| {
+///    // Concatenate the buffer into a `String`
+///    stream.for_each(|_| Ok(()))
+///        .join(status.map(|_status| {
+///            // Enjoy the status, baby...
+///        }))
 ///});
 ///
-/// core.run(cmd).unwrap();
+///core.run(result).unwrap();
 ///# }
 ///```
 pub struct Command<H: Host> {
     host: H,
-    inner: Box<CommandProvider<H>>,
+    provider: Option<Box<CommandProvider>>,
     shell: Vec<String>,
     cmd: String,
 }
@@ -155,7 +155,7 @@ pub struct ExitStatus {
 }
 
 impl<H: Host + 'static> Command<H> {
-    /// Create a new `Command` with the default `Provider`.
+    /// Create a new `Command` with the default `CommandProvider`.
     ///
     /// By default, `Command` will use `/bin/sh -c` as the shell. You can
     /// override this by providing a value for `shell`. Note that the
@@ -163,48 +163,46 @@ impl<H: Host + 'static> Command<H> {
     /// argument needs to be a separate item in the slice. For example, to use
     /// Bash as your shell, you'd provide the value:
     /// `Some(&["/bin/bash", "-c"])`.
-    pub fn new(host: &H, cmd: &str, shell: Option<&[&str]>) -> Box<Future<Item = Command<H>, Error = Error>> {
-        let host = host.clone();
-        let cmd = cmd.to_owned();
-        let shell: Vec<String> = shell.unwrap_or(&DEFAULT_SHELL)
-            .to_owned()
-            .iter()
-            .map(|s| s.to_string())
-            .collect();
-
-        Box::new(host.command_provider()
-            .and_then(|provider| future::ok(Command {
-                host: host,
-                inner: provider,
-                shell: shell,
-                cmd: cmd,
-            })))
+    pub fn new(host: &H, cmd: &str, shell: Option<&[&str]>) -> Command<H> {
+        Command {
+            host: host.clone(),
+            provider: None,
+            shell: shell.unwrap_or(&DEFAULT_SHELL)
+                        .to_owned()
+                        .iter()
+                        .map(|s| s.to_string())
+                        .collect(),
+            cmd: cmd.into(),
+        }
     }
 
-    /// Create a new `Command` with the specified `Provider`.
+    /// Create a new `Command` with the specified `CommandProvider`.
     ///
     ///## Example
     ///```
     ///extern crate futures;
     ///extern crate intecture_api;
+    ///extern crate tokio_core;
     ///
     ///use futures::Future;
     ///use intecture_api::command::providers::Generic;
     ///use intecture_api::prelude::*;
+    ///use tokio_core::reactor::Core;
     ///
     ///# fn main() {
-    ///let host = Local::new().wait().unwrap();
+    ///let mut core = Core::new().unwrap();
+    ///let handle = core.handle();
     ///
-    ///Generic::try_new(&host).map(|generic| {
-    ///    Command::with_provider(&host, generic.unwrap(), "ls /path/to/foo", None)
-    ///});
+    ///let host = Local::new(&handle).wait().unwrap();
+    ///
+    ///Command::with_provider(&host, Generic, "ls /path/to/foo", None);
     ///# }
     pub fn with_provider<P>(host: &H, provider: P, cmd: &str, shell: Option<&[&str]>) -> Command<H>
-        where P: CommandProvider<H> + 'static
+        where P: CommandProvider + 'static
     {
         Command {
             host: host.clone(),
-            inner: Box::new(provider),
+            provider: Some(Box::new(provider)),
             shell: shell.unwrap_or(&DEFAULT_SHELL)
                         .to_owned()
                         .iter()
@@ -240,12 +238,41 @@ impl<H: Host + 'static> Command<H> {
     ///
     /// This is the error you'll see if you prematurely drop the output `Stream`
     /// while trying to resolve the `Future<Item = ExitStatus, ...>`.
-    pub fn exec(&self, handle: &Handle) ->
-        Box<Future<Item = (
-            Box<Stream<Item = String, Error = Error>>,
-            Box<Future<Item = ExitStatus, Error = Error>>
-        ), Error = Error>>
-    {
-        self.inner.exec(&self.host, handle, &self.cmd, &self.shell)
+    pub fn exec(&self) -> ExecResult {
+        let request = Request::CommandExec(self.provider.as_ref().map(|p| p.name()), self.cmd.clone(), self.shell.clone());
+        Box::new(self.host.request(request)
+            .chain_err(|| ErrorKind::Request { endpoint: "Command", func: "exec" })
+            .map(|mut msg| {
+                let (tx, rx) = oneshot::channel::<ExitStatus>();
+                let mut tx_share = Some(tx);
+                let mut found = false;
+                (
+                    Box::new(msg.take_body()
+                        .expect("Command::exec reply missing body stream")
+                        .filter_map(move |v| {
+                            let s = String::from_utf8_lossy(&v).to_string();
+
+                            // @todo This is a heuristical approach which is fallible
+                            if !found && s.starts_with("ExitStatus:") {
+                                let (_, json) = s.split_at(11);
+                                match serde_json::from_str(json) {
+                                    Ok(status) => {
+                                        // @todo What should happen if this fails?
+                                        let _ = tx_share.take().unwrap().send(status);
+                                        found = true;
+                                        return None;
+                                    },
+                                    _ => (),
+                                }
+                            }
+
+                            Some(s)
+                        })
+                        .then(|r| r.chain_err(|| "Command execution failed"))
+                    ) as Box<Stream<Item = String, Error = Error>>,
+                    Box::new(rx.chain_err(|| "Buffer dropped before ExitStatus was sent"))
+                        as Box<Future<Item = ExitStatus, Error = Error>>
+                )
+            }))
     }
 }

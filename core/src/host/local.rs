@@ -7,15 +7,21 @@
 //! A connection to the local machine.
 
 use errors::*;
-use futures::Future;
+use futures::{future, Future};
+use remote::{Executable, Request, Response, ResponseResult};
+use std::io;
 use std::sync::Arc;
-use super::{Host, HostType};
+use super::Host;
 use telemetry::{self, Telemetry};
+// use telemetry::Telemetry;
+use tokio_core::reactor::Handle;
+use tokio_proto::streaming::{Body, Message};
 
 /// A `Host` type that talks directly to the local machine.
 #[derive(Clone)]
 pub struct Local {
     inner: Arc<Inner>,
+    handle: Handle,
 }
 
 struct Inner {
@@ -24,12 +30,13 @@ struct Inner {
 
 impl Local {
     /// Create a new `Host` targeting the local machine.
-    pub fn new() -> Box<Future<Item = Local, Error = Error>> {
+    pub fn new(handle: &Handle) -> Box<Future<Item = Local, Error = Error>> {
         let mut host = Local {
             inner: Arc::new(Inner { telemetry: None }),
+            handle: handle.clone(),
         };
 
-        Box::new(telemetry::providers::factory(&host)
+        Box::new(telemetry::Telemetry::load(&host)
             .chain_err(|| "Could not load telemetry for host")
             .map(|t| {
                 Arc::get_mut(&mut host.inner).unwrap().telemetry = Some(t);
@@ -44,7 +51,21 @@ impl Host for Local {
     }
 
     #[doc(hidden)]
-    fn get_type<'a>(&'a self) -> HostType<'a> {
-        HostType::Local(&self)
+    fn request_msg(&self, msg: Message<Request, Body<Vec<u8>, io::Error>>) ->
+        Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>>
+    {
+        Box::new(msg.into_inner()
+           .exec(&self.handle)
+           .and_then(|mut msg| {
+               let body = msg.take_body();
+               match msg.into_inner() {
+                   ResponseResult::Ok(response) => if let Some(body) = body {
+                       future::ok(Message::WithBody(response, body))
+                   } else {
+                       future::ok(Message::WithoutBody(response))
+                   },
+                   ResponseResult::Err(e) => future::err(e.into()),
+               }
+           }))
     }
 }

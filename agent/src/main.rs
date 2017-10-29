@@ -21,7 +21,6 @@ mod errors;
 use error_chain::ChainedError;
 use errors::*;
 use futures::{future, Future};
-use intecture_api::host::local::Local;
 use intecture_api::host::remote::{JsonLineProto, LineMessage};
 use intecture_api::remote::{Executable, Request, ResponseResult};
 use std::fs::File;
@@ -34,7 +33,6 @@ use tokio_proto::TcpServer;
 use tokio_service::{NewService, Service};
 
 pub struct Api {
-    host: Local,
     remote: Remote,
 }
 
@@ -61,7 +59,7 @@ impl Service for Api {
         // only safe for the current thread.
         // See https://github.com/alexcrichton/tokio-process/issues/23
         let handle = self.remote.handle().unwrap();
-        Box::new(request.exec(&self.host, &handle)
+        Box::new(request.exec(&handle)
             .chain_err(|| "Failed to execute Request")
             .then(|req| {
                 match req {
@@ -88,7 +86,6 @@ impl NewService for Api {
     type Instance = Api;
     fn new_service(&self) -> io::Result<Self::Instance> {
         Ok(Api {
-            host: self.host.clone(),
             remote: self.remote.clone(),
         })
     }
@@ -133,7 +130,6 @@ quick_main!(|| -> Result<()> {
         Config { address }
     };
 
-    let host = Local::new().wait()?;
     // XXX We can only run a single thread here, or big boom!!
     // The API requires a `Handle`, but we can only send a `Remote`.
     // Currently we force the issue (`unwrap()`), which is only safe
@@ -142,7 +138,6 @@ quick_main!(|| -> Result<()> {
     let server = TcpServer::new(JsonLineProto, config.address);
     server.with_handle(move |handle| {
         let api = Api {
-            host: host.clone(),
             remote: handle.remote().clone(),
         };
         Arc::new(api)

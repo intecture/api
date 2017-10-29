@@ -4,11 +4,9 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use errors::*;
-use host::Host;
-use futures::Future;
+use remote::ProviderName;
 
-pub trait Provider<H: Host> {
-    fn available(&H) -> Box<Future<Item = bool, Error = Error>> where Self: Sized;
-    fn try_new(&H) -> Box<Future<Item = Option<Self>, Error = Error>> where Self: Sized;
+pub trait Provider {
+    fn available() -> bool where Self: Sized;
+    fn name(&self) -> ProviderName;
 }
