@@ -7,11 +7,13 @@
 //! The API error type.
 
 use futures::Future;
+use regex;
 use std::{error, io};
 
 error_chain! {
     foreign_links {
         Io(io::Error);
+        Regex(regex::Error);
     }
 
     errors {

@@ -74,39 +74,37 @@
 //!
 //!    // Here's the meat of your project. In this example we're talking
 //!    // to our local machine, so we use the `Local` host type.
-//!    let host = Local::new().and_then(|host| {
+//!    let host = Local::new(&handle).and_then(|host| {
 //!        // Ok, we're in! Now we can pass our `host` handle to other
 //!        // endpoints, which informs them of the server we mean to
 //!        // talk to.
 //!
 //!        // Let's start with something basic - a shell command.
-//!        Command::new(&host, "whoami", None).and_then(|cmd| {
-//!            // Now that we have our `Command` instance, let's run it.
-//!            cmd.exec(&handle).and_then(|(stream, status)| {
-//!                // At this point, our command is running. As the API
-//!                // is asynchronous, we don't have to wait for it to
-//!                // finish before inspecting its output. This is called
-//!                // "streaming".
+//!        let cmd = Command::new(&host, "whoami", None);
+//!        cmd.exec().and_then(|(stream, status)| {
+//!            // At this point, our command is running. As the API
+//!            // is asynchronous, we don't have to wait for it to
+//!            // finish before inspecting its output. This is called
+//!            // "streaming".
 //!
-//!                // Our first argument, `stream`, is a stream of strings,
-//!                // each of which represents a line of output. We can use
-//!                // the `for_each` combinator to print these lines to
-//!                // stdout.
-//!                //
-//!                // If printing isn't your thing, you are also
-//!                // free to lick them or whatever you're into. I'm not
-//!                // here to judge.
-//!                stream.for_each(|line| { println!("{}", line); Ok(()) })
+//!            // Our first argument, `stream`, is a stream of strings,
+//!            // each of which represents a line of output. We can use
+//!            // the `for_each` combinator to print these lines to
+//!            // stdout.
+//!            //
+//!            // If printing isn't your thing, you are also
+//!            // free to lick them or whatever you're into. I'm not
+//!            // here to judge.
+//!            stream.for_each(|line| { println!("{}", line); Ok(()) })
 //!
-//!                // The second argument is a `Future` that represents the
-//!                // command's exit status. Let's print that too*.
-//!                //
-//!                // * Same caveat as above RE: printing. This is a safe
-//!                //   place.
-//!                    .join(status.map(|s| println!("This command {} {}",
-//!                        if s.success { "succeeded" } else { "failed" },
-//!                        if let Some(e) = s.code { format!("with code {}", e) } else { String::new() })))
-//!            })
+//!            // The second argument is a `Future` that represents the
+//!            // command's exit status. Let's print that too*.
+//!            //
+//!            // * Same caveat as above RE: printing. This is a safe
+//!            //   place.
+//!                .join(status.map(|s| println!("This command {} {}",
+//!                    if s.success { "succeeded" } else { "failed" },
+//!                    if let Some(e) = s.code { format!("with code {}", e) } else { String::new() })))
 //!        })
 //!    });
 //!
@@ -144,13 +142,13 @@ pub mod host;
 pub mod prelude {
     //! The API prelude.
     pub use command::{self, Command};
-    pub use command::providers::CommandProvider;
-    pub use host::{Host, HostType};
+    pub use host::Host;
     pub use host::remote::{self, Plain};
     pub use host::local::{self, Local};
-    pub use provider::Provider;
+    pub use package::{self, Package};
     pub use telemetry::{self, Cpu, FsMount, Os, OsFamily, OsPlatform, Telemetry};
 }
+pub mod package;
 mod provider;
 #[doc(hidden)] pub mod remote;
 mod target;

@@ -5,111 +5,40 @@
 // modified, or distributed except according to those terms.
 
 use errors::*;
-use futures::{future, Future};
-use host::{Host, HostType};
-use host::local::Local;
-use host::remote::Plain;
+use futures::future;
 use pnet::datalink::interfaces;
 use provider::Provider;
-use remote::{Executable, ExecutableResult, MacosRequest, Request, Response,
-             ResponseResult, TelemetryRequest, TelemetryResponse};
+use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
 use std::{env, process, str};
 use super::TelemetryProvider;
 use target::{default, unix};
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
-use tokio_core::reactor::Handle;
 use tokio_proto::streaming::Message;
 
 pub struct Macos;
-struct LocalMacos;
-struct RemoteMacos;
 
-impl<H: Host + 'static> Provider<H> for Macos {
-    fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
-        match host.get_type() {
-            HostType::Local(_) => LocalMacos::available(),
-            HostType::Remote(r) => RemoteMacos::available(r),
-        }
+impl Provider for Macos {
+    fn available() -> bool {
+        cfg!(target_os="macos")
     }
 
-    fn try_new(host: &H) -> Box<Future<Item = Option<Macos>, Error = Error>> {
-        let host = host.clone();
-        Box::new(Self::available(&host)
-            .and_then(|available| {
-                if available {
-                    future::ok(Some(Macos))
-                } else {
-                    future::ok(None)
-                }
-            }))
+    fn name(&self) -> ProviderName {
+        ProviderName::TelemetryMacos
     }
 }
 
-impl<H: Host + 'static> TelemetryProvider<H> for Macos {
-    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
-        match host.get_type() {
-            HostType::Local(_) => LocalMacos::load(),
-            HostType::Remote(r) => RemoteMacos::load(r),
-        }
-    }
-}
+impl TelemetryProvider for Macos {
+    fn load(&self) -> ExecutableResult {
+        Box::new(future::lazy(|| {
+            let t = match do_load() {
+                Ok(t) => t,
+                Err(e) => return future::err(e),
+            };
 
-impl LocalMacos {
-    fn available() -> Box<Future<Item = bool, Error = Error>> {
-        Box::new(future::ok(cfg!(target_os="macos")))
-    }
-
-    fn load() -> Box<Future<Item = Telemetry, Error = Error>> {
-        Box::new(future::lazy(|| match do_load() {
-            Ok(t) => future::ok(t),
-            Err(e) => future::err(e),
+            future::ok(Message::WithoutBody(
+                ResponseResult::Ok(
+                    Response::TelemetryLoad(t.into()))))
         }))
-    }
-}
-
-impl RemoteMacos {
-    fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Request::Telemetry(
-                           TelemetryRequest::Macos(
-                               MacosRequest::Available));
-        Box::new(host.call_req(runnable)
-            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Macos", func: "available" })
-            .map(|msg| match msg.into_inner() {
-                Response::Telemetry(TelemetryResponse::Available(b)) => b,
-                _ => unreachable!(),
-            }))
-    }
-
-    fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
-        let runnable = Request::Telemetry(
-                           TelemetryRequest::Macos(
-                               MacosRequest::Load));
-        Box::new(host.call_req(runnable)
-            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Macos", func: "load" })
-            .map(|msg| match msg.into_inner() {
-                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
-                _ => unreachable!(),
-            }))
-    }
-}
-
-impl Executable for MacosRequest {
-    fn exec(self, _: &Local, _: &Handle) -> ExecutableResult {
-        match self {
-            MacosRequest::Available => Box::new(
-                LocalMacos::available()
-                    .map(|b| Message::WithoutBody(
-                        ResponseResult::Ok(
-                            Response::Telemetry(
-                                TelemetryResponse::Available(b)))))),
-            MacosRequest::Load => Box::new(
-                LocalMacos::load()
-                    .map(|t| Message::WithoutBody(
-                        ResponseResult::Ok(
-                            Response::Telemetry(
-                                TelemetryResponse::Load(t.into()))))
-                ))
-        }
     }
 }
 

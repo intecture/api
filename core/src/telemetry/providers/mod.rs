@@ -23,45 +23,38 @@ pub use self::nixos::Nixos;
 pub use self::ubuntu::Ubuntu;
 
 use errors::*;
-use futures::future::{self, Future};
-use host::Host;
 use provider::Provider;
-use super::Telemetry;
+use remote::ExecutableResult;
 
-/// Trait for `Telemetry` providers.
-pub trait TelemetryProvider<H: Host>: Provider<H> {
-    /// Load `Telemetry` for the given `Host`.
-    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>>;
+/// Trait for specific `Telemetry` implementations.
+pub trait TelemetryProvider: Provider {
+    #[doc(hidden)]
+    fn load(&self) -> ExecutableResult;
 }
 
-/// Instantiate a new `Telemetry` struct appropriate for the `Host`.
-pub fn factory<H: Host + 'static>(host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
-    let mut providers: Vec<Box<Future<Item = Telemetry, Error = Error>>> = Vec::new();
-
-    let h = host.clone();
-    providers.push(Box::new(Centos::try_new(host).and_then(move |o| option_to_result(&h, o))));
-    let h = host.clone();
-    providers.push(Box::new(Debian::try_new(host).and_then(move |o| option_to_result(&h, o))));
-    let h = host.clone();
-    providers.push(Box::new(Fedora::try_new(host).and_then(move |o| option_to_result(&h, o))));
-    let h = host.clone();
-    providers.push(Box::new(Freebsd::try_new(host).and_then(move |o| option_to_result(&h, o))));
-    let h = host.clone();
-    providers.push(Box::new(Macos::try_new(host).and_then(move |o| option_to_result(&h, o))));
-    let h = host.clone();
-    providers.push(Box::new(Nixos::try_new(host).and_then(move |o| option_to_result(&h, o))));
-    let h = host.clone();
-    providers.push(Box::new(Ubuntu::try_new(host).and_then(move |o| option_to_result(&h, o))));
-
-    Box::new(future::select_ok(providers).map(|p| p.0))
-}
-
-fn option_to_result<H, P>(host: &H, opt: Option<P>) -> Box<Future<Item = Telemetry, Error = Error>>
-    where H: Host,
-          P: TelemetryProvider<H>
-{
-    match opt {
-        Some(t) => t.load(host),
-        None => Box::new(future::err(ErrorKind::ProviderUnavailable("Telemetry").into()))
+#[doc(hidden)]
+pub fn factory() -> Result<Box<TelemetryProvider>> {
+    if Centos::available() {
+        Ok(Box::new(Centos))
+    }
+    else if Debian::available() {
+        Ok(Box::new(Debian))
+    }
+    else if Fedora::available() {
+        Ok(Box::new(Fedora))
+    }
+    else if Freebsd::available() {
+        Ok(Box::new(Freebsd))
+    }
+    else if Macos::available() {
+        Ok(Box::new(Macos))
+    }
+    else if Nixos::available() {
+        Ok(Box::new(Nixos))
+    }
+    else if Ubuntu::available() {
+        Ok(Box::new(Ubuntu))
+    } else {
+        Err(ErrorKind::ProviderUnavailable("Telemetry").into())
     }
 }

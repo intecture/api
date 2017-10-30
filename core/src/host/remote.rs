@@ -12,9 +12,9 @@ use futures::{future, Future};
 use remote::{Request, Response, ResponseResult};
 use serde_json;
 use std::{io, result};
-use std::sync::Arc;
 use std::net::SocketAddr;
-use super::{Host, HostType};
+use std::sync::Arc;
+use super::Host;
 use telemetry::{self, Telemetry};
 use tokio_core::reactor::Handle;
 use tokio_io::{AsyncRead, AsyncWrite};
@@ -35,6 +35,7 @@ pub type LineMessage = Message<serde_json::Value, Body<Vec<u8>, io::Error>>;
 #[derive(Clone)]
 pub struct Plain {
     inner: Arc<Inner>,
+    handle: Handle,
 }
 
 struct Inner {
@@ -56,13 +57,14 @@ impl Plain {
             Ok(addr) => addr,
             Err(e) => return Box::new(future::err(e)),
         };
+        let handle = handle.clone();
 
         info!("Connecting to host {}", addr);
 
         Box::new(TcpClient::new(JsonLineProto)
-            .connect(&addr, handle)
+            .connect(&addr, &handle)
             .chain_err(|| "Could not connect to host")
-            .and_then(|client_service| {
+            .and_then(move |client_service| {
                 info!("Connected!");
 
                 let mut host = Plain {
@@ -71,20 +73,16 @@ impl Plain {
                             inner: client_service,
                             telemetry: None,
                         }),
+                    handle: handle.clone(),
                 };
 
-                telemetry::providers::factory(&host)
+                telemetry::Telemetry::load(&host)
                     .chain_err(|| "Could not load telemetry for host")
                     .map(|t| {
                         Arc::get_mut(&mut host.inner).unwrap().telemetry = Some(t);
                         host
                     })
             }))
-    }
-
-    #[doc(hidden)]
-    pub fn call_req(&self, request: Request) -> Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>> {
-        self.call(Message::WithoutBody(request))
     }
 }
 
@@ -93,9 +91,15 @@ impl Host for Plain {
         self.inner.telemetry.as_ref().unwrap()
     }
 
+    fn handle(&self) -> &Handle {
+        &self.handle
+    }
+
     #[doc(hidden)]
-    fn get_type<'a>(&'a self) -> HostType<'a> {
-        HostType::Remote(&self)
+    fn request_msg(&self, msg: Message<Request, Body<Vec<u8>, io::Error>>) ->
+        Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>>
+    {
+        self.call(msg)
     }
 }
 

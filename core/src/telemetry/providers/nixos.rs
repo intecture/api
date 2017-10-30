@@ -5,112 +5,41 @@
 // modified, or distributed except according to those terms.
 
 use errors::*;
-use futures::{future, Future};
-use host::{Host, HostType};
-use host::local::Local;
-use host::remote::Plain;
+use futures::future;
 use pnet::datalink::interfaces;
 use provider::Provider;
-use remote::{Executable, ExecutableResult, NixosRequest, Request, Response,
-             ResponseResult, TelemetryRequest, TelemetryResponse};
+use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
 use std::{env, process, str};
 use super::TelemetryProvider;
 use target::{default, linux};
 use target::linux::LinuxFlavour;
 use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
-use tokio_core::reactor::Handle;
 use tokio_proto::streaming::Message;
 
 pub struct Nixos;
-struct LocalNixos;
-struct RemoteNixos;
 
-impl<H: Host + 'static> Provider<H> for Nixos {
-    fn available(host: &H) -> Box<Future<Item = bool, Error = Error>> {
-        match host.get_type() {
-            HostType::Local(_) => LocalNixos::available(),
-            HostType::Remote(r) => RemoteNixos::available(r),
-        }
+impl Provider for Nixos {
+    fn available() -> bool {
+        cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Nixos)
     }
 
-    fn try_new(host: &H) -> Box<Future<Item = Option<Nixos>, Error = Error>> {
-        let host = host.clone();
-        Box::new(Self::available(&host)
-            .and_then(|available| {
-                if available {
-                    future::ok(Some(Nixos))
-                } else {
-                    future::ok(None)
-                }
-            }))
+    fn name(&self) -> ProviderName {
+        ProviderName::TelemetryNixos
     }
 }
 
-impl<H: Host + 'static> TelemetryProvider<H> for Nixos {
-    fn load(&self, host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
-        match host.get_type() {
-            HostType::Local(_) => LocalNixos::load(),
-            HostType::Remote(r) => RemoteNixos::load(r),
-        }
-    }
-}
+impl TelemetryProvider for Nixos {
+    fn load(&self) -> ExecutableResult {
+        Box::new(future::lazy(|| {
+            let t = match do_load() {
+                Ok(t) => t,
+                Err(e) => return future::err(e),
+            };
 
-impl LocalNixos {
-    fn available() -> Box<Future<Item = bool, Error = Error>> {
-        Box::new(future::ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Nixos)))
-    }
-
-    fn load() -> Box<Future<Item = Telemetry, Error = Error>> {
-        Box::new(future::lazy(|| match do_load() {
-            Ok(t) => future::ok(t),
-            Err(e) => future::err(e),
+            future::ok(Message::WithoutBody(
+                ResponseResult::Ok(
+                    Response::TelemetryLoad(t.into()))))
         }))
-    }
-}
-
-impl RemoteNixos {
-    fn available(host: &Plain) -> Box<Future<Item = bool, Error = Error>> {
-        let runnable = Request::Telemetry(
-                           TelemetryRequest::Nixos(
-                               NixosRequest::Available));
-        Box::new(host.call_req(runnable)
-            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Nixos", func: "available" })
-            .map(|msg| match msg.into_inner() {
-                Response::Telemetry(TelemetryResponse::Available(b)) => b,
-                _ => unreachable!(),
-            }))
-    }
-
-    fn load(host: &Plain) -> Box<Future<Item = Telemetry, Error = Error>> {
-        let runnable = Request::Telemetry(
-                           TelemetryRequest::Nixos(
-                               NixosRequest::Load));
-        Box::new(host.call_req(runnable)
-            .chain_err(|| ErrorKind::Request { endpoint: "Telemetry::Nixos", func: "load" })
-            .map(|msg| match msg.into_inner() {
-                Response::Telemetry(TelemetryResponse::Load(t)) => Telemetry::from(t),
-                _ => unreachable!(),
-            }))
-    }
-}
-
-impl Executable for NixosRequest {
-    fn exec(self, _: &Local, _: &Handle) -> ExecutableResult {
-        match self {
-            NixosRequest::Available => Box::new(
-                LocalNixos::available()
-                    .map(|b| Message::WithoutBody(
-                        ResponseResult::Ok(
-                            Response::Telemetry(
-                                TelemetryResponse::Available(b)))))),
-            NixosRequest::Load => Box::new(
-                LocalNixos::load()
-                    .map(|t| Message::WithoutBody(
-                        ResponseResult::Ok(
-                            Response::Telemetry(
-                                TelemetryResponse::Load(t.into()))))
-                ))
-        }
     }
 }
 
