@@ -35,6 +35,7 @@ impl Provider for Generic {
 }
 
 impl CommandProvider for Generic {
+    #[doc(hidden)]
     fn exec(&self, handle: &Handle, cmd: &str, shell: &[String]) -> ExecutableResult {
         let (shell, shell_args) = match shell.split_first() {
             Some((s, a)) => (s, a),

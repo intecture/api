@@ -86,14 +86,62 @@ impl<H: Host + 'static> Package<H> {
     /// Install the package.
     ///
     /// This function is idempotent, which is represented by the type
-    /// `Future<Item = Option<..>>`. Thus if it returns `Option::None` then the
-    /// package is already installed, and if it returns `Option::Some` then
-    /// Intecture is attempting to install the package.
+    /// `Future<Item = Option<..>, ...>`. Thus if it returns `Option::None`
+    /// then the package is already installed, and if it returns `Option::Some`
+    /// then Intecture is attempting to install the package.
     ///
     /// If this fn returns `Option::Some<..>`, the nested tuple will hold
-    /// handles to the live output and the result of installation. Under the
-    /// hood this reuses the `Command` endpoint, so see
-    /// [`command::Command` docs](../command/struct.Command.html) for usage.
+    /// handles to the live output and the result of the installation. Under
+    /// the hood this reuses the `Command` endpoint, so see
+    /// [`Command` docs](../command/struct.Command.html) for detailed
+    /// usage.
+    ///
+    ///# Example
+    ///
+    /// Install a package and print the result.
+    ///
+    ///```
+    ///extern crate futures;
+    ///extern crate intecture_api;
+    ///extern crate tokio_core;
+    ///
+    ///use futures::{future, Future, Stream};
+    ///use intecture_api::errors::Error;
+    ///use intecture_api::prelude::*;
+    ///use tokio_core::reactor::Core;
+    ///
+    ///# fn main() {
+    ///let mut core = Core::new().unwrap();
+    ///let handle = core.handle();
+    ///
+    ///let host = Local::new(&handle).wait().unwrap();
+    ///
+    ///let nginx = Package::new(&host, "nginx");
+    ///let result = nginx.install().and_then(|status| {
+    ///    match status {
+    ///        // We're performing the install
+    ///        Some((stream, status)) => Box::new(stream.fold(String::new(), |mut acc, line| {
+    ///                acc.push_str(&line);
+    ///                future::ok::<_, Error>(acc)
+    ///            })
+    ///            .join(status)
+    ///            .map(|(output, status)| {
+    ///                if status.success {
+    ///                    println!("Installed");
+    ///                } else {
+    ///                    println!("Failed with output: {}", output);
+    ///                }
+    ///            })) as Box<Future<Item = _, Error = Error>>,
+    ///        None => {
+    ///            println!("Already installed");
+    ///            Box::new(future::ok(()))
+    ///        },
+    ///    }
+    ///});
+    ///
+    ///core.run(result).unwrap();
+    ///# }
+    ///```
     pub fn install(&self) -> Box<Future<Item = Option<(
             Box<Stream<Item = String, Error = Error>>,
             Box<Future<Item = ExitStatus, Error = Error>>
@@ -120,14 +168,15 @@ impl<H: Host + 'static> Package<H> {
     /// Uninstall the package.
     ///
     /// This function is idempotent, which is represented by the type
-    /// `Future<Item = Option<..>>`. Thus if it returns `Option::None` then the
-    /// package is already uninstalled, and if it returns `Option::Some` then
-    /// Intecture is attempting to uninstall the package.
+    /// `Future<Item = Option<..>, ...>`. Thus if it returns `Option::None`
+    /// then the package is already uninstalled, and if it returns
+    /// `Option::Some` then Intecture is attempting to uninstall the package.
     ///
     /// If this fn returns `Option::Some<..>`, the nested tuple will hold
-    /// handles to the live output and the result of installation. Under the
-    /// hood this reuses the `Command` endpoint, so see
-    /// [`command::Command` docs](../command/struct.Command.html) for usage.
+    /// handles to the live output and the result of the deinstallation. Under
+    /// the hood this reuses the `Command` endpoint, so see
+    /// [`Command` docs](../command/struct.Command.html) for detailed
+    /// usage.
     pub fn uninstall(&self) -> Box<Future<Item = Option<(
             Box<Stream<Item = String, Error = Error>>,
             Box<Future<Item = ExitStatus, Error = Error>>

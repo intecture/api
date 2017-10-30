@@ -123,7 +123,7 @@ pub type ExecResult = Box<Future<Item = (
 ///
 ///let cmd = Command::new(&host, "ls /path/to/foo", None);
 ///let result = cmd.exec().and_then(|(stream, status)| {
-///    // Concatenate the buffer into a `String`
+///    // Discard the buffer
 ///    stream.for_each(|_| Ok(()))
 ///        .join(status.map(|_status| {
 ///            // Enjoy the status, baby...

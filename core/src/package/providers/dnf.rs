@@ -36,6 +36,7 @@ impl Provider for Dnf {
 }
 
 impl PackageProvider for Dnf {
+    #[doc(hidden)]
     fn installed(&self, handle: &Handle, name: &str, os: &Os) -> ExecutableResult {
         let handle = handle.clone();
         let name = name.to_owned();
@@ -69,6 +70,7 @@ impl PackageProvider for Dnf {
             }))
     }
 
+    #[doc(hidden)]
     fn install(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,
@@ -80,6 +82,7 @@ impl PackageProvider for Dnf {
         cmd.exec(handle, name, &["dnf".into(), "-y".into(), "install".into()])
     }
 
+    #[doc(hidden)]
     fn uninstall(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,

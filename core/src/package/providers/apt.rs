@@ -36,6 +36,7 @@ impl Provider for Apt {
 }
 
 impl PackageProvider for Apt {
+    #[doc(hidden)]
     fn installed(&self, handle: &Handle, name: &str, _: &Os) -> ExecutableResult {
         let handle = handle.clone();
         let name = name.to_owned();
@@ -68,6 +69,7 @@ impl PackageProvider for Apt {
             }))
     }
 
+    #[doc(hidden)]
     fn install(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,
@@ -79,6 +81,7 @@ impl PackageProvider for Apt {
         cmd.exec(handle, name, &["apt-get".into(), "-y".into(), "install".into()])
     }
 
+    #[doc(hidden)]
     fn uninstall(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,
