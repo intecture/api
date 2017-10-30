@@ -23,7 +23,7 @@ pub trait CommandProvider: Provider {
 
 #[doc(hidden)]
 pub fn factory() -> Result<Box<CommandProvider>> {
-    if Generic::available() {
+    if Generic::available()? {
         Ok(Box::new(Generic))
     } else {
         Err(ErrorKind::ProviderUnavailable("Command").into())

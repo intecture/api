@@ -20,8 +20,8 @@ use tokio_proto::streaming::Message;
 pub struct Freebsd;
 
 impl Provider for Freebsd {
-    fn available() -> bool {
-        cfg!(target_os="freebsd")
+    fn available() -> Result<bool> {
+        Ok(cfg!(target_os="freebsd"))
     }
 
     fn name(&self) -> ProviderName {

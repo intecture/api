@@ -4,9 +4,10 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
+use errors::Result;
 use remote::ProviderName;
 
 pub trait Provider {
-    fn available() -> bool where Self: Sized;
+    fn available() -> Result<bool> where Self: Sized;
     fn name(&self) -> ProviderName;
 }

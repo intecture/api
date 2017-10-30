@@ -19,8 +19,8 @@ use tokio_proto::streaming::Message;
 pub struct Nixos;
 
 impl Provider for Nixos {
-    fn available() -> bool {
-        cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Nixos)
+    fn available() -> Result<bool> {
+        Ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Nixos))
     }
 
     fn name(&self) -> ProviderName {

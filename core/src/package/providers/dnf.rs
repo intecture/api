@@ -22,12 +22,12 @@ use tokio_proto::streaming::Message;
 pub struct Dnf;
 
 impl Provider for Dnf {
-    fn available() -> bool {
-        process::Command::new("/usr/bin/type")
+    fn available() -> Result<bool> {
+        Ok(process::Command::new("/usr/bin/type")
             .arg("dnf")
             .status()
-            .unwrap()
-            .success()
+            .chain_err(|| "Could not determine provider availability")?
+            .success())
     }
 
     fn name(&self) -> ProviderName {

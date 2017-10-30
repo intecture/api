@@ -19,8 +19,8 @@ use tokio_proto::streaming::Message;
 pub struct Debian;
 
 impl Provider for Debian {
-    fn available() -> bool {
-        cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Debian)
+    fn available() -> Result<bool> {
+        Ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Debian))
     }
 
     fn name(&self) -> ProviderName {

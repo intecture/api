@@ -25,8 +25,8 @@ use tokio_proto::streaming::{Body, Message};
 pub struct Generic;
 
 impl Provider for Generic {
-    fn available() -> bool {
-        cfg!(unix)
+    fn available() -> Result<bool> {
+        Ok(cfg!(unix))
     }
 
     fn name(&self) -> ProviderName {

@@ -19,8 +19,8 @@ use tokio_proto::streaming::Message;
 pub struct Fedora;
 
 impl Provider for Fedora {
-    fn available() -> bool {
-        cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Fedora)
+    fn available() -> Result<bool> {
+        Ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Fedora))
     }
 
     fn name(&self) -> ProviderName {

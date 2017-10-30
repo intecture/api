@@ -22,12 +22,12 @@ use tokio_proto::streaming::Message;
 pub struct Yum;
 
 impl Provider for Yum {
-    fn available() -> bool {
-        process::Command::new("/usr/bin/type")
+    fn available() -> Result<bool> {
+        Ok(process::Command::new("/usr/bin/type")
             .arg("yum")
             .status()
-            .unwrap()
-            .success()
+            .chain_err(|| "Could not determine provider availability")?
+            .success())
     }
 
     fn name(&self) -> ProviderName {

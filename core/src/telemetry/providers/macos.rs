@@ -18,8 +18,8 @@ use tokio_proto::streaming::Message;
 pub struct Macos;
 
 impl Provider for Macos {
-    fn available() -> bool {
-        cfg!(target_os="macos")
+    fn available() -> Result<bool> {
+        Ok(cfg!(target_os="macos"))
     }
 
     fn name(&self) -> ProviderName {

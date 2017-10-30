@@ -19,8 +19,8 @@ use tokio_proto::streaming::Message;
 pub struct Centos;
 
 impl Provider for Centos {
-    fn available() -> bool {
-        cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Centos)
+    fn available() -> Result<bool> {
+        Ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Centos))
     }
 
     fn name(&self) -> ProviderName {

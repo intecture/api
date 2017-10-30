@@ -37,22 +37,22 @@ pub trait PackageProvider: Provider {
 
 #[doc(hidden)]
 pub fn factory() -> Result<Box<PackageProvider>> {
-    if Apt::available() {
+    if Apt::available()? {
         Ok(Box::new(Apt))
     }
-    else if Dnf::available() {
+    else if Dnf::available()? {
         Ok(Box::new(Dnf))
     }
-    else if Homebrew::available() {
+    else if Homebrew::available()? {
         Ok(Box::new(Homebrew))
     }
-    else if Nix::available() {
+    else if Nix::available()? {
         Ok(Box::new(Nix))
     }
-    else if Pkg::available() {
+    else if Pkg::available()? {
         Ok(Box::new(Pkg))
     }
-    else if Yum::available() {
+    else if Yum::available()? {
         Ok(Box::new(Yum))
     } else {
         Err(ErrorKind::ProviderUnavailable("Package").into())

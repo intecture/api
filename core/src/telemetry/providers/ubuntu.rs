@@ -20,8 +20,8 @@ use tokio_proto::streaming::Message;
 pub struct Ubuntu;
 
 impl Provider for Ubuntu {
-    fn available() -> bool {
-        cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Ubuntu)
+    fn available() -> Result<bool> {
+        Ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Ubuntu))
     }
 
     fn name(&self) -> ProviderName {
