@@ -100,7 +100,7 @@ impl<H: Host + 'static> Package<H> {
     ///
     /// Install a package and print the result.
     ///
-    ///```
+    ///```no_run
     ///extern crate futures;
     ///extern crate intecture_api;
     ///extern crate tokio_core;
