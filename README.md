@@ -35,9 +35,17 @@ tokio-core = "0.1"
 This is all we need to do if we only want to manage the local machine. Just make sure you use the `Local` host type, like so:
 
 ```rust
-let host = Local::new().and_then(|host| {
+// You can ignore these two lines. They are boilerplate from `tokio-core` that
+// drive Intecture's asynchronous API.
+let mut core = Core::new().unwrap();
+let handle = core.handle();
+
+let host = Local::new(&handle).and_then(|host| {
     // Do stuff on the local host...
 });
+
+// You can ignore this line. It is more `tokio-core` boilerplate.
+core.run(host).unwrap();
 ```
 
 You can find some basic examples here: [core/examples](core/examples).
@@ -73,7 +81,7 @@ Finally we can get back to what we came here for - Rust codez! To manage this ma
 
 ```rust
 let host = Plain::connect("<ip_of_host>:7101").and_then(|host| {
-    // Do stuff on the local host...
+    // Do stuff on the remote host...
 });
 ```
 
