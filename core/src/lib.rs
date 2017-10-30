@@ -145,9 +145,10 @@ pub mod prelude {
     pub use host::Host;
     pub use host::remote::{self, Plain};
     pub use host::local::{self, Local};
+    pub use package::{self, Package};
     pub use telemetry::{self, Cpu, FsMount, Os, OsFamily, OsPlatform, Telemetry};
 }
-// pub mod package;
+pub mod package;
 mod provider;
 #[doc(hidden)] pub mod remote;
 mod target;

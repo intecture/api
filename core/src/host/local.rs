@@ -50,12 +50,16 @@ impl Host for Local {
         self.inner.telemetry.as_ref().unwrap()
     }
 
+    fn handle(&self) -> &Handle {
+        &self.handle
+    }
+
     #[doc(hidden)]
     fn request_msg(&self, msg: Message<Request, Body<Vec<u8>, io::Error>>) ->
         Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>>
     {
         Box::new(msg.into_inner()
-           .exec(&self.handle)
+           .exec(self)
            .and_then(|mut msg| {
                let body = msg.take_body();
                match msg.into_inner() {

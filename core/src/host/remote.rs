@@ -91,6 +91,10 @@ impl Host for Plain {
         self.inner.telemetry.as_ref().unwrap()
     }
 
+    fn handle(&self) -> &Handle {
+        &self.handle
+    }
+
     #[doc(hidden)]
     fn request_msg(&self, msg: Message<Request, Body<Vec<u8>, io::Error>>) ->
         Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>>

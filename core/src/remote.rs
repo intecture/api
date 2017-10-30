@@ -9,9 +9,10 @@
 use command;
 use errors::*;
 use futures::{future, Future};
+use host::Host;
+use package;
 use std::io;
 use telemetry;
-use tokio_core::reactor::Handle;
 use tokio_proto::streaming::{Body, Message};
 
 pub type ExecutableResult = Box<Future<Item = Message<ResponseResult, Body<Vec<u8>, io::Error>>, Error = Error>>;
@@ -19,11 +20,15 @@ pub type ExecutableResult = Box<Future<Item = Message<ResponseResult, Body<Vec<u
 #[derive(Serialize, Deserialize)]
 pub enum Request {
     CommandExec(Option<ProviderName>, String, Vec<String>),
+    PackageInstalled(Option<ProviderName>, String),
+    PackageInstall(Option<ProviderName>, String),
+    PackageUninstall(Option<ProviderName>, String),
     TelemetryLoad,
 }
 
 #[derive(Serialize, Deserialize)]
 pub enum Response {
+    Bool(bool),
     Null,
     TelemetryLoad(telemetry::serializable::Telemetry),
 }
@@ -37,6 +42,12 @@ pub enum ResponseResult {
 #[derive(Serialize, Deserialize)]
 pub enum ProviderName {
     CommandGeneric,
+    PackageApt,
+    PackageDnf,
+    PackageHomebrew,
+    PackageNix,
+    PackagePkg,
+    PackageYum,
     TelemetryCentos,
     TelemetryDebian,
     TelemetryFedora,
@@ -47,11 +58,11 @@ pub enum ProviderName {
 }
 
 pub trait Executable {
-    fn exec(self, &Handle) -> ExecutableResult;
+    fn exec<H: Host>(self, &H) -> ExecutableResult;
 }
 
 impl Executable for Request {
-    fn exec(self, handle: &Handle) -> ExecutableResult {
+    fn exec<H: Host>(self, host: &H) -> ExecutableResult {
         match self {
             Request::CommandExec(provider, cmd, shell) => {
                 let provider = match provider {
@@ -62,7 +73,31 @@ impl Executable for Request {
                     },
                     _ => unreachable!(),
                 };
-                provider.exec(handle, &cmd, &shell)
+                provider.exec(host.handle(), &cmd, &shell)
+            }
+
+            Request::PackageInstalled(provider, name) => {
+                let provider = match get_package_provider(provider) {
+                    Ok(p) => p,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                provider.installed(host.handle(), &name, &host.telemetry().os)
+            }
+
+            Request::PackageInstall(provider, name) => {
+                let provider = match get_package_provider(provider) {
+                    Ok(p) => p,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                provider.install(host.handle(), &name)
+            }
+
+            Request::PackageUninstall(provider, name) => {
+                let provider = match get_package_provider(provider) {
+                    Ok(p) => p,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                provider.uninstall(host.handle(), &name)
             }
 
             Request::TelemetryLoad => {
@@ -73,5 +108,18 @@ impl Executable for Request {
                 provider.load()
             }
         }
+    }
+}
+
+fn get_package_provider(name: Option<ProviderName>) -> Result<Box<package::providers::PackageProvider>> {
+    match name {
+        Some(ProviderName::PackageApt) => Ok(Box::new(package::providers::Apt)),
+        Some(ProviderName::PackageDnf) => Ok(Box::new(package::providers::Dnf)),
+        Some(ProviderName::PackageHomebrew) => Ok(Box::new(package::providers::Homebrew)),
+        Some(ProviderName::PackageNix) => Ok(Box::new(package::providers::Nix)),
+        Some(ProviderName::PackagePkg) => Ok(Box::new(package::providers::Pkg)),
+        Some(ProviderName::PackageYum) => Ok(Box::new(package::providers::Yum)),
+        None => package::providers::factory(),
+        _ => unreachable!(),
     }
 }

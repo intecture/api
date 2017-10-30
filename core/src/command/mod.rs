@@ -16,9 +16,11 @@ use futures::Future;
 use futures::stream::Stream;
 use futures::sync::oneshot;
 use host::Host;
-use remote::Request;
+use remote::{Request, Response};
+use std::io;
 use self::providers::CommandProvider;
 use serde_json;
+use tokio_proto::streaming::{Body, Message};
 
 #[cfg(not(windows))]
 const DEFAULT_SHELL: [&'static str; 2] = ["/bin/sh", "-c"];
@@ -242,37 +244,49 @@ impl<H: Host + 'static> Command<H> {
         let request = Request::CommandExec(self.provider.as_ref().map(|p| p.name()), self.cmd.clone(), self.shell.clone());
         Box::new(self.host.request(request)
             .chain_err(|| ErrorKind::Request { endpoint: "Command", func: "exec" })
-            .map(|mut msg| {
-                let (tx, rx) = oneshot::channel::<ExitStatus>();
-                let mut tx_share = Some(tx);
-                let mut found = false;
-                (
-                    Box::new(msg.take_body()
-                        .expect("Command::exec reply missing body stream")
-                        .filter_map(move |v| {
-                            let s = String::from_utf8_lossy(&v).to_string();
-
-                            // @todo This is a heuristical approach which is fallible
-                            if !found && s.starts_with("ExitStatus:") {
-                                let (_, json) = s.split_at(11);
-                                match serde_json::from_str(json) {
-                                    Ok(status) => {
-                                        // @todo What should happen if this fails?
-                                        let _ = tx_share.take().unwrap().send(status);
-                                        found = true;
-                                        return None;
-                                    },
-                                    _ => (),
-                                }
-                            }
-
-                            Some(s)
-                        })
-                        .then(|r| r.chain_err(|| "Command execution failed"))
-                    ) as Box<Stream<Item = String, Error = Error>>,
-                    Box::new(rx.chain_err(|| "Buffer dropped before ExitStatus was sent"))
-                        as Box<Future<Item = ExitStatus, Error = Error>>
-                )
+            .map(|msg| {
+                parse_body_stream(msg)
             }))
     }
+}
+
+// Abstract this logic so other endpoints can parse CommandProvider::exec()
+// streams too.
+#[doc(hidden)]
+pub fn parse_body_stream(mut msg: Message<Response, Body<Vec<u8>, io::Error>>) ->
+    (
+        Box<Stream<Item = String, Error = Error>>,
+        Box<Future<Item = ExitStatus, Error = Error>>
+    )
+{
+    let (tx, rx) = oneshot::channel::<ExitStatus>();
+    let mut tx_share = Some(tx);
+    let mut found = false;
+    (
+        Box::new(msg.take_body()
+            .expect("Command::exec reply missing body stream")
+            .filter_map(move |v| {
+                let s = String::from_utf8_lossy(&v).to_string();
+
+                // @todo This is a heuristical approach which is fallible
+                if !found && s.starts_with("ExitStatus:") {
+                    let (_, json) = s.split_at(11);
+                    match serde_json::from_str(json) {
+                        Ok(status) => {
+                            // @todo What should happen if this fails?
+                            let _ = tx_share.take().unwrap().send(status);
+                            found = true;
+                            return None;
+                        },
+                        _ => (),
+                    }
+                }
+
+                Some(s)
+            })
+            .then(|r| r.chain_err(|| "Command execution failed"))
+        ) as Box<Stream<Item = String, Error = Error>>,
+        Box::new(rx.chain_err(|| "Buffer dropped before ExitStatus was sent"))
+            as Box<Future<Item = ExitStatus, Error = Error>>
+    )
 }

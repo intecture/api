@@ -14,12 +14,15 @@ use futures::Future;
 use remote::{Request, Response};
 use std::io;
 use telemetry::Telemetry;
+use tokio_core::reactor::Handle;
 use tokio_proto::streaming::{Body, Message};
 
 /// Trait for local and remote host types.
 pub trait Host: Clone {
     /// Get `Telemetry` for this host.
     fn telemetry(&self) -> &Telemetry;
+    /// Get `Handle` to Tokio reactor.
+    fn handle(&self) -> &Handle;
     #[doc(hidden)]
     fn request(&self, request: Request) ->
         Box<Future<Item = Message<Response, Body<Vec<u8>, io::Error>>, Error = Error>>

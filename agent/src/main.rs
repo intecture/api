@@ -21,6 +21,7 @@ mod errors;
 use error_chain::ChainedError;
 use errors::*;
 use futures::{future, Future};
+use intecture_api::host::local::Local;
 use intecture_api::host::remote::{JsonLineProto, LineMessage};
 use intecture_api::remote::{Executable, Request, ResponseResult};
 use std::fs::File;
@@ -33,6 +34,10 @@ use tokio_proto::TcpServer;
 use tokio_service::{NewService, Service};
 
 pub struct Api {
+    host: Local,
+}
+
+pub struct NewApi {
     remote: Remote,
 }
 
@@ -53,13 +58,7 @@ impl Service for Api {
             Err(e) => return Box::new(future::ok(error_to_msg(e))),
         };
 
-        // XXX Danger zone! If we're running multiple threads, this `unwrap()`
-        // will explode. The API requires a `Handle`, but we can only send a
-        // `Remote` to this Service. Currently we force the `Handle`, which is
-        // only safe for the current thread.
-        // See https://github.com/alexcrichton/tokio-process/issues/23
-        let handle = self.remote.handle().unwrap();
-        Box::new(request.exec(&handle)
+        Box::new(request.exec(&self.host)
             .chain_err(|| "Failed to execute Request")
             .then(|req| {
                 match req {
@@ -79,14 +78,21 @@ impl Service for Api {
     }
 }
 
-impl NewService for Api {
+impl NewService for NewApi {
     type Request = LineMessage;
     type Response = LineMessage;
     type Error = Error;
     type Instance = Api;
     fn new_service(&self) -> io::Result<Self::Instance> {
+        // XXX Danger zone! If we're running multiple threads, this `unwrap()`
+        // will explode. The API requires a `Handle`, but we can only send a
+        // `Remote` to this Service. Currently we force the `Handle`, which is
+        // only safe for the current thread.
+        // See https://github.com/alexcrichton/tokio-process/issues/23
+        let handle = self.remote.handle().unwrap();
+
         Ok(Api {
-            remote: self.remote.clone(),
+            host: Local::new(&handle).wait().unwrap(),
         })
     }
 }
@@ -137,10 +143,9 @@ quick_main!(|| -> Result<()> {
     // See https://github.com/alexcrichton/tokio-process/issues/23
     let server = TcpServer::new(JsonLineProto, config.address);
     server.with_handle(move |handle| {
-        let api = Api {
+        Arc::new(NewApi {
             remote: handle.remote().clone(),
-        };
-        Arc::new(api)
+        })
     });
     Ok(())
 });
