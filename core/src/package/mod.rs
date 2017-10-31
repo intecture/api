@@ -21,8 +21,54 @@ use self::providers::PackageProvider;
 
 /// Represents a system package to be managed for a host.
 ///
-///## Examples
+///# Example
 ///
+/// Install a package and print the result.
+///
+///```no_run
+///extern crate futures;
+///extern crate intecture_api;
+///extern crate tokio_core;
+///
+///use futures::{future, Future, Stream};
+///use intecture_api::errors::Error;
+///use intecture_api::prelude::*;
+///use tokio_core::reactor::Core;
+///
+///# fn main() {
+///let mut core = Core::new().unwrap();
+///let handle = core.handle();
+///
+///let host = Local::new(&handle).wait().unwrap();
+///
+///let nginx = Package::new(&host, "nginx");
+///let result = nginx.install().and_then(|status| {
+///    match status {
+///        // We're performing the install
+///        Some((stream, status)) => Box::new(stream.fold(String::new(), |mut acc, line| {
+///                acc.push_str(&line);
+///                future::ok::<_, Error>(acc)
+///            })
+///            .join(status)
+///            .map(|(output, status)| {
+///                if status.success {
+///                    println!("Installed");
+///                } else {
+///                    println!("Failed with output: {}", output);
+///                }
+///            })) as Box<Future<Item = _, Error = Error>>,
+///
+///        // This package is already installed
+///        None => {
+///            println!("Already installed");
+///            Box::new(future::ok(()))
+///        },
+///    }
+///});
+///
+///core.run(result).unwrap();
+///# }
+///```
 pub struct Package<H: Host> {
     host: H,
     provider: Option<Box<PackageProvider>>,
@@ -95,53 +141,6 @@ impl<H: Host + 'static> Package<H> {
     /// the hood this reuses the `Command` endpoint, so see
     /// [`Command` docs](../command/struct.Command.html) for detailed
     /// usage.
-    ///
-    ///# Example
-    ///
-    /// Install a package and print the result.
-    ///
-    ///```no_run
-    ///extern crate futures;
-    ///extern crate intecture_api;
-    ///extern crate tokio_core;
-    ///
-    ///use futures::{future, Future, Stream};
-    ///use intecture_api::errors::Error;
-    ///use intecture_api::prelude::*;
-    ///use tokio_core::reactor::Core;
-    ///
-    ///# fn main() {
-    ///let mut core = Core::new().unwrap();
-    ///let handle = core.handle();
-    ///
-    ///let host = Local::new(&handle).wait().unwrap();
-    ///
-    ///let nginx = Package::new(&host, "nginx");
-    ///let result = nginx.install().and_then(|status| {
-    ///    match status {
-    ///        // We're performing the install
-    ///        Some((stream, status)) => Box::new(stream.fold(String::new(), |mut acc, line| {
-    ///                acc.push_str(&line);
-    ///                future::ok::<_, Error>(acc)
-    ///            })
-    ///            .join(status)
-    ///            .map(|(output, status)| {
-    ///                if status.success {
-    ///                    println!("Installed");
-    ///                } else {
-    ///                    println!("Failed with output: {}", output);
-    ///                }
-    ///            })) as Box<Future<Item = _, Error = Error>>,
-    ///        None => {
-    ///            println!("Already installed");
-    ///            Box::new(future::ok(()))
-    ///        },
-    ///    }
-    ///});
-    ///
-    ///core.run(result).unwrap();
-    ///# }
-    ///```
     pub fn install(&self) -> Box<Future<Item = Option<(
             Box<Stream<Item = String, Error = Error>>,
             Box<Future<Item = ExitStatus, Error = Error>>
