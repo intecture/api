@@ -78,7 +78,7 @@ impl PackageProvider for Apt {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["apt-get".into(), "-y".into(), "install".into()])
+        cmd.exec(handle, &["apt-get", "-y", "install", name])
     }
 
     #[doc(hidden)]
@@ -90,6 +90,6 @@ impl PackageProvider for Apt {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["apt-get".into(), "-y".into(), "remove".into()])
+        cmd.exec(handle, &["apt-get", "-y", "remove", name])
     }
 }

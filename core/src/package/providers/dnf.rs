@@ -79,7 +79,7 @@ impl PackageProvider for Dnf {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["dnf".into(), "-y".into(), "install".into()])
+        cmd.exec(handle, &["dnf", "-y", "install", name])
     }
 
     #[doc(hidden)]
@@ -91,6 +91,6 @@ impl PackageProvider for Dnf {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["dnf".into(), "-y".into(), "remove".into()])
+        cmd.exec(handle, &["dnf", "-y", "remove", name])
     }
 }

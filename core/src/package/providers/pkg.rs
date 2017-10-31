@@ -62,7 +62,7 @@ impl PackageProvider for Pkg {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["pkg".into(), "install".into(), "-y".into()])
+        cmd.exec(handle, &["pkg", "install", "-y", name])
     }
 
     #[doc(hidden)]
@@ -74,6 +74,6 @@ impl PackageProvider for Pkg {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["pkg".into(), "delete".into(), "-y".into()])
+        cmd.exec(handle, &["pkg", "delete", "-y", name])
     }
 }

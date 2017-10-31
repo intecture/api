@@ -136,8 +136,7 @@ pub type ExecResult = Box<Future<Item = (
 pub struct Command<H: Host> {
     host: H,
     provider: Option<Box<CommandProvider>>,
-    shell: Vec<String>,
-    cmd: String,
+    cmd: Vec<String>,
 }
 
 /// The status of a finished command.
@@ -166,15 +165,14 @@ impl<H: Host + 'static> Command<H> {
     /// Bash as your shell, you'd provide the value:
     /// `Some(&["/bin/bash", "-c"])`.
     pub fn new(host: &H, cmd: &str, shell: Option<&[&str]>) -> Command<H> {
+        let mut args: Vec<String> = shell.unwrap_or(&DEFAULT_SHELL).to_owned()
+            .iter().map(|a| (*a).to_owned()).collect();
+        args.push(cmd.into());
+
         Command {
             host: host.clone(),
             provider: None,
-            shell: shell.unwrap_or(&DEFAULT_SHELL)
-                        .to_owned()
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-            cmd: cmd.into(),
+            cmd: args,
         }
     }
 
@@ -202,16 +200,9 @@ impl<H: Host + 'static> Command<H> {
     pub fn with_provider<P>(host: &H, provider: P, cmd: &str, shell: Option<&[&str]>) -> Command<H>
         where P: CommandProvider + 'static
     {
-        Command {
-            host: host.clone(),
-            provider: Some(Box::new(provider)),
-            shell: shell.unwrap_or(&DEFAULT_SHELL)
-                        .to_owned()
-                        .iter()
-                        .map(|s| s.to_string())
-                        .collect(),
-            cmd: cmd.into(),
-        }
+        let mut cmd = Self::new(host, cmd, shell);
+        cmd.provider = Some(Box::new(provider));
+        cmd
     }
 
     /// Execute the command.
@@ -241,7 +232,7 @@ impl<H: Host + 'static> Command<H> {
     /// This is the error you'll see if you prematurely drop the output `Stream`
     /// while trying to resolve the `Future<Item = ExitStatus, ...>`.
     pub fn exec(&self) -> ExecResult {
-        let request = Request::CommandExec(self.provider.as_ref().map(|p| p.name()), self.cmd.clone(), self.shell.clone());
+        let request = Request::CommandExec(self.provider.as_ref().map(|p| p.name()), self.cmd.clone());
         Box::new(self.host.request(request)
             .chain_err(|| ErrorKind::Request { endpoint: "Command", func: "exec" })
             .map(|msg| {

@@ -18,7 +18,7 @@ use tokio_core::reactor::Handle;
 /// Trait for specific `Command` implementations.
 pub trait CommandProvider: Provider {
     #[doc(hidden)]
-    fn exec(&self, &Handle, &str, &[String]) -> ExecutableResult;
+    fn exec(&self, &Handle, &[&str]) -> ExecutableResult;
 }
 
 #[doc(hidden)]

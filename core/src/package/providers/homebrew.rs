@@ -78,7 +78,7 @@ impl PackageProvider for Homebrew {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["brew".into(), "install".into()])
+        cmd.exec(handle, &["brew", "install", name])
     }
 
     #[doc(hidden)]
@@ -90,6 +90,6 @@ impl PackageProvider for Homebrew {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["brew".into(), "uninstall".into()])
+        cmd.exec(handle, &["brew", "uninstall", name])
     }
 }

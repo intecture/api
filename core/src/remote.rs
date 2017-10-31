@@ -19,7 +19,7 @@ pub type ExecutableResult = Box<Future<Item = Message<ResponseResult, Body<Vec<u
 
 #[derive(Serialize, Deserialize)]
 pub enum Request {
-    CommandExec(Option<ProviderName>, String, Vec<String>),
+    CommandExec(Option<ProviderName>, Vec<String>),
     PackageInstalled(Option<ProviderName>, String),
     PackageInstall(Option<ProviderName>, String),
     PackageUninstall(Option<ProviderName>, String),
@@ -64,7 +64,7 @@ pub trait Executable {
 impl Executable for Request {
     fn exec<H: Host>(self, host: &H) -> ExecutableResult {
         match self {
-            Request::CommandExec(provider, cmd, shell) => {
+            Request::CommandExec(provider, cmd) => {
                 let provider = match provider {
                     Some(ProviderName::CommandGeneric) => Box::new(command::providers::Generic),
                     None => match command::providers::factory() {
@@ -73,7 +73,8 @@ impl Executable for Request {
                     },
                     _ => unreachable!(),
                 };
-                provider.exec(host.handle(), &cmd, &shell)
+                let args: Vec<&str> = cmd.iter().map(|a| &**a).collect();
+                provider.exec(host.handle(), &args)
             }
 
             Request::PackageInstalled(provider, name) => {

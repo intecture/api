@@ -36,15 +36,14 @@ impl Provider for Generic {
 
 impl CommandProvider for Generic {
     #[doc(hidden)]
-    fn exec(&self, handle: &Handle, cmd: &str, shell: &[String]) -> ExecutableResult {
-        let (shell, shell_args) = match shell.split_first() {
+    fn exec(&self, handle: &Handle, cmd: &[&str]) -> ExecutableResult {
+        let (cmd, cmd_args) = match cmd.split_first() {
             Some((s, a)) => (s, a),
             None => return Box::new(future::err("Invalid shell provided".into())),
         };
 
-        let child = Command::new(shell)
-            .args(shell_args)
-            .arg(cmd)
+        let child = Command::new(cmd)
+            .args(cmd_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn_async(handle)

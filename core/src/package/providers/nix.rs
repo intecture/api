@@ -73,7 +73,7 @@ impl PackageProvider for Nix {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["nix-env".into(), "--install".into()])
+        cmd.exec(handle, &["nix-env", "--install", name])
     }
 
     #[doc(hidden)]
@@ -85,6 +85,6 @@ impl PackageProvider for Nix {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["nix-env".into(), "--uninstall".into()])
+        cmd.exec(handle, &["nix-env", "--uninstall", name])
     }
 }
