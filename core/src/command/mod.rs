@@ -12,7 +12,7 @@
 pub mod providers;
 
 use errors::*;
-use futures::Future;
+use futures::{future, Future, Poll};
 use futures::stream::Stream;
 use futures::sync::oneshot;
 use host::Host;
@@ -26,11 +26,6 @@ use tokio_proto::streaming::{Body, Message};
 const DEFAULT_SHELL: [&'static str; 2] = ["/bin/sh", "-c"];
 #[cfg(windows)]
 const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support windows :("];
-
-pub type ExecResult = Box<Future<Item = (
-    Box<Stream<Item = String, Error = Error>>,
-    Box<Future<Item = ExitStatus, Error = Error>>
-), Error = Error>>;
 
 /// Represents a shell command to be executed on a host.
 ///
@@ -54,13 +49,20 @@ pub type ExecResult = Box<Future<Item = (
 ///let host = Local::new(&handle).wait().unwrap();
 ///
 ///let cmd = Command::new(&host, "ls /path/to/foo", None);
-///let result = cmd.exec().and_then(|(stream, status)| {
+///let result = cmd.exec().and_then(|mut status| {
 ///    // Print the command's stdout/stderr to stdout
-///    stream.for_each(|line| { println!("{}", line); Ok(()) })
-///        // When it's ready, also print the exit status
+///    status.take_stream().unwrap()
+///        .for_each(|line| { println!("{}", line); Ok(()) })
+///        // On its own, the stream will not do anything, so we need to make
+///        // sure it gets returned along with the status future. `join()` will
+///        // mash the two together so we can return them as one.
 ///        .join(status.map(|s| println!("This command {} {}",
 ///            if s.success { "succeeded" } else { "failed" },
-///            if let Some(e) = s.code { format!("with code {}", e) } else { String::new() })))
+///            if let Some(e) = s.code {
+///                format!("with code {}", e)
+///            } else {
+///                String::new()
+///            })))
 ///});
 ///
 ///core.run(result).unwrap();
@@ -71,13 +73,13 @@ pub type ExecResult = Box<Future<Item = (
 /// this as you could run out of memory on your heap if the output buffer is
 /// too big.
 ///
-///```
+///```no_run
 ///extern crate futures;
 ///extern crate intecture_api;
 ///extern crate tokio_core;
 ///
-///use futures::{future, Future, Stream};
-///use intecture_api::errors::Error;
+///use futures::Future;
+///use intecture_api::errors::*;
 ///use intecture_api::prelude::*;
 ///use tokio_core::reactor::Core;
 ///
@@ -88,14 +90,20 @@ pub type ExecResult = Box<Future<Item = (
 ///let host = Local::new(&handle).wait().unwrap();
 ///
 ///let cmd = Command::new(&host, "ls /path/to/foo", None);
-///let result = cmd.exec().and_then(|(stream, _)| {
-///    // Concatenate the buffer into a `String`
-///    stream.fold(String::new(), |mut acc, line| {
-///        acc.push_str(&line);
-///        future::ok::<_, Error>(acc)
-///    })
+///let result = cmd.exec().and_then(|status| {
+///    status.result().unwrap()
 ///        .map(|_output| {
-///            // The binding `output` is our accumulated buffer
+///            // Our command finished successfully. Now we can do something
+///            // with our output here.
+///        })
+///        .map_err(|e| {
+///            // Our command errored out. Let's grab the output and see what
+///            // went wrong.
+///            match *e.kind() {
+///                ErrorKind::Command(ref output) => println!("Oh noes! {}", output),
+///                _ => unreachable!(),
+///            }
+///            e
 ///        })
 ///});
 ///
@@ -122,12 +130,10 @@ pub type ExecResult = Box<Future<Item = (
 ///let host = Local::new(&handle).wait().unwrap();
 ///
 ///let cmd = Command::new(&host, "ls /path/to/foo", None);
-///let result = cmd.exec().and_then(|(stream, status)| {
-///    // Discard the buffer
-///    stream.for_each(|_| Ok(()))
-///        .join(status.map(|_status| {
-///            // Enjoy the status, baby...
-///        }))
+///let result = cmd.exec().and_then(|mut status| {
+///    status.map(|_exit_status| {
+///        // Enjoy the status, baby!
+///    })
 ///});
 ///
 ///core.run(result).unwrap();
@@ -137,6 +143,20 @@ pub struct Command<H: Host> {
     host: H,
     provider: Option<Box<CommandProvider>>,
     cmd: Vec<String>,
+}
+
+/// Represents the status of a running `Command`, including the output stream
+/// and exit status.
+pub struct CommandStatus {
+    stream: Option<Box<Stream<Item = String, Error = Error>>>,
+    exit_status: Option<Box<Future<Item = ExitStatus, Error = Error>>>,
+}
+
+/// Represents the exit status of a `Command` as a `Result`-like `Future`. If
+/// the command succeeded, the command output is returned. If it failed, an
+/// error containing the command's output is returned.
+pub struct CommandResult {
+    inner: Box<Future<Item = String, Error = Error>>,
 }
 
 /// The status of a finished command.
@@ -231,42 +251,33 @@ impl<H: Host + 'static> Command<H> {
     ///
     /// This is the error you'll see if you prematurely drop the output `Stream`
     /// while trying to resolve the `Future<Item = ExitStatus, ...>`.
-    pub fn exec(&self) -> ExecResult {
+    pub fn exec(&self) -> Box<Future<Item = CommandStatus, Error = Error>> {
         let request = Request::CommandExec(self.provider.as_ref().map(|p| p.name()), self.cmd.clone());
         Box::new(self.host.request(request)
             .chain_err(|| ErrorKind::Request { endpoint: "Command", func: "exec" })
             .map(|msg| {
-                parse_body_stream(msg)
+                CommandStatus::new(msg)
             }))
     }
 }
 
-// Abstract this logic so other endpoints can parse CommandProvider::exec()
-// streams too.
-#[doc(hidden)]
-pub fn parse_body_stream(mut msg: Message<Response, Body<Vec<u8>, io::Error>>) ->
-    (
-        Box<Stream<Item = String, Error = Error>>,
-        Box<Future<Item = ExitStatus, Error = Error>>
-    )
-{
-    let (tx, rx) = oneshot::channel::<ExitStatus>();
-    let mut tx_share = Some(tx);
-    let mut found = false;
-    (
-        Box::new(msg.take_body()
+impl CommandStatus {
+    #[doc(hidden)]
+    pub fn new(mut msg: Message<Response, Body<Vec<u8>, io::Error>>) -> CommandStatus {
+        let (tx, rx) = oneshot::channel::<ExitStatus>();
+        let mut tx = Some(tx);
+        let stream = msg.take_body()
             .expect("Command::exec reply missing body stream")
             .filter_map(move |v| {
                 let s = String::from_utf8_lossy(&v).to_string();
 
                 // @todo This is a heuristical approach which is fallible
-                if !found && s.starts_with("ExitStatus:") {
+                if s.starts_with("ExitStatus:") {
                     let (_, json) = s.split_at(11);
                     match serde_json::from_str(json) {
                         Ok(status) => {
                             // @todo What should happen if this fails?
-                            let _ = tx_share.take().unwrap().send(status);
-                            found = true;
+                            let _ = tx.take().unwrap().send(status);
                             return None;
                         },
                         _ => (),
@@ -275,9 +286,73 @@ pub fn parse_body_stream(mut msg: Message<Response, Body<Vec<u8>, io::Error>>) -
 
                 Some(s)
             })
-            .then(|r| r.chain_err(|| "Command execution failed"))
-        ) as Box<Stream<Item = String, Error = Error>>,
-        Box::new(rx.chain_err(|| "Buffer dropped before ExitStatus was sent"))
-            as Box<Future<Item = ExitStatus, Error = Error>>
-    )
+            .then(|r| r.chain_err(|| "Command execution failed"));
+
+        let exit_status = rx.chain_err(|| "Buffer dropped before ExitStatus was sent");
+
+        CommandStatus {
+            stream: Some(Box::new(stream)),
+            exit_status: Some(Box::new(exit_status)),
+        }
+    }
+
+    /// Take ownership of the output stream.
+    ///
+    /// The stream is guaranteed to be present only if this is the first call
+    /// to `take_stream()` and the future has not yet been polled.
+    pub fn take_stream(&mut self) -> Option<Box<Stream<Item = String, Error = Error>>> {
+        self.stream.take()
+    }
+
+    /// Convert this to a `CommandResult`, which returns the output string on
+    /// success and an error containing the command's output on failure. If the
+    /// stream has already been taken by `take_stream()` then this function
+    /// will return `None`.
+    ///
+    /// Note that "success" is determined by examining the `ExitStatus::success`
+    /// bool. See `ExitStatus` docs for details.
+    pub fn result(self) -> Option<CommandResult> {
+        if let Some(stream) = self.stream {
+            let inner = stream.fold(String::new(), |mut acc, line| {
+                    acc.push_str(&line);
+                    future::ok::<_, Error>(acc)
+                })
+                .join(self.exit_status.unwrap())
+                .and_then(|(output, status)| if status.success {
+                    future::ok(output)
+                } else {
+                    future::err(ErrorKind::Command(output).into())
+                });
+
+            Some(CommandResult {
+                inner: Box::new(inner) as Box<Future<Item = String, Error = Error>>
+            })
+        } else {
+            None
+        }
+    }
+}
+
+impl Future for CommandStatus {
+    type Item = ExitStatus;
+    type Error = Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        if let Some(stream) = self.stream.take() {
+            self.exit_status = Some(Box::new(stream.for_each(|_| Ok(()))
+                .join(self.exit_status.take().unwrap())
+                .map(|(_, status)| status)));
+        }
+
+        self.exit_status.as_mut().unwrap().poll()
+    }
+}
+
+impl Future for CommandResult {
+    type Item = String;
+    type Error = Error;
+
+    fn poll(&mut self) -> Poll<Self::Item, Self::Error> {
+        self.inner.poll()
+    }
 }

@@ -11,10 +11,9 @@
 
 pub mod providers;
 
-use command::{ExitStatus, parse_body_stream};
+use command::CommandStatus;
 use errors::*;
 use futures::{future, Future};
-use futures::stream::Stream;
 use host::Host;
 use remote::{Request, Response};
 use self::providers::PackageProvider;
@@ -30,8 +29,8 @@ use self::providers::PackageProvider;
 ///extern crate intecture_api;
 ///extern crate tokio_core;
 ///
-///use futures::{future, Future, Stream};
-///use intecture_api::errors::Error;
+///use futures::{future, Future};
+///use intecture_api::errors::*;
 ///use intecture_api::prelude::*;
 ///use tokio_core::reactor::Core;
 ///
@@ -45,23 +44,20 @@ use self::providers::PackageProvider;
 ///let result = nginx.install().and_then(|status| {
 ///    match status {
 ///        // We're performing the install
-///        Some((stream, status)) => Box::new(stream.fold(String::new(), |mut acc, line| {
-///                acc.push_str(&line);
-///                future::ok::<_, Error>(acc)
-///            })
-///            .join(status)
-///            .map(|(output, status)| {
-///                if status.success {
-///                    println!("Installed");
-///                } else {
-///                    println!("Failed with output: {}", output);
+///        Some(status) => Box::new(status.result().unwrap()
+///            .map(|_| println!("Installed"))
+///            .map_err(|e| {
+///                match *e.kind() {
+///                    ErrorKind::Command(ref output) => println!("Failed with output: {}", output),
+///                    _ => unreachable!(),
 ///                }
-///            })) as Box<Future<Item = _, Error = Error>>,
+///                e
+///            })),
 ///
 ///        // This package is already installed
 ///        None => {
 ///            println!("Already installed");
-///            Box::new(future::ok(()))
+///            Box::new(future::ok(())) as Box<Future<Item = _, Error = Error>>
 ///        },
 ///    }
 ///});
@@ -141,10 +137,7 @@ impl<H: Host + 'static> Package<H> {
     /// the hood this reuses the `Command` endpoint, so see
     /// [`Command` docs](../command/struct.Command.html) for detailed
     /// usage.
-    pub fn install(&self) -> Box<Future<Item = Option<(
-            Box<Stream<Item = String, Error = Error>>,
-            Box<Future<Item = ExitStatus, Error = Error>>
-        )>, Error = Error>>
+    pub fn install(&self) -> Box<Future<Item = Option<CommandStatus>, Error = Error>>
     {
         let host = self.host.clone();
         let provider = self.provider.as_ref().map(|p| p.name());
@@ -158,7 +151,7 @@ impl<H: Host + 'static> Package<H> {
                     Box::new(host.request(Request::PackageInstall(provider, name))
                         .chain_err(|| ErrorKind::Request { endpoint: "Package", func: "install" })
                         .map(|msg| {
-                            Some(parse_body_stream(msg))
+                            Some(CommandStatus::new(msg))
                         }))
                 }
             }))
@@ -176,10 +169,7 @@ impl<H: Host + 'static> Package<H> {
     /// the hood this reuses the `Command` endpoint, so see
     /// [`Command` docs](../command/struct.Command.html) for detailed
     /// usage.
-    pub fn uninstall(&self) -> Box<Future<Item = Option<(
-            Box<Stream<Item = String, Error = Error>>,
-            Box<Future<Item = ExitStatus, Error = Error>>
-        )>, Error = Error>>
+    pub fn uninstall(&self) -> Box<Future<Item = Option<CommandStatus>, Error = Error>>
     {
         let host = self.host.clone();
         let provider = self.provider.as_ref().map(|p| p.name());
@@ -191,7 +181,7 @@ impl<H: Host + 'static> Package<H> {
                     Box::new(host.request(Request::PackageUninstall(provider, name))
                         .chain_err(|| ErrorKind::Request { endpoint: "Package", func: "uninstall" })
                         .map(|msg| {
-                            Some(parse_body_stream(msg))
+                            Some(CommandStatus::new(msg))
                         }))
                 } else {
                     Box::new(future::ok(None)) as Box<Future<Item = _, Error = Error>>

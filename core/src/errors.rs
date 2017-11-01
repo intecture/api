@@ -17,6 +17,11 @@ error_chain! {
     }
 
     errors {
+        Command(out: String) {
+            description("Command returned non-zero exit code"),
+            display("Command returned non-zero exit code with output: {}", out),
+        }
+
         InvalidTelemetryKey {
             cmd: &'static str,
             key: String,
