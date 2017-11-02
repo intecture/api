@@ -7,8 +7,7 @@
 use errors::*;
 use futures::future;
 use pnet::datalink::interfaces;
-use provider::Provider;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::env;
 use super::TelemetryProvider;
 use target::{default, linux, redhat};
@@ -18,17 +17,11 @@ use tokio_proto::streaming::Message;
 
 pub struct Centos;
 
-impl Provider for Centos {
-    fn available() -> Result<bool> {
-        Ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Centos))
-    }
-
-    fn name(&self) -> ProviderName {
-        ProviderName::TelemetryCentos
-    }
-}
-
 impl TelemetryProvider for Centos {
+    fn available() -> bool {
+        cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Centos)
+    }
+
     fn load(&self) -> ExecutableResult {
         Box::new(future::lazy(|| {
             let t = match do_load() {

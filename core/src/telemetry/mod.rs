@@ -6,18 +6,19 @@
 
 //! System generated data about your host.
 //!
-//! You can `Telemetry` is retrieved automatically when you create a new `Host`, which
-//! is nice of it. Call `Host::telemetry()` to access it.
+//! Telemetry is retrieved automatically when you create a new `Host`, which is
+//! nice of it. Call [`Host.telemetry()`](../host/trait.Host.html#tymethod.telemetry)
+//! to access it.
 
-pub mod providers;
-#[doc(hidden)]
-pub mod serializable;
+mod providers;
+#[doc(hidden)] pub mod serializable;
 
 use errors::*;
 use futures::Future;
 use host::Host;
 use pnet::datalink::NetworkInterface;
 use remote::{Request, Response};
+#[doc(hidden)] pub use self::providers::factory;
 
 /// Top level structure that contains static information about a `Host`.
 #[derive(Debug)]

@@ -7,8 +7,7 @@
 use errors::*;
 use futures::future;
 use pnet::datalink::interfaces;
-use provider::Provider;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::{env, process, str};
 use super::TelemetryProvider;
 use target::{default, unix};
@@ -17,17 +16,11 @@ use tokio_proto::streaming::Message;
 
 pub struct Macos;
 
-impl Provider for Macos {
-    fn available() -> Result<bool> {
-        Ok(cfg!(target_os="macos"))
-    }
-
-    fn name(&self) -> ProviderName {
-        ProviderName::TelemetryMacos
-    }
-}
-
 impl TelemetryProvider for Macos {
+    fn available() -> bool {
+        cfg!(target_os="macos")
+    }
+
     fn load(&self) -> ExecutableResult {
         Box::new(future::lazy(|| {
             let t = match do_load() {

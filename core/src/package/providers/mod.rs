@@ -14,7 +14,6 @@ mod pkg;
 mod yum;
 
 use errors::*;
-use provider::Provider;
 use remote::ExecutableResult;
 pub use self::apt::Apt;
 pub use self::dnf::Dnf;
@@ -25,13 +24,21 @@ pub use self::yum::Yum;
 use telemetry::Os;
 use tokio_core::reactor::Handle;
 
-/// Trait for `Package` providers.
-pub trait PackageProvider: Provider {
-    #[doc(hidden)]
+/// Specific implementation of `Package`
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum Provider {
+    Apt,
+    Dnf,
+    Homebrew,
+    Nix,
+    Pkg,
+    Yum,
+}
+
+pub trait PackageProvider {
+    fn available() -> Result<bool> where Self: Sized;
     fn installed(&self, &Handle, &str, &Os) -> ExecutableResult;
-    #[doc(hidden)]
     fn install(&self, &Handle, &str) -> ExecutableResult;
-    #[doc(hidden)]
     fn uninstall(&self, &Handle, &str) -> ExecutableResult;
 }
 

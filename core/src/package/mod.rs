@@ -9,14 +9,16 @@
 //! A package is represented by the `Package` struct, which is idempotent. This
 //! means you can execute it repeatedly and it'll only run as needed.
 
-pub mod providers;
+mod providers;
 
 use command::CommandStatus;
 use errors::*;
 use futures::{future, Future};
 use host::Host;
 use remote::{Request, Response};
-use self::providers::PackageProvider;
+#[doc(hidden)]
+pub use self::providers::{factory, PackageProvider, Apt, Dnf, Homebrew, Nix, Pkg, Yum};
+pub use self::providers::Provider;
 
 /// Represents a system package to be managed for a host.
 ///
@@ -67,12 +69,12 @@ use self::providers::PackageProvider;
 ///```
 pub struct Package<H: Host> {
     host: H,
-    provider: Option<Box<PackageProvider>>,
+    provider: Option<Provider>,
     name: String,
 }
 
 impl<H: Host + 'static> Package<H> {
-    /// Create a new `Package` with the default `PackageProvider`.
+    /// Create a new `Package` with the default [`Provider`](enum.Provider.html).
     pub fn new(host: &H, name: &str) -> Package<H> {
         Package {
             host: host.clone(),
@@ -81,7 +83,7 @@ impl<H: Host + 'static> Package<H> {
         }
     }
 
-    /// Create a new `Package` with the specified `PackageProvider`.
+    /// Create a new `Package` with the specified [`Provider`](enum.Provider.html).
     ///
     ///## Example
     ///```
@@ -90,7 +92,7 @@ impl<H: Host + 'static> Package<H> {
     ///extern crate tokio_core;
     ///
     ///use futures::Future;
-    ///use intecture_api::package::providers::Yum;
+    ///use intecture_api::package::Provider;
     ///use intecture_api::prelude::*;
     ///use tokio_core::reactor::Core;
     ///
@@ -100,21 +102,19 @@ impl<H: Host + 'static> Package<H> {
     ///
     ///let host = Local::new(&handle).wait().unwrap();
     ///
-    ///Package::with_provider(&host, Yum, "nginx");
+    ///Package::with_provider(&host, Provider::Yum, "nginx");
     ///# }
-    pub fn with_provider<P>(host: &H, provider: P, name: &str) -> Package<H>
-        where P: PackageProvider + 'static
-    {
+    pub fn with_provider(host: &H, provider: Provider, name: &str) -> Package<H> {
         Package {
             host: host.clone(),
-            provider: Some(Box::new(provider)),
+            provider: Some(provider),
             name: name.into(),
         }
     }
 
     /// Check if the package is installed.
     pub fn installed(&self) -> Box<Future<Item = bool, Error = Error>> {
-        let request = Request::PackageInstalled(self.provider.as_ref().map(|p| p.name()), self.name.clone());
+        let request = Request::PackageInstalled(self.provider, self.name.clone());
         Box::new(self.host.request(request)
             .chain_err(|| ErrorKind::Request { endpoint: "Package", func: "installed" })
             .map(|msg| {
@@ -142,7 +142,7 @@ impl<H: Host + 'static> Package<H> {
     pub fn install(&self) -> Box<Future<Item = Option<CommandStatus>, Error = Error>>
     {
         let host = self.host.clone();
-        let provider = self.provider.as_ref().map(|p| p.name());
+        let provider = self.provider;
         let name = self.name.clone();
 
         Box::new(self.installed()
@@ -176,7 +176,7 @@ impl<H: Host + 'static> Package<H> {
     pub fn uninstall(&self) -> Box<Future<Item = Option<CommandStatus>, Error = Error>>
     {
         let host = self.host.clone();
-        let provider = self.provider.as_ref().map(|p| p.name());
+        let provider = self.provider;
         let name = self.name.clone();
 
         Box::new(self.installed()

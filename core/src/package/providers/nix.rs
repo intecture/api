@@ -4,12 +4,11 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use command::providers::factory;
+use command::factory;
 use error_chain::ChainedError;
 use errors::*;
 use futures::{future, Future};
-use provider::Provider;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::process;
 use super::PackageProvider;
 use telemetry::Os;
@@ -17,10 +16,9 @@ use tokio_core::reactor::Handle;
 use tokio_process::CommandExt;
 use tokio_proto::streaming::Message;
 
-/// The Nix `Package` provider.
 pub struct Nix;
 
-impl Provider for Nix {
+impl PackageProvider for Nix {
     fn available() -> Result<bool> {
         Ok(process::Command::new("/usr/bin/type")
             .arg("nix-env")
@@ -29,13 +27,6 @@ impl Provider for Nix {
             .success())
     }
 
-    fn name(&self) -> ProviderName {
-        ProviderName::PackageNix
-    }
-}
-
-impl PackageProvider for Nix {
-    #[doc(hidden)]
     fn installed(&self, handle: &Handle, name: &str, _: &Os) -> ExecutableResult {
         let handle = handle.clone();
         let name = name.to_owned();
@@ -64,7 +55,6 @@ impl PackageProvider for Nix {
             }))
     }
 
-    #[doc(hidden)]
     fn install(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,
@@ -76,7 +66,6 @@ impl PackageProvider for Nix {
         cmd.exec(handle, &["nix-env", "--install", name])
     }
 
-    #[doc(hidden)]
     fn uninstall(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,

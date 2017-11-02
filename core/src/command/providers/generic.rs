@@ -9,8 +9,7 @@ use futures::{future, Future};
 use futures::sink::Sink;
 use futures::stream::Stream;
 use futures::sync::mpsc;
-use provider::Provider;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use serde_json;
 use std::io::{self, BufReader};
 use std::process::{Command, Stdio};
@@ -21,21 +20,13 @@ use tokio_io::io::lines;
 use tokio_process::CommandExt;
 use tokio_proto::streaming::{Body, Message};
 
-/// The generic `Command` provider.
 pub struct Generic;
 
-impl Provider for Generic {
-    fn available() -> Result<bool> {
-        Ok(cfg!(unix))
-    }
-
-    fn name(&self) -> ProviderName {
-        ProviderName::CommandGeneric
-    }
-}
-
 impl CommandProvider for Generic {
-    #[doc(hidden)]
+    fn available() -> bool {
+        true
+    }
+
     fn exec(&self, handle: &Handle, cmd: &[&str]) -> ExecutableResult {
         let (cmd, cmd_args) = match cmd.split_first() {
             Some((s, a)) => (s, a),

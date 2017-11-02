@@ -23,36 +23,34 @@ pub use self::nixos::Nixos;
 pub use self::ubuntu::Ubuntu;
 
 use errors::*;
-use provider::Provider;
 use remote::ExecutableResult;
 
-/// Trait for specific `Telemetry` implementations.
-pub trait TelemetryProvider: Provider {
-    #[doc(hidden)]
+pub trait TelemetryProvider {
+    fn available() -> bool where Self: Sized;
     fn load(&self) -> ExecutableResult;
 }
 
 #[doc(hidden)]
 pub fn factory() -> Result<Box<TelemetryProvider>> {
-    if Centos::available()? {
+    if Centos::available() {
         Ok(Box::new(Centos))
     }
-    else if Debian::available()? {
+    else if Debian::available() {
         Ok(Box::new(Debian))
     }
-    else if Fedora::available()? {
+    else if Fedora::available() {
         Ok(Box::new(Fedora))
     }
-    else if Freebsd::available()? {
+    else if Freebsd::available() {
         Ok(Box::new(Freebsd))
     }
-    else if Macos::available()? {
+    else if Macos::available() {
         Ok(Box::new(Macos))
     }
-    else if Nixos::available()? {
+    else if Nixos::available() {
         Ok(Box::new(Nixos))
     }
-    else if Ubuntu::available()? {
+    else if Ubuntu::available() {
         Ok(Box::new(Ubuntu))
     } else {
         Err(ErrorKind::ProviderUnavailable("Telemetry").into())

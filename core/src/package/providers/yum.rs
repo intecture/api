@@ -4,13 +4,12 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use command::providers::factory;
+use command::factory;
 use error_chain::ChainedError;
 use errors::*;
 use futures::{future, Future};
-use provider::Provider;
 use regex::Regex;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::process;
 use super::PackageProvider;
 use telemetry::Os;
@@ -21,7 +20,7 @@ use tokio_proto::streaming::Message;
 /// The Yum `Package` provider.
 pub struct Yum;
 
-impl Provider for Yum {
+impl PackageProvider for Yum {
     fn available() -> Result<bool> {
         Ok(process::Command::new("/usr/bin/type")
             .arg("yum")
@@ -30,13 +29,6 @@ impl Provider for Yum {
             .success())
     }
 
-    fn name(&self) -> ProviderName {
-        ProviderName::PackageYum
-    }
-}
-
-impl PackageProvider for Yum {
-    #[doc(hidden)]
     fn installed(&self, handle: &Handle, name: &str, os: &Os) -> ExecutableResult {
         let handle = handle.clone();
         let name = name.to_owned();
@@ -70,7 +62,6 @@ impl PackageProvider for Yum {
             }))
     }
 
-    #[doc(hidden)]
     fn install(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,
@@ -82,7 +73,6 @@ impl PackageProvider for Yum {
         cmd.exec(handle, &["yum", "-y", "install", name])
     }
 
-    #[doc(hidden)]
     fn uninstall(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,

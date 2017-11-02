@@ -7,9 +7,8 @@
 use errors::*;
 use futures::future;
 use pnet::datalink::interfaces;
-use provider::Provider;
 use regex::Regex;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::{env, process, str};
 use super::TelemetryProvider;
 use target::{default, linux};
@@ -19,17 +18,11 @@ use tokio_proto::streaming::Message;
 
 pub struct Ubuntu;
 
-impl Provider for Ubuntu {
-    fn available() -> Result<bool> {
-        Ok(cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Ubuntu))
-    }
-
-    fn name(&self) -> ProviderName {
-        ProviderName::TelemetryUbuntu
-    }
-}
-
 impl TelemetryProvider for Ubuntu {
+    fn available() -> bool {
+        cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Ubuntu)
+    }
+
     fn load(&self) -> ExecutableResult {
         Box::new(future::lazy(|| {
             let t = match do_load() {

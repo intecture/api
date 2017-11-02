@@ -154,7 +154,6 @@ pub mod prelude {
     pub use telemetry::{self, Cpu, FsMount, LinuxDistro, Os, OsFamily, OsPlatform, Telemetry};
 }
 pub mod package;
-mod provider;
 #[doc(hidden)] pub mod remote;
 mod target;
 pub mod telemetry;

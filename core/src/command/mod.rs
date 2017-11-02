@@ -9,7 +9,7 @@
 //! A shell command is represented by the `Command` struct, which is not
 //! idempotent.
 
-pub mod providers;
+mod providers;
 
 use errors::*;
 use futures::{future, Future, Poll};
@@ -18,7 +18,8 @@ use futures::sync::oneshot;
 use host::Host;
 use remote::{Request, Response};
 use std::io;
-use self::providers::CommandProvider;
+#[doc(hidden)] pub use self::providers::{factory, Generic};
+pub use self::providers::Provider;
 use serde_json;
 use tokio_proto::streaming::{Body, Message};
 
@@ -145,7 +146,7 @@ const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support win
 ///```
 pub struct Command<H: Host> {
     host: H,
-    provider: Option<Box<CommandProvider>>,
+    provider: Option<Provider>,
     cmd: Vec<String>,
 }
 
@@ -180,7 +181,7 @@ pub struct ExitStatus {
 }
 
 impl<H: Host + 'static> Command<H> {
-    /// Create a new `Command` with the default `CommandProvider`.
+    /// Create a new `Command` with the default [`Provider`](enum.Provider.html).
     ///
     /// By default, `Command` will use `/bin/sh -c` as the shell. You can
     /// override this by providing a value for `shell`. Note that the
@@ -200,7 +201,7 @@ impl<H: Host + 'static> Command<H> {
         }
     }
 
-    /// Create a new `Command` with the specified `CommandProvider`.
+    /// Create a new `Command` with the specified [`Provider`](enum.Provider.html).
     ///
     ///## Example
     ///```
@@ -209,7 +210,7 @@ impl<H: Host + 'static> Command<H> {
     ///extern crate tokio_core;
     ///
     ///use futures::Future;
-    ///use intecture_api::command::providers::Generic;
+    ///use intecture_api::command::Provider;
     ///use intecture_api::prelude::*;
     ///use tokio_core::reactor::Core;
     ///
@@ -219,13 +220,11 @@ impl<H: Host + 'static> Command<H> {
     ///
     ///let host = Local::new(&handle).wait().unwrap();
     ///
-    ///Command::with_provider(&host, Generic, "ls /path/to/foo", None);
+    ///Command::with_provider(&host, Provider::Generic, "ls /path/to/foo", None);
     ///# }
-    pub fn with_provider<P>(host: &H, provider: P, cmd: &str, shell: Option<&[&str]>) -> Command<H>
-        where P: CommandProvider + 'static
-    {
+    pub fn with_provider(host: &H, provider: Provider, cmd: &str, shell: Option<&[&str]>) -> Command<H> {
         let mut cmd = Self::new(host, cmd, shell);
-        cmd.provider = Some(Box::new(provider));
+        cmd.provider = Some(provider);
         cmd
     }
 
@@ -256,7 +255,7 @@ impl<H: Host + 'static> Command<H> {
     /// This is the error you'll see if you prematurely drop the output `Stream`
     /// while trying to resolve the `Future<Item = ExitStatus, ...>`.
     pub fn exec(&self) -> Box<Future<Item = CommandStatus, Error = Error>> {
-        let request = Request::CommandExec(self.provider.as_ref().map(|p| p.name()), self.cmd.clone());
+        let request = Request::CommandExec(self.provider, self.cmd.clone());
         Box::new(self.host.request(request)
             .chain_err(|| ErrorKind::Request { endpoint: "Command", func: "exec" })
             .map(|msg| {

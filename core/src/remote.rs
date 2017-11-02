@@ -19,10 +19,10 @@ pub type ExecutableResult = Box<Future<Item = Message<ResponseResult, Body<Vec<u
 
 #[derive(Serialize, Deserialize)]
 pub enum Request {
-    CommandExec(Option<ProviderName>, Vec<String>),
-    PackageInstalled(Option<ProviderName>, String),
-    PackageInstall(Option<ProviderName>, String),
-    PackageUninstall(Option<ProviderName>, String),
+    CommandExec(Option<command::Provider>, Vec<String>),
+    PackageInstalled(Option<package::Provider>, String),
+    PackageInstall(Option<package::Provider>, String),
+    PackageUninstall(Option<package::Provider>, String),
     TelemetryLoad,
 }
 
@@ -39,24 +39,6 @@ pub enum ResponseResult {
     Err(String),
 }
 
-#[derive(Serialize, Deserialize)]
-pub enum ProviderName {
-    CommandGeneric,
-    PackageApt,
-    PackageDnf,
-    PackageHomebrew,
-    PackageNix,
-    PackagePkg,
-    PackageYum,
-    TelemetryCentos,
-    TelemetryDebian,
-    TelemetryFedora,
-    TelemetryFreebsd,
-    TelemetryMacos,
-    TelemetryNixos,
-    TelemetryUbuntu,
-}
-
 pub trait Executable {
     fn exec<H: Host>(self, &H) -> ExecutableResult;
 }
@@ -66,12 +48,11 @@ impl Executable for Request {
         match self {
             Request::CommandExec(provider, cmd) => {
                 let provider = match provider {
-                    Some(ProviderName::CommandGeneric) => Box::new(command::providers::Generic),
-                    None => match command::providers::factory() {
+                    Some(command::Provider::Generic) => Box::new(command::Generic),
+                    None => match command::factory() {
                         Ok(p) => p,
                         Err(e) => return Box::new(future::err(e)),
                     },
-                    _ => unreachable!(),
                 };
                 let args: Vec<&str> = cmd.iter().map(|a| &**a).collect();
                 provider.exec(host.handle(), &args)
@@ -102,7 +83,7 @@ impl Executable for Request {
             }
 
             Request::TelemetryLoad => {
-                let provider = match telemetry::providers::factory() {
+                let provider = match telemetry::factory() {
                     Ok(p) => p,
                     Err(e) => return Box::new(future::err(e)),
                 };
@@ -112,15 +93,14 @@ impl Executable for Request {
     }
 }
 
-fn get_package_provider(name: Option<ProviderName>) -> Result<Box<package::providers::PackageProvider>> {
+fn get_package_provider(name: Option<package::Provider>) -> Result<Box<package::PackageProvider>> {
     match name {
-        Some(ProviderName::PackageApt) => Ok(Box::new(package::providers::Apt)),
-        Some(ProviderName::PackageDnf) => Ok(Box::new(package::providers::Dnf)),
-        Some(ProviderName::PackageHomebrew) => Ok(Box::new(package::providers::Homebrew)),
-        Some(ProviderName::PackageNix) => Ok(Box::new(package::providers::Nix)),
-        Some(ProviderName::PackagePkg) => Ok(Box::new(package::providers::Pkg)),
-        Some(ProviderName::PackageYum) => Ok(Box::new(package::providers::Yum)),
-        None => package::providers::factory(),
-        _ => unreachable!(),
+        Some(package::Provider::Apt) => Ok(Box::new(package::Apt)),
+        Some(package::Provider::Dnf) => Ok(Box::new(package::Dnf)),
+        Some(package::Provider::Homebrew) => Ok(Box::new(package::Homebrew)),
+        Some(package::Provider::Nix) => Ok(Box::new(package::Nix)),
+        Some(package::Provider::Pkg) => Ok(Box::new(package::Pkg)),
+        Some(package::Provider::Yum) => Ok(Box::new(package::Yum)),
+        None => package::factory(),
     }
 }
