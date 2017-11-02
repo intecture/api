@@ -88,7 +88,7 @@ pub struct Os {
 pub enum OsFamily {
     Bsd,
     Darwin,
-    Linux,
+    Linux(LinuxDistro),
 }
 
 /// Operating system name
@@ -101,6 +101,14 @@ pub enum OsPlatform {
     Macos,
     Nixos,
     Ubuntu,
+}
+
+/// Linux distribution name
+#[derive(Debug, Serialize, Deserialize)]
+pub enum LinuxDistro {
+    Debian,
+    RHEL,
+    Standalone,
 }
 
 impl Telemetry {

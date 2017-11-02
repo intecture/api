@@ -13,7 +13,7 @@ use std::{env, process, str};
 use super::TelemetryProvider;
 use target::{default, linux};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
+use telemetry::{Cpu, LinuxDistro, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_proto::streaming::Message;
 
 pub struct Nixos;
@@ -58,7 +58,7 @@ fn do_load() -> Result<Telemetry> {
         net: interfaces(),
         os: Os {
             arch: env::consts::ARCH.into(),
-            family: OsFamily::Linux,
+            family: OsFamily::Linux(LinuxDistro::Standalone),
             platform: OsPlatform::Nixos,
             version_str: version_str,
             version_maj: version_maj,

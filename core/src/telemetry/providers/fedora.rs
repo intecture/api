@@ -13,7 +13,7 @@ use std::env;
 use super::TelemetryProvider;
 use target::{default, linux, redhat};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
+use telemetry::{Cpu, LinuxDistro, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_proto::streaming::Message;
 
 pub struct Fedora;
@@ -58,7 +58,7 @@ fn do_load() -> Result<Telemetry> {
         net: interfaces(),
         os: Os {
             arch: env::consts::ARCH.into(),
-            family: OsFamily::Linux,
+            family: OsFamily::Linux(LinuxDistro::RHEL),
             platform: OsPlatform::Fedora,
             version_str: version_str,
             version_maj: version_maj,
