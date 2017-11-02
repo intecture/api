@@ -111,8 +111,8 @@ const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support win
 ///# }
 ///```
 ///
-/// Finally, we can also discard the command's output altogether if we only
-/// care whether the command succeeded or not.
+/// Finally, we can also ignore the stream entirely if we only care whether the
+/// command succeeded or not.
 ///
 ///```
 ///extern crate futures;
@@ -131,8 +131,12 @@ const DEFAULT_SHELL: [&'static str; 1] = ["yeah...we don't currently support win
 ///
 ///let cmd = Command::new(&host, "ls /path/to/foo", None);
 ///let result = cmd.exec().and_then(|mut status| {
-///    status.map(|_exit_status| {
-///        // Enjoy the status, baby!
+///    status.map(|exit_status| {
+///        if exit_status.success {
+///            println!("Huzzah!");
+///        } else {
+///            println!("Doh!");
+///        }
 ///    })
 ///});
 ///

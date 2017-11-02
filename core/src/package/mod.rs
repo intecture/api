@@ -127,6 +127,8 @@ impl<H: Host + 'static> Package<H> {
 
     /// Install the package.
     ///
+    ///## Idempotence
+    ///
     /// This function is idempotent, which is represented by the type
     /// `Future<Item = Option<..>, ...>`. Thus if it returns `Option::None`
     /// then the package is already installed, and if it returns `Option::Some`
@@ -158,6 +160,8 @@ impl<H: Host + 'static> Package<H> {
     }
 
     /// Uninstall the package.
+    ///
+    ///## Idempotence
     ///
     /// This function is idempotent, which is represented by the type
     /// `Future<Item = Option<..>, ...>`. Thus if it returns `Option::None`
