@@ -9,28 +9,72 @@
 //! A package is represented by the `Package` struct, which is idempotent. This
 //! means you can execute it repeatedly and it'll only run as needed.
 
-pub mod providers;
+mod providers;
 
-use command::{ExitStatus, parse_body_stream};
+use command::CommandStatus;
 use errors::*;
 use futures::{future, Future};
-use futures::stream::Stream;
 use host::Host;
 use remote::{Request, Response};
-use self::providers::PackageProvider;
+#[doc(hidden)]
+pub use self::providers::{factory, PackageProvider, Apt, Dnf, Homebrew, Nix, Pkg, Yum};
+pub use self::providers::Provider;
 
 /// Represents a system package to be managed for a host.
 ///
-///## Examples
+///# Example
 ///
+/// Install a package and print the result.
+///
+///```no_run
+///extern crate futures;
+///extern crate intecture_api;
+///extern crate tokio_core;
+///
+///use futures::{future, Future};
+///use intecture_api::errors::*;
+///use intecture_api::prelude::*;
+///use tokio_core::reactor::Core;
+///
+///# fn main() {
+///let mut core = Core::new().unwrap();
+///let handle = core.handle();
+///
+///let host = Local::new(&handle).wait().unwrap();
+///
+///let nginx = Package::new(&host, "nginx");
+///let result = nginx.install().and_then(|status| {
+///    match status {
+///        // We're performing the install
+///        Some(status) => Box::new(status.result().unwrap()
+///            .map(|_| println!("Installed"))
+///            .map_err(|e| {
+///                match *e.kind() {
+///                    ErrorKind::Command(ref output) => println!("Failed with output: {}", output),
+///                    _ => unreachable!(),
+///                }
+///                e
+///            })),
+///
+///        // This package is already installed
+///        None => {
+///            println!("Already installed");
+///            Box::new(future::ok(())) as Box<Future<Item = _, Error = Error>>
+///        },
+///    }
+///});
+///
+///core.run(result).unwrap();
+///# }
+///```
 pub struct Package<H: Host> {
     host: H,
-    provider: Option<Box<PackageProvider>>,
+    provider: Option<Provider>,
     name: String,
 }
 
 impl<H: Host + 'static> Package<H> {
-    /// Create a new `Package` with the default `PackageProvider`.
+    /// Create a new `Package` with the default [`Provider`](enum.Provider.html).
     pub fn new(host: &H, name: &str) -> Package<H> {
         Package {
             host: host.clone(),
@@ -39,7 +83,7 @@ impl<H: Host + 'static> Package<H> {
         }
     }
 
-    /// Create a new `Package` with the specified `PackageProvider`.
+    /// Create a new `Package` with the specified [`Provider`](enum.Provider.html).
     ///
     ///## Example
     ///```
@@ -48,7 +92,7 @@ impl<H: Host + 'static> Package<H> {
     ///extern crate tokio_core;
     ///
     ///use futures::Future;
-    ///use intecture_api::package::providers::Yum;
+    ///use intecture_api::package::Provider;
     ///use intecture_api::prelude::*;
     ///use tokio_core::reactor::Core;
     ///
@@ -58,21 +102,19 @@ impl<H: Host + 'static> Package<H> {
     ///
     ///let host = Local::new(&handle).wait().unwrap();
     ///
-    ///Package::with_provider(&host, Yum, "nginx");
+    ///Package::with_provider(&host, Provider::Yum, "nginx");
     ///# }
-    pub fn with_provider<P>(host: &H, provider: P, name: &str) -> Package<H>
-        where P: PackageProvider + 'static
-    {
+    pub fn with_provider(host: &H, provider: Provider, name: &str) -> Package<H> {
         Package {
             host: host.clone(),
-            provider: Some(Box::new(provider)),
+            provider: Some(provider),
             name: name.into(),
         }
     }
 
     /// Check if the package is installed.
     pub fn installed(&self) -> Box<Future<Item = bool, Error = Error>> {
-        let request = Request::PackageInstalled(self.provider.as_ref().map(|p| p.name()), self.name.clone());
+        let request = Request::PackageInstalled(self.provider, self.name.clone());
         Box::new(self.host.request(request)
             .chain_err(|| ErrorKind::Request { endpoint: "Package", func: "installed" })
             .map(|msg| {
@@ -85,6 +127,8 @@ impl<H: Host + 'static> Package<H> {
 
     /// Install the package.
     ///
+    ///## Idempotence
+    ///
     /// This function is idempotent, which is represented by the type
     /// `Future<Item = Option<..>, ...>`. Thus if it returns `Option::None`
     /// then the package is already installed, and if it returns `Option::Some`
@@ -95,60 +139,10 @@ impl<H: Host + 'static> Package<H> {
     /// the hood this reuses the `Command` endpoint, so see
     /// [`Command` docs](../command/struct.Command.html) for detailed
     /// usage.
-    ///
-    ///# Example
-    ///
-    /// Install a package and print the result.
-    ///
-    ///```no_run
-    ///extern crate futures;
-    ///extern crate intecture_api;
-    ///extern crate tokio_core;
-    ///
-    ///use futures::{future, Future, Stream};
-    ///use intecture_api::errors::Error;
-    ///use intecture_api::prelude::*;
-    ///use tokio_core::reactor::Core;
-    ///
-    ///# fn main() {
-    ///let mut core = Core::new().unwrap();
-    ///let handle = core.handle();
-    ///
-    ///let host = Local::new(&handle).wait().unwrap();
-    ///
-    ///let nginx = Package::new(&host, "nginx");
-    ///let result = nginx.install().and_then(|status| {
-    ///    match status {
-    ///        // We're performing the install
-    ///        Some((stream, status)) => Box::new(stream.fold(String::new(), |mut acc, line| {
-    ///                acc.push_str(&line);
-    ///                future::ok::<_, Error>(acc)
-    ///            })
-    ///            .join(status)
-    ///            .map(|(output, status)| {
-    ///                if status.success {
-    ///                    println!("Installed");
-    ///                } else {
-    ///                    println!("Failed with output: {}", output);
-    ///                }
-    ///            })) as Box<Future<Item = _, Error = Error>>,
-    ///        None => {
-    ///            println!("Already installed");
-    ///            Box::new(future::ok(()))
-    ///        },
-    ///    }
-    ///});
-    ///
-    ///core.run(result).unwrap();
-    ///# }
-    ///```
-    pub fn install(&self) -> Box<Future<Item = Option<(
-            Box<Stream<Item = String, Error = Error>>,
-            Box<Future<Item = ExitStatus, Error = Error>>
-        )>, Error = Error>>
+    pub fn install(&self) -> Box<Future<Item = Option<CommandStatus>, Error = Error>>
     {
         let host = self.host.clone();
-        let provider = self.provider.as_ref().map(|p| p.name());
+        let provider = self.provider;
         let name = self.name.clone();
 
         Box::new(self.installed()
@@ -159,13 +153,15 @@ impl<H: Host + 'static> Package<H> {
                     Box::new(host.request(Request::PackageInstall(provider, name))
                         .chain_err(|| ErrorKind::Request { endpoint: "Package", func: "install" })
                         .map(|msg| {
-                            Some(parse_body_stream(msg))
+                            Some(CommandStatus::new(msg))
                         }))
                 }
             }))
     }
 
     /// Uninstall the package.
+    ///
+    ///## Idempotence
     ///
     /// This function is idempotent, which is represented by the type
     /// `Future<Item = Option<..>, ...>`. Thus if it returns `Option::None`
@@ -177,13 +173,10 @@ impl<H: Host + 'static> Package<H> {
     /// the hood this reuses the `Command` endpoint, so see
     /// [`Command` docs](../command/struct.Command.html) for detailed
     /// usage.
-    pub fn uninstall(&self) -> Box<Future<Item = Option<(
-            Box<Stream<Item = String, Error = Error>>,
-            Box<Future<Item = ExitStatus, Error = Error>>
-        )>, Error = Error>>
+    pub fn uninstall(&self) -> Box<Future<Item = Option<CommandStatus>, Error = Error>>
     {
         let host = self.host.clone();
-        let provider = self.provider.as_ref().map(|p| p.name());
+        let provider = self.provider;
         let name = self.name.clone();
 
         Box::new(self.installed()
@@ -192,7 +185,7 @@ impl<H: Host + 'static> Package<H> {
                     Box::new(host.request(Request::PackageUninstall(provider, name))
                         .chain_err(|| ErrorKind::Request { endpoint: "Package", func: "uninstall" })
                         .map(|msg| {
-                            Some(parse_body_stream(msg))
+                            Some(CommandStatus::new(msg))
                         }))
                 } else {
                     Box::new(future::ok(None)) as Box<Future<Item = _, Error = Error>>

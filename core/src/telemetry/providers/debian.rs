@@ -7,28 +7,21 @@
 use errors::*;
 use futures::future;
 use pnet::datalink::interfaces;
-use provider::Provider;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::{env, process, str};
 use super::TelemetryProvider;
 use target::{default, linux};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
+use telemetry::{Cpu, LinuxDistro, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_proto::streaming::Message;
 
 pub struct Debian;
 
-impl Provider for Debian {
+impl TelemetryProvider for Debian {
     fn available() -> bool {
         cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Debian)
     }
 
-    fn name(&self) -> ProviderName {
-        ProviderName::TelemetryDebian
-    }
-}
-
-impl TelemetryProvider for Debian {
     fn load(&self) -> ExecutableResult {
         Box::new(future::lazy(|| {
             let t = match do_load() {
@@ -58,7 +51,7 @@ fn do_load() -> Result<Telemetry> {
         net: interfaces(),
         os: Os {
             arch: env::consts::ARCH.into(),
-            family: OsFamily::Linux,
+            family: OsFamily::Linux(LinuxDistro::Debian),
             platform: OsPlatform::Debian,
             version_str: version_str,
             version_maj: version_maj,

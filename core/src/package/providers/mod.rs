@@ -14,7 +14,6 @@ mod pkg;
 mod yum;
 
 use errors::*;
-use provider::Provider;
 use remote::ExecutableResult;
 pub use self::apt::Apt;
 pub use self::dnf::Dnf;
@@ -25,34 +24,42 @@ pub use self::yum::Yum;
 use telemetry::Os;
 use tokio_core::reactor::Handle;
 
-/// Trait for `Package` providers.
-pub trait PackageProvider: Provider {
-    #[doc(hidden)]
+/// Specific implementation of `Package`
+#[derive(Clone, Copy, Serialize, Deserialize)]
+pub enum Provider {
+    Apt,
+    Dnf,
+    Homebrew,
+    Nix,
+    Pkg,
+    Yum,
+}
+
+pub trait PackageProvider {
+    fn available() -> Result<bool> where Self: Sized;
     fn installed(&self, &Handle, &str, &Os) -> ExecutableResult;
-    #[doc(hidden)]
     fn install(&self, &Handle, &str) -> ExecutableResult;
-    #[doc(hidden)]
     fn uninstall(&self, &Handle, &str) -> ExecutableResult;
 }
 
 #[doc(hidden)]
 pub fn factory() -> Result<Box<PackageProvider>> {
-    if Apt::available() {
+    if Apt::available()? {
         Ok(Box::new(Apt))
     }
-    else if Dnf::available() {
+    else if Dnf::available()? {
         Ok(Box::new(Dnf))
     }
-    else if Homebrew::available() {
+    else if Homebrew::available()? {
         Ok(Box::new(Homebrew))
     }
-    else if Nix::available() {
+    else if Nix::available()? {
         Ok(Box::new(Nix))
     }
-    else if Pkg::available() {
+    else if Pkg::available()? {
         Ok(Box::new(Pkg))
     }
-    else if Yum::available() {
+    else if Yum::available()? {
         Ok(Box::new(Yum))
     } else {
         Err(ErrorKind::ProviderUnavailable("Package").into())

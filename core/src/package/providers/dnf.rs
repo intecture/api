@@ -4,13 +4,12 @@
 // https://www.tldrlegal.com/l/mpl-2.0>. This file may not be copied,
 // modified, or distributed except according to those terms.
 
-use command::providers::factory;
+use command::factory;
 use error_chain::ChainedError;
 use errors::*;
 use futures::{future, Future};
-use provider::Provider;
 use regex::Regex;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::process;
 use super::PackageProvider;
 use telemetry::Os;
@@ -18,25 +17,17 @@ use tokio_core::reactor::Handle;
 use tokio_process::CommandExt;
 use tokio_proto::streaming::Message;
 
-/// The Dnf `Package` provider.
 pub struct Dnf;
 
-impl Provider for Dnf {
-    fn available() -> bool {
-        process::Command::new("/usr/bin/type")
+impl PackageProvider for Dnf {
+    fn available() -> Result<bool> {
+        Ok(process::Command::new("/usr/bin/type")
             .arg("dnf")
             .status()
-            .unwrap()
-            .success()
+            .chain_err(|| "Could not determine provider availability")?
+            .success())
     }
 
-    fn name(&self) -> ProviderName {
-        ProviderName::PackageDnf
-    }
-}
-
-impl PackageProvider for Dnf {
-    #[doc(hidden)]
     fn installed(&self, handle: &Handle, name: &str, os: &Os) -> ExecutableResult {
         let handle = handle.clone();
         let name = name.to_owned();
@@ -70,7 +61,6 @@ impl PackageProvider for Dnf {
             }))
     }
 
-    #[doc(hidden)]
     fn install(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,
@@ -79,10 +69,9 @@ impl PackageProvider for Dnf {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["dnf".into(), "-y".into(), "install".into()])
+        cmd.exec(handle, &["dnf", "-y", "install", name])
     }
 
-    #[doc(hidden)]
     fn uninstall(&self, handle: &Handle, name: &str) -> ExecutableResult {
         let cmd = match factory() {
             Ok(c) => c,
@@ -91,6 +80,6 @@ impl PackageProvider for Dnf {
                     ResponseResult::Err(
                         format!("{}", e.display_chain()))))),
         };
-        cmd.exec(handle, name, &["dnf".into(), "-y".into(), "remove".into()])
+        cmd.exec(handle, &["dnf", "-y", "remove", name])
     }
 }

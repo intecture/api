@@ -7,9 +7,8 @@
 use errors::*;
 use futures::future;
 use pnet::datalink::interfaces;
-use provider::Provider;
 use regex::Regex;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::{env, fs};
 use std::io::Read;
 use super::TelemetryProvider;
@@ -19,17 +18,11 @@ use tokio_proto::streaming::Message;
 
 pub struct Freebsd;
 
-impl Provider for Freebsd {
+impl TelemetryProvider for Freebsd {
     fn available() -> bool {
         cfg!(target_os="freebsd")
     }
 
-    fn name(&self) -> ProviderName {
-        ProviderName::TelemetryFreebsd
-    }
-}
-
-impl TelemetryProvider for Freebsd {
     fn load(&self) -> ExecutableResult {
         Box::new(future::lazy(|| {
             let t = match do_load() {

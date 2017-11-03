@@ -7,28 +7,21 @@
 use errors::*;
 use futures::future;
 use pnet::datalink::interfaces;
-use provider::Provider;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use std::{env, process, str};
 use super::TelemetryProvider;
 use target::{default, linux};
 use target::linux::LinuxFlavour;
-use telemetry::{Cpu, Os, OsFamily, OsPlatform, Telemetry};
+use telemetry::{Cpu, LinuxDistro, Os, OsFamily, OsPlatform, Telemetry};
 use tokio_proto::streaming::Message;
 
 pub struct Nixos;
 
-impl Provider for Nixos {
+impl TelemetryProvider for Nixos {
     fn available() -> bool {
         cfg!(target_os="linux") && linux::fingerprint_os() == Some(LinuxFlavour::Nixos)
     }
 
-    fn name(&self) -> ProviderName {
-        ProviderName::TelemetryNixos
-    }
-}
-
-impl TelemetryProvider for Nixos {
     fn load(&self) -> ExecutableResult {
         Box::new(future::lazy(|| {
             let t = match do_load() {
@@ -58,7 +51,7 @@ fn do_load() -> Result<Telemetry> {
         net: interfaces(),
         os: Os {
             arch: env::consts::ARCH.into(),
-            family: OsFamily::Linux,
+            family: OsFamily::Linux(LinuxDistro::Standalone),
             platform: OsPlatform::Nixos,
             version_str: version_str,
             version_maj: version_maj,

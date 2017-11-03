@@ -9,8 +9,7 @@ use futures::{future, Future};
 use futures::sink::Sink;
 use futures::stream::Stream;
 use futures::sync::mpsc;
-use provider::Provider;
-use remote::{ExecutableResult, ProviderName, Response, ResponseResult};
+use remote::{ExecutableResult, Response, ResponseResult};
 use serde_json;
 use std::io::{self, BufReader};
 use std::process::{Command, Stdio};
@@ -21,30 +20,21 @@ use tokio_io::io::lines;
 use tokio_process::CommandExt;
 use tokio_proto::streaming::{Body, Message};
 
-/// The generic `Command` provider.
 pub struct Generic;
 
-impl Provider for Generic {
-    fn available() -> bool {
-        cfg!(unix)
-    }
-
-    fn name(&self) -> ProviderName {
-        ProviderName::CommandGeneric
-    }
-}
-
 impl CommandProvider for Generic {
-    #[doc(hidden)]
-    fn exec(&self, handle: &Handle, cmd: &str, shell: &[String]) -> ExecutableResult {
-        let (shell, shell_args) = match shell.split_first() {
+    fn available() -> bool {
+        true
+    }
+
+    fn exec(&self, handle: &Handle, cmd: &[&str]) -> ExecutableResult {
+        let (cmd, cmd_args) = match cmd.split_first() {
             Some((s, a)) => (s, a),
             None => return Box::new(future::err("Invalid shell provided".into())),
         };
 
-        let child = Command::new(shell)
-            .args(shell_args)
-            .arg(cmd)
+        let child = Command::new(cmd)
+            .args(cmd_args)
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn_async(handle)

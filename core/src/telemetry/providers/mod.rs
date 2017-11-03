@@ -23,12 +23,10 @@ pub use self::nixos::Nixos;
 pub use self::ubuntu::Ubuntu;
 
 use errors::*;
-use provider::Provider;
 use remote::ExecutableResult;
 
-/// Trait for specific `Telemetry` implementations.
-pub trait TelemetryProvider: Provider {
-    #[doc(hidden)]
+pub trait TelemetryProvider {
+    fn available() -> bool where Self: Sized;
     fn load(&self) -> ExecutableResult;
 }
 
