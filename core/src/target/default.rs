@@ -8,7 +8,8 @@ use errors::*;
 use hostname::get_hostname;
 use regex::Regex;
 use std::process;
-use telemetry::FsMount;
+use telemetry::{FsMount, User};
+use users::{get_group_by_gid, get_user_by_uid, get_current_uid};
 
 pub fn hostname() -> Result<String> {
     match get_hostname() {
@@ -85,4 +86,23 @@ pub fn parse_fs(fields: &[FsFieldOrder]) -> Result<Vec<FsMount>> {
     };
 
     Ok(fs)
+}
+
+pub fn user() -> Result<User> {
+    let user = match get_user_by_uid(get_current_uid()) {
+        Some(u) => u,
+        None => return Err("Could not resolve current user".into()),
+    };
+
+    let group = match get_group_by_gid(user.primary_group_id()) {
+        Some(g) => g,
+        None => return Err("Could not resolve current group".into()),
+    };
+
+    Ok(User {
+        user: user.name().into(),
+        uid: user.uid(),
+        group: group.name().into(),
+        gid: group.gid(),
+    })
 }

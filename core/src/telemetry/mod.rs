@@ -35,6 +35,8 @@ pub struct Telemetry {
     pub net: Vec<NetworkInterface>,
     /// Information about the operating system
     pub os: Os,
+    /// Information on the current user
+    pub user: User,
 }
 
 /// Information about the `Host`s CPU.
@@ -112,6 +114,15 @@ pub enum LinuxDistro {
     Standalone,
 }
 
+/// Information on the current user
+#[derive(Debug, Serialize, Deserialize)]
+pub struct User {
+    pub user: String,
+    pub uid: u32,
+    pub group: String,
+    pub gid: u32,
+}
+
 impl Telemetry {
     pub fn load<H: Host>(host: &H) -> Box<Future<Item = Telemetry, Error = Error>> {
         Box::new(host.request(Request::TelemetryLoad)
@@ -120,5 +131,12 @@ impl Telemetry {
                 Response::TelemetryLoad(t) => Telemetry::from(t),
                 _ => unreachable!(),
             }))
+    }
+}
+
+impl User {
+    // Whether this user is root, which is calculated as `uid == 0`.
+    pub fn is_root(&self) -> bool {
+        self.uid == 0
     }
 }
