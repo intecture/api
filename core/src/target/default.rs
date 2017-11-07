@@ -10,6 +10,7 @@ use regex::Regex;
 use std::process;
 use telemetry::{FsMount, User};
 use users::{get_group_by_gid, get_user_by_uid, get_current_uid};
+use users::os::unix::UserExt;
 
 pub fn hostname() -> Result<String> {
     match get_hostname() {
@@ -104,5 +105,6 @@ pub fn user() -> Result<User> {
         uid: user.uid(),
         group: group.name().into(),
         gid: group.gid(),
+        home_dir: user.home_dir().into(),
     })
 }

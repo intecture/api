@@ -19,6 +19,7 @@ use host::Host;
 use pnet::datalink::NetworkInterface;
 use remote::{Request, Response};
 #[doc(hidden)] pub use self::providers::factory;
+use std::path::PathBuf;
 
 /// Top level structure that contains static information about a `Host`.
 #[derive(Debug)]
@@ -121,6 +122,7 @@ pub struct User {
     pub uid: u32,
     pub group: String,
     pub gid: u32,
+    pub home_dir: PathBuf,
 }
 
 impl Telemetry {
