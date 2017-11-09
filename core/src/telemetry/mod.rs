@@ -88,7 +88,7 @@ pub struct Os {
 }
 
 /// Operating system family
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum OsFamily {
     Bsd,
     Darwin,
@@ -96,7 +96,7 @@ pub enum OsFamily {
 }
 
 /// Operating system name
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum OsPlatform {
     Centos,
     Debian,
@@ -108,7 +108,7 @@ pub enum OsPlatform {
 }
 
 /// Linux distribution name
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum LinuxDistro {
     Debian,
     RHEL,

@@ -11,8 +11,9 @@ use errors::*;
 use futures::{future, Future};
 use host::Host;
 use package;
+use service;
 use std::io;
-use telemetry;
+use telemetry::{self, Telemetry};
 use tokio_proto::streaming::{Body, Message};
 
 pub type ExecutableResult = Box<Future<Item = Message<ResponseResult, Body<Vec<u8>, io::Error>>, Error = Error>>;
@@ -23,6 +24,11 @@ pub enum Request {
     PackageInstalled(Option<package::Provider>, String),
     PackageInstall(Option<package::Provider>, String),
     PackageUninstall(Option<package::Provider>, String),
+    ServiceAction(Option<service::Provider>, String, String),
+    ServiceDisable(Option<service::Provider>, String),
+    ServiceEnable(Option<service::Provider>, String),
+    ServiceEnabled(Option<service::Provider>, String),
+    ServiceRunning(Option<service::Provider>, String),
     TelemetryLoad,
 }
 
@@ -82,6 +88,46 @@ impl Executable for Request {
                 provider.uninstall(host.handle(), &name)
             }
 
+            Request::ServiceAction(provider, name, action) => {
+                let provider = match get_service_provider(&host.telemetry(), provider) {
+                    Ok(p) => p,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                provider.action(host.handle(), &name, &action)
+            }
+
+            Request::ServiceEnabled(provider, name) => {
+                let provider = match get_service_provider(&host.telemetry(), provider) {
+                    Ok(p) => p,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                provider.enabled(host.handle(), &name)
+            }
+
+            Request::ServiceRunning(provider, name) => {
+                let provider = match get_service_provider(&host.telemetry(), provider) {
+                    Ok(p) => p,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                provider.running(host.handle(), &name)
+            }
+
+            Request::ServiceEnable(provider, name) => {
+                let provider = match get_service_provider(&host.telemetry(), provider) {
+                    Ok(p) => p,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                provider.enable(host.handle(), &name)
+            }
+
+            Request::ServiceDisable(provider, name) => {
+                let provider = match get_service_provider(&host.telemetry(), provider) {
+                    Ok(p) => p,
+                    Err(e) => return Box::new(future::err(e)),
+                };
+                provider.disable(host.handle(), &name)
+            }
+
             Request::TelemetryLoad => {
                 let provider = match telemetry::factory() {
                     Ok(p) => p,
@@ -102,5 +148,17 @@ fn get_package_provider(name: Option<package::Provider>) -> Result<Box<package::
         Some(package::Provider::Pkg) => Ok(Box::new(package::Pkg)),
         Some(package::Provider::Yum) => Ok(Box::new(package::Yum)),
         None => package::factory(),
+    }
+}
+
+fn get_service_provider(telemetry: &Telemetry, name: Option<service::Provider>) -> Result<Box<service::ServiceProvider>> {
+    match name {
+        Some(service::Provider::Debian) => Ok(Box::new(service::Debian)),
+        Some(service::Provider::Homebrew) => Ok(Box::new(service::Homebrew::new(telemetry))),
+        Some(service::Provider::Launchctl) => Ok(Box::new(service::Launchctl::new(telemetry))),
+        Some(service::Provider::Rc) => Ok(Box::new(service::Rc)),
+        Some(service::Provider::Redhat) => Ok(Box::new(service::Redhat)),
+        Some(service::Provider::Systemd) => Ok(Box::new(service::Systemd)),
+        None => service::factory(telemetry),
     }
 }
