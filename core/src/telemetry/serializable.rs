@@ -23,6 +23,7 @@ pub struct Telemetry {
     pub memory: u64,
     pub net: Vec<Netif>,
     pub os: super::Os,
+    pub user: super::User,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -78,6 +79,7 @@ impl From<super::Telemetry> for Telemetry {
             memory: t.memory,
             net: net,
             os: t.os,
+            user: t.user,
         }
     }
 }
@@ -102,6 +104,7 @@ impl From<Telemetry> for super::Telemetry {
             memory: t.memory,
             net: net,
             os: t.os,
+            user: t.user,
         }
     }
 }

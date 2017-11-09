@@ -59,6 +59,7 @@ fn do_load() -> Result<Telemetry> {
             version_min: version_min,
             version_patch: version_patch,
         },
+        user: default::user()?,
     })
 }
 

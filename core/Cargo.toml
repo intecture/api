@@ -33,6 +33,7 @@ tokio-io = "0.1"
 tokio-process = "0.1"
 tokio-proto = "0.1"
 tokio-service = "0.1"
+users = "0.6"
 
 [[example]]
 name = "basic"

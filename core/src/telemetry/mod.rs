@@ -19,6 +19,7 @@ use host::Host;
 use pnet::datalink::NetworkInterface;
 use remote::{Request, Response};
 #[doc(hidden)] pub use self::providers::factory;
+use std::path::PathBuf;
 
 /// Top level structure that contains static information about a `Host`.
 #[derive(Debug)]
@@ -35,6 +36,8 @@ pub struct Telemetry {
     pub net: Vec<NetworkInterface>,
     /// Information about the operating system
     pub os: Os,
+    /// Information on the current user
+    pub user: User,
 }
 
 /// Information about the `Host`s CPU.
@@ -85,7 +88,7 @@ pub struct Os {
 }
 
 /// Operating system family
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum OsFamily {
     Bsd,
     Darwin,
@@ -93,7 +96,7 @@ pub enum OsFamily {
 }
 
 /// Operating system name
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum OsPlatform {
     Centos,
     Debian,
@@ -105,11 +108,21 @@ pub enum OsPlatform {
 }
 
 /// Linux distribution name
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum LinuxDistro {
     Debian,
     RHEL,
     Standalone,
+}
+
+/// Information on the current user
+#[derive(Debug, Serialize, Deserialize)]
+pub struct User {
+    pub user: String,
+    pub uid: u32,
+    pub group: String,
+    pub gid: u32,
+    pub home_dir: PathBuf,
 }
 
 impl Telemetry {
@@ -120,5 +133,12 @@ impl Telemetry {
                 Response::TelemetryLoad(t) => Telemetry::from(t),
                 _ => unreachable!(),
             }))
+    }
+}
+
+impl User {
+    // Whether this user is root, which is calculated as `uid == 0`.
+    pub fn is_root(&self) -> bool {
+        self.uid == 0
     }
 }

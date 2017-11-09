@@ -140,6 +140,7 @@ extern crate tokio_io;
 extern crate tokio_process;
 extern crate tokio_proto;
 extern crate tokio_service;
+extern crate users;
 
 pub mod command;
 pub mod errors;
@@ -151,9 +152,11 @@ pub mod prelude {
     pub use host::remote::{self, Plain};
     pub use host::local::{self, Local};
     pub use package::{self, Package};
+    pub use service::{self, Service};
     pub use telemetry::{self, Cpu, FsMount, LinuxDistro, Os, OsFamily, OsPlatform, Telemetry};
 }
 pub mod package;
 #[doc(hidden)] pub mod remote;
+pub mod service;
 mod target;
 pub mod telemetry;
