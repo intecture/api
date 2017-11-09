@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `telemetry` mod in crate `intecture_api`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, telemetry">
+
+    <title>intecture_api::telemetry - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'>Module telemetry</p><div class="block items"><ul><li><a href="#structs">Structs</a></li><li><a href="#enums">Enums</a></li></ul></div><p class='location'><a href='../index.html'>intecture_api</a></p><script>window.sidebarCurrent = {name: 'telemetry', ty: 'mod', relpath: '../'};</script><script defer src="../sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Module <a href='../index.html'>intecture_api</a>::<wbr><a class="mod" href=''>telemetry</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../../src/intecture_api/telemetry/mod.rs.html#7-144' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>System generated data about your host.</p>
+
+<p>Telemetry is retrieved automatically when you create a new <code>Host</code>, which is
+nice of it. Call <a href="../host/trait.Host.html#tymethod.telemetry"><code>Host.telemetry()</code></a>
+to access it.</p>
+</div><h2 id='structs' class='section-header'><a href="#structs">Structs</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Cpu.html"
+                                  title='struct intecture_api::telemetry::Cpu'>Cpu</a></td>
+                           <td class='docblock-short'>
+                                <p>Information about the <code>Host</code>s CPU.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.FsMount.html"
+                                  title='struct intecture_api::telemetry::FsMount'>FsMount</a></td>
+                           <td class='docblock-short'>
+                                <p>Information about a specific filesystem mount.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Os.html"
+                                  title='struct intecture_api::telemetry::Os'>Os</a></td>
+                           <td class='docblock-short'>
+                                <p>Information about the <code>Host</code>s OS.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.Telemetry.html"
+                                  title='struct intecture_api::telemetry::Telemetry'>Telemetry</a></td>
+                           <td class='docblock-short'>
+                                <p>Top level structure that contains static information about a <code>Host</code>.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="struct" href="struct.User.html"
+                                  title='struct intecture_api::telemetry::User'>User</a></td>
+                           <td class='docblock-short'>
+                                <p>Information on the current user</p>
+                           </td>
+                       </tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.LinuxDistro.html"
+                                  title='enum intecture_api::telemetry::LinuxDistro'>LinuxDistro</a></td>
+                           <td class='docblock-short'>
+                                <p>Linux distribution name</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.OsFamily.html"
+                                  title='enum intecture_api::telemetry::OsFamily'>OsFamily</a></td>
+                           <td class='docblock-short'>
+                                <p>Operating system family</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="enum" href="enum.OsPlatform.html"
+                                  title='enum intecture_api::telemetry::OsPlatform'>OsPlatform</a></td>
+                           <td class='docblock-short'>
+                                <p>Operating system name</p>
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>↑</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>↓</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>↹</dt>
+                    <dd>Switch tab</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt style="width:31px;">+ / -</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../";
+        window.currentCrate = "intecture_api";
+    </script>
+    <script src="../../main.js"></script>
+    <script defer src="../../search-index.js"></script>
+</body>
+</html>

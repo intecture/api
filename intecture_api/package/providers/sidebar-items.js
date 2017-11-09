@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Apt","The Apt `Package` provider."],["Dnf","The Dnf `Package` provider."],["Homebrew","The Homebrew `Package` provider."],["Nix","The Nix `Package` provider."],["Pkg","The Pkg `Package` provider."],["Yum","The Yum `Package` provider."]],"trait":[["PackageProvider","Trait for `Package` providers."]]});

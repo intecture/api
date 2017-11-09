@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Local","A `Host` type that talks directly to the local machine."]]});

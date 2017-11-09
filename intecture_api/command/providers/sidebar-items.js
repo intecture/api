@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Generic","The generic `Command` provider."]],"trait":[["CommandProvider","Trait for specific `Command` implementations."]]});

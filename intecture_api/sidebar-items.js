@@ -1,0 +1,1 @@
+initSidebarItems({"mod":[["command","Endpoint for running shell commands."],["errors","The API error type."],["host","Manages the connection between the API and a server."],["package","Endpoint for managing packages."],["prelude","The API prelude."],["service","Endpoint for managing system services."],["telemetry","System generated data about your host."]]});

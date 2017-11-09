@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["Provider","Specific implementation of `Package`"]],"struct":[["Package","Represents a system package to be managed for a host."]]});

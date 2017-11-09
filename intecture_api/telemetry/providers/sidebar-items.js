@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Centos",""],["Debian",""],["Fedora",""],["Freebsd",""],["Macos",""],["Nixos",""],["Ubuntu",""]],"trait":[["TelemetryProvider","Trait for specific `Telemetry` implementations."]]});

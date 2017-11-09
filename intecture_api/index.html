@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `intecture_api` crate.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, intecture_api">
+
+    <title>intecture_api - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../normalize.css">
+    <link rel="stylesheet" type="text/css" href="../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc mod">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'>Crate intecture_api</p><div class="block items"><ul><li><a href="#modules">Modules</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'intecture_api', ty: 'mod', relpath: '../'};</script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content">
+<h1 class='fqn'><span class='in-band'>Crate <a class="mod" href=''>intecture_api</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a class='srclink' href='../src/intecture_api/lib.rs.html#7-162' title='goto source code'>[src]</a></span></h1>
+<div class='docblock'><p>Intecture is an API for managing your servers. You can think of it as a
+ DevOps tool, but without the complicated ecosystem and proprietary nonsense.</p>
+
+<p>The core API is, well, the core of Intecture. It contains all the endpoints
+ used to configure a host, as well as the underlying OS abstractions that
+ they are built on. Generally you&#39;ll consume this API via
+ <a href="../intecture_proj/">intecture_proj</a>, which reexports <code>intecture_api</code>,
+ though for projects that do not need a formal structure (e.g. an installer
+ program), this API will suffice.</p>
+
+<h2 id='project-structure' class='section-header'><a href='#project-structure'>Project structure</a></h2>
+<p>The core API is organised into a series of modules (known as “endpoints”,
+ e.g. <code>command</code>, <code>package</code> etc.), which represent basic configuration tasks
+ that you’d normally perform by hand. Within each endpoint is a <code>providers</code>
+ module, which houses the OS-specific abstractions that do the heavy lifting
+ on behalf of the endpoint.</p>
+
+<p>For example, the <a href="package/"><code>package</code></a> endpoint has a struct called
+ <code>Package</code>. This is a cross-platform abstraction for managing a package on
+ your server. Behind this abstraction is a concrete implementation of a
+ specific package <a href="package/providers"><em>provider</em></a>, e.g. Yum or Apt. If you
+ instantiate a new <code>Package</code> instance through the
+ <a href="package/struct.Package.html#method.new"><code>Package::new()</code></a> function, the
+ best available provider for your server is chosen automatically. This is
+ true of all endpoints.</p>
+
+<h2 id='hosts' class='section-header'><a href='#hosts'>Hosts</a></h2>
+<p>So far we’ve talked about using endpoints to automate configuration tasks,
+ but how does Intecture know which server we want to talk to? This is where
+ we need the <a href="host/"><code>host</code></a> endpoint. All things start with a host! Side
+ note - if we were ever to do ‘merch’, that’d probably be on a t-shirt.
+ Anyway, poor marketing decisions aside, you’ll need to create a host in
+ order to do anything.</p>
+
+<p>Hosts come in both the <a href="host/local/struct.Local.html"><code>Local</code></a> and
+ <a href="host/remote/struct.Plain.html"><code>Plain</code></a> varieties. The <code>Local</code> type points
+ to your local machine, and the <code>Plain</code> type is a remote host type that
+ connects to a remote machine over the network. Whichever type you choose,
+ simply pass it in to your endpoints as required and Intecture will do the
+ rest.</p>
+
+<blockquote>
+<p>“Why <code>Plain</code>?” I hear you ask. Well, it’s because the <code>Plain</code> host type is
+ a remote host that uses TCP to send/receive <em>plaintext</em> data.</p>
+</blockquote>
+
+<h2 id='example' class='section-header'><a href='#example'>Example</a></h2>
+<p>Here’s a reproduction of the
+ <a href="https://github.com/intecture/api/blob/master/core/examples/basic.rs">basic example</a>
+ from the <code>examples/</code> folder:</p>
+
+<pre class="rust rust-example-rendered">
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">futures</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">intecture_api</span>;
+<span class="kw">extern</span> <span class="kw">crate</span> <span class="ident">tokio_core</span>;
+
+<span class="kw">use</span> <span class="ident">futures</span>::{<span class="ident">Future</span>, <span class="ident">Stream</span>};
+<span class="kw">use</span> <span class="ident">intecture_api</span>::<span class="ident">prelude</span>::<span class="kw-2">*</span>;
+<span class="kw">use</span> <span class="ident">tokio_core</span>::<span class="ident">reactor</span>::<span class="ident">Core</span>;
+
+<span class="kw">fn</span> <span class="ident">main</span>() {
+    <span class="comment">// These two lines are part of `tokio-core` and can be safely ignored. So</span>
+    <span class="comment">// long as they appear at the top of your code, all is fine with the world.</span>
+    <span class="kw">let</span> <span class="kw-2">mut</span> <span class="ident">core</span> <span class="op">=</span> <span class="ident">Core</span>::<span class="ident">new</span>().<span class="ident">unwrap</span>();
+    <span class="kw">let</span> <span class="ident">handle</span> <span class="op">=</span> <span class="ident">core</span>.<span class="ident">handle</span>();
+
+    <span class="comment">// Here&#39;s the meat of your project. In this example we&#39;re talking to our</span>
+    <span class="comment">// local machine, so we use the `Local` host type.</span>
+    <span class="kw">let</span> <span class="ident">host</span> <span class="op">=</span> <span class="ident">Local</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">handle</span>).<span class="ident">and_then</span>(<span class="op">|</span><span class="ident">host</span><span class="op">|</span> {
+        <span class="comment">// Ok, we&#39;re in! Now we can pass our `host` handle to other endpoints,</span>
+        <span class="comment">// which informs them of the server we mean to talk to.</span>
+
+        <span class="comment">// Let&#39;s start with something basic - a shell command.</span>
+        <span class="kw">let</span> <span class="ident">cmd</span> <span class="op">=</span> <span class="ident">Command</span>::<span class="ident">new</span>(<span class="kw-2">&amp;</span><span class="ident">host</span>, <span class="string">&quot;whoami&quot;</span>, <span class="prelude-val">None</span>);
+        <span class="ident">cmd</span>.<span class="ident">exec</span>().<span class="ident">and_then</span>(<span class="op">|</span><span class="kw-2">mut</span> <span class="ident">status</span><span class="op">|</span> {
+            <span class="comment">// At this point, our command is running. As the API is</span>
+            <span class="comment">// asynchronous, we don&#39;t have to wait for it to finish before</span>
+            <span class="comment">// inspecting its output. This is called &quot;streaming&quot;.</span>
+
+            <span class="comment">// First let&#39;s grab the stream from `CommandStatus`. This stream is</span>
+            <span class="comment">// a stream of strings, each of which represents a line of command</span>
+            <span class="comment">// output. We can use the `for_each` combinator to print these</span>
+            <span class="comment">// lines to stdout.</span>
+            <span class="comment">//</span>
+            <span class="comment">// If printing isn&#39;t your thing, you are also free to lick them or</span>
+            <span class="comment">// whatever you&#39;re into. I&#39;m not here to judge.</span>
+            <span class="kw">let</span> <span class="ident">stream</span> <span class="op">=</span> <span class="ident">status</span>.<span class="ident">take_stream</span>()
+                .<span class="ident">unwrap</span>() <span class="comment">// Unwrap is fine here as we haven&#39;t called it before</span>
+                .<span class="ident">for_each</span>(<span class="op">|</span><span class="ident">line</span><span class="op">|</span> { <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;{}&quot;</span>, <span class="ident">line</span>); <span class="prelude-val">Ok</span>(()) });
+
+            <span class="comment">// Next, let&#39;s check on the result of our command.</span>
+            <span class="comment">// `CommandStatus` is a `Future` that represents the command&#39;s</span>
+            <span class="comment">// exit status. We can use the `map` combinator to print it out.*</span>
+            <span class="comment">//</span>
+            <span class="comment">// * Same caveat as above RE: printing. This is a safe</span>
+            <span class="comment">//   place.</span>
+            <span class="kw">let</span> <span class="ident">status</span> <span class="op">=</span> <span class="ident">status</span>.<span class="ident">map</span>(<span class="op">|</span><span class="ident">s</span><span class="op">|</span> <span class="macro">println</span><span class="macro">!</span>(<span class="string">&quot;This command {} {}&quot;</span>,
+                <span class="kw">if</span> <span class="ident">s</span>.<span class="ident">success</span> { <span class="string">&quot;succeeded&quot;</span> } <span class="kw">else</span> { <span class="string">&quot;failed&quot;</span> },
+                <span class="kw">if</span> <span class="kw">let</span> <span class="prelude-val">Some</span>(<span class="ident">e</span>) <span class="op">=</span> <span class="ident">s</span>.<span class="ident">code</span> { <span class="macro">format</span><span class="macro">!</span>(<span class="string">&quot;with code {}&quot;</span>, <span class="ident">e</span>) } <span class="kw">else</span> { <span class="ident">String</span>::<span class="ident">new</span>() }));
+
+            <span class="comment">// Finally, we need to return these two `Future`s (stream and</span>
+            <span class="comment">// status) so that they will be executed by the event loop. Sadly</span>
+            <span class="comment">// we can&#39;t return them both as a tuple, so we use the join</span>
+            <span class="comment">// combinator instead to turn them into a single `Future`. Easy!</span>
+            <span class="ident">stream</span>.<span class="ident">join</span>(<span class="ident">status</span>)
+        })
+    });
+
+    <span class="comment">// This line is part of `tokio-core` and is used to execute the</span>
+    <span class="comment">// chain of futures you&#39;ve created above. You&#39;ll need to call</span>
+    <span class="comment">// `core.run()` for each host you interact with, otherwise your</span>
+    <span class="comment">// project will not run at all!</span>
+    <span class="ident">core</span>.<span class="ident">run</span>(<span class="ident">host</span>).<span class="ident">unwrap</span>();
+}</pre>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="command/index.html"
+                                  title='mod intecture_api::command'>command</a></td>
+                           <td class='docblock-short'>
+                                <p>Endpoint for running shell commands.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="errors/index.html"
+                                  title='mod intecture_api::errors'>errors</a></td>
+                           <td class='docblock-short'>
+                                <p>The API error type.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="host/index.html"
+                                  title='mod intecture_api::host'>host</a></td>
+                           <td class='docblock-short'>
+                                <p>Manages the connection between the API and a server.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="package/index.html"
+                                  title='mod intecture_api::package'>package</a></td>
+                           <td class='docblock-short'>
+                                <p>Endpoint for managing packages.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="prelude/index.html"
+                                  title='mod intecture_api::prelude'>prelude</a></td>
+                           <td class='docblock-short'>
+                                <p>The API prelude.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="service/index.html"
+                                  title='mod intecture_api::service'>service</a></td>
+                           <td class='docblock-short'>
+                                <p>Endpoint for managing system services.</p>
+                           </td>
+                       </tr>
+                       <tr class=' module-item'>
+                           <td><a class="mod" href="telemetry/index.html"
+                                  title='mod intecture_api::telemetry'>telemetry</a></td>
+                           <td class='docblock-short'>
+                                <p>System generated data about your host.</p>
+                           </td>
+                       </tr></table></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>↑</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>↓</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>↹</dt>
+                    <dd>Switch tab</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt style="width:31px;">+ / -</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../";
+        window.currentCrate = "intecture_api";
+    </script>
+    <script src="../main.js"></script>
+    <script defer src="../search-index.js"></script>
+</body>
+</html>

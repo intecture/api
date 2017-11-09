@@ -1,0 +1,1 @@
+initSidebarItems({"struct":[["Plain","A `Host` type that uses an unencrypted socket."]]});
